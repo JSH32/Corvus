@@ -32,6 +32,9 @@ public:
 private:
     void onUpdate();
 
+    // Load ImGui resources and setup styling for the app to use.
+    void setupImgui();
+
     LayerStack layerStack;
 };
 }

@@ -1,14 +1,13 @@
 #pragma once
 
 #include "entt/entt.hpp"
+#include "linp/entity.hpp"
 #include "raylib-cpp.hpp"
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace Linp::Core {
-class Entity;
-
 class Scene {
 public:
     explicit Scene(const std::string_view& name) : name(name) { }

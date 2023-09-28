@@ -3,6 +3,7 @@
 #include <entt/entt.hpp>
 
 #include "RenderTexture.hpp"
+#include "linp/components/entity_info.hpp"
 #include "linp/entity.hpp"
 #include "linp/log.hpp"
 #include "linp/scene.hpp"
@@ -16,7 +17,7 @@ void Scene::destroyEntity(const Entity entity) {
 
 Entity Scene::createEntity(const std::string& entityName) {
     Entity entity = { registry.create(), this };
-    // entity.addComponent<Components::EntityInfoComponent>(entityName.empty() ? "New entity" : entityName);
+    entity.addComponent<Components::EntityInfoComponent>(entityName.empty() ? "New entity" : entityName);
     // entity.addComponent<sf::Transformable>();
 
     rootOrderedEntities.push_back(entity);
@@ -28,10 +29,10 @@ void Scene::render(raylib::RenderTexture& target) {
     for (auto it = rootOrderedEntities.rbegin(); it != rootOrderedEntities.rend(); ++it) {
         auto& entity = *it;
 
-        // if (!entity.hasComponent<Components::EntityInfoComponent>()) {
-        //     LINP_ERROR("An Entity did not have a EntityInfo component, this should not happen. It has been added automatically.");
-        //     entity.addComponent<Components::EntityInfoComponent>();
-        // }
+        if (!entity.hasComponent<Components::EntityInfoComponent>()) {
+            LINP_ERROR("An Entity did not have a EntityInfo component, this should not happen. It has been added automatically.");
+            entity.addComponent<Components::EntityInfoComponent>();
+        }
 
         // auto& eInfo = entity.getComponent<Components::EntityInfoComponent>();
         // if (!eInfo.enabled)
@@ -49,4 +50,5 @@ void Scene::render(raylib::RenderTexture& target) {
         //     target.draw(entity.getComponent<Components::ShapeComponent>(), sf::RenderStates(transform.getTransform()));
     }
 }
+
 }

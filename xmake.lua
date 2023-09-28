@@ -1,5 +1,5 @@
 add_rules("mode.debug", "mode.release")
-
+    
 task("configure")
     on_run(function ()
         os.execv("xmake", {"project", "-k", "compile_commands"}, {stdout = outfile, stderr = errfile})
@@ -12,9 +12,21 @@ task("configure")
     }
 task_end()
 
-set_languages("c++17")
+package("physfs")
+    add_deps("cmake")
+    set_sourcedir(path.join(os.scriptdir(), "vendor", "physfs"))
+    on_install(function (package)
+        local configs = {}
+        table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
+        table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))
+        import("package.tools.cmake").install(package, configs)
+    end)
+package_end()
+
+set_languages("c++20")
 
 add_requires("glfw")
+add_requires("physfs")
 add_requires("spdlog v1.11.0")
 add_requires("raylib 4.5.0")
 add_requires("entt v3.9.0")
@@ -25,11 +37,30 @@ target("linp-core")
     add_includedirs(
         "core/include",
         "vendor/rlImGui",
+        "vendor/rlImGui/extras",
         "vendor/raylib-cpp/include",
         { public = true }
     )
-    add_packages("glfw", "raylib", "imgui", "entt", "spdlog", { public = true })
-    add_files("vendor/rlImGui/rlImGui.cpp", "core/src/*.cpp")
+    -- On windows needed for physfs
+    add_links("Advapi32")
+    add_packages("glfw", "raylib", "imgui", "entt", "spdlog", "physfs", { public = true })
+    add_files("vendor/rlImGui/rlImGui.cpp", "core/src/**.cpp")
+    -- Dealing with engine resources for PsysFS to read.
+    after_build(function(target)
+        local target_dir = path.directory(target:targetfile())
+        os.rm(target_dir .. "/engine.zip")
+        
+        -- Directly create a zip archive in the target directory
+        if is_plat("windows") then
+            os.exec("powershell Compress-Archive -Path 'resources\\*' -DestinationPath '" .. target_dir .. "\\engine.zip'")
+        else
+            os.exec("zip -r " .. target_dir .. "/engine.zip resources")
+        end
+    end)
+    after_clean(function(target)
+        local target_dir = path.directory(target:targetfile())
+        os.rm(target_dir .. "/engine.zip")
+    end)
 
 target("linp-editor")
     set_kind("binary")
@@ -38,5 +69,5 @@ target("linp-editor")
         "editor/include"
     )
     add_files(
-        "editor/src/*.cpp"
+        "editor/src/**.cpp"
     )

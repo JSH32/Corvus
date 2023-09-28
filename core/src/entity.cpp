@@ -1,6 +1,9 @@
 #include "linp/entity.hpp"
+#include "entt/entity/fwd.hpp"
+#include "linp/scene.hpp"
 
 namespace Linp::Core {
-Entity::Entity(const entt::entity handle, Scene* scene)
-    : entityHandle(handle), scene(scene) { }
+entt::registry& Entity::getRegistry() const {
+    return scene->registry;
+}
 }
