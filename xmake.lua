@@ -1,14 +1,27 @@
-add_rules("mode.debug", "mode.release")
+add_rules("mode.release", "mode.debug")
+set_languages("c++23")
     
-task("configure")
+task("submodule")
     on_run(function ()
+        os.execv("git", {"submodule", "update", "--init", "--recursive"}, {stdout = outfile, stderr = errfile})    
+    end)
+    set_menu {
+        usage = "xmake submodule",
+        description = "Fetch all external dependencies",
+        options = { }
+    }
+
+task("configure")
+    on_run(function ()        
         os.execv("xmake", {"project", "-k", "compile_commands"}, {stdout = outfile, stderr = errfile})
         os.execv("xmake", {"project", "-k", "cmakelists"}, {stdout = outfile, stderr = errfile})
     end)
     set_menu {
         usage = "xmake configure",
         description = "Configure the project and generate CMake files",
-        options = {}
+        options = {
+            -- {'p', ""}
+        }
     }
 task_end()
 
@@ -23,14 +36,12 @@ package("physfs")
     end)
 package_end()
 
-set_languages("c++20")
-
 add_requires("glfw")
 add_requires("physfs")
 add_requires("spdlog v1.11.0")
-add_requires("raylib 4.5.0")
+add_requires("raylib 5.5")
 add_requires("entt v3.9.0")
-add_requires("imgui v1.89.6-docking")
+add_requires("imgui v1.91.9b-docking")
 
 target("linp-core")
     set_kind("static")

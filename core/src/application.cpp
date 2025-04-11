@@ -20,6 +20,7 @@ Application::Application(unsigned int width, unsigned int height, const std::str
 Application::~Application() {
     rlImGuiShutdown();
     PHYSFS_deinit();
+    CloseWindow();
 }
 
 void Application::pushLayer(Layer* layer) {
@@ -32,10 +33,15 @@ void Application::pushOverlay(Layer* layer) {
     layer->onAttach();
 }
 
+void Application::stop() {
+    this->isRunning = false;
+}
+
 void Application::run() {
     SetTargetFPS(60);
+    isRunning = true;
 
-    while (!this->ShouldClose()) {
+    while (this->isRunning && !this->ShouldClose()) {
         BeginDrawing();
 
         this->ClearBackground(RAYWHITE);
@@ -52,8 +58,6 @@ void Application::run() {
 
         EndDrawing();
     }
-
-    CloseWindow();
 }
 
 void Application::setupImgui() {

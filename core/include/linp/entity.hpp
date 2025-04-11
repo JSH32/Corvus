@@ -3,6 +3,8 @@
 #include "entt/core/fwd.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
+
+#include <cstdint>
 #include <utility>
 
 namespace Linp::Core {
@@ -25,7 +27,7 @@ public:
     }
 
     template <typename T>
-    [[nodiscard]] bool hasComponent() const {
+    bool hasComponent() const {
         return getRegistry().all_of<T>(entityHandle);
     }
 

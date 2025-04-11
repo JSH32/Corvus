@@ -9,7 +9,7 @@
 
 namespace Linp::Core {
 // Interface representing desktop system based window
-class Application : public raylib::Window {
+class Application : private raylib::Window {
 public:
     Application(unsigned int width, unsigned int height, const std::string& title);
     ~Application();
@@ -29,11 +29,18 @@ public:
      */
     void pushOverlay(Layer* layer);
 
+    /**
+     * @brief Stop the application loop.
+     */
+    void stop();
+
 private:
     void onUpdate();
 
     // Load ImGui resources and setup styling for the app to use.
     void setupImgui();
+
+    bool isRunning = false;
 
     LayerStack layerStack;
 };

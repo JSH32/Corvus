@@ -1,21 +1,22 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 namespace Linp::Core {
 class Layer {
 public:
-    Layer(const std::string& name = "Layer")
-        : debugName(name) { }
+    explicit Layer(std::string name = "Layer")
+        : debugName(std::move(name)) { }
 
-    virtual ~Layer() { }
+    virtual ~Layer() = default;
 
     virtual void onAttach() { }
     virtual void onDetach() { }
     virtual void onUpdate() { }
     virtual void onImGuiRender() { }
 
-    inline const std::string& getName() const { return debugName; }
+    const std::string& getName() const { return debugName; }
 
 protected:
     std::string debugName;

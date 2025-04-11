@@ -14,7 +14,7 @@ void EditorLayer::onImGuiRender() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Exit")) {
-                application->Close();
+                application->stop();
             }
             ImGui::EndMenu();
         }
