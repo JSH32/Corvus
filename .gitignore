@@ -1,6 +1,6 @@
 # Xmake cache
-.xmake/
-build/
+.xmake
+*build*
 CMakeLists.txt
 compile_commands.json
 

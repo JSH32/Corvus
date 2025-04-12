@@ -6,7 +6,7 @@
 namespace Linp::Core {
 class LayerStack {
 public:
-    LayerStack();
+    LayerStack() = default;
     ~LayerStack();
 
     void pushLayer(Layer* layer);

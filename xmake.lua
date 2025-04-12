@@ -1,6 +1,7 @@
 add_rules("mode.release", "mode.debug")
-set_languages("c++23")
-    
+add_rules("plugin.compile_commands.autoupdate")
+set_languages("c++17", "c++23")
+
 task("submodule")
     on_run(function ()
         os.execv("git", {"submodule", "update", "--init", "--recursive"}, {stdout = outfile, stderr = errfile})    
@@ -19,11 +20,15 @@ task("configure")
     set_menu {
         usage = "xmake configure",
         description = "Configure the project and generate CMake files",
-        options = {
-            -- {'p', ""}
-        }
+        options = { }
     }
 task_end()
+
+add_requires("glfw")
+add_requires("spdlog v1.11.0")
+add_requires("raylib 5.5")
+add_requires("entt v3.9.0")
+add_requires("imgui v1.91.9b-docking")
 
 package("physfs")
     add_deps("cmake")
@@ -36,26 +41,66 @@ package("physfs")
     end)
 package_end()
 
-add_requires("glfw")
 add_requires("physfs")
-add_requires("spdlog v1.11.0")
-add_requires("raylib 5.5")
-add_requires("entt v3.9.0")
-add_requires("imgui v1.91.9b-docking")
+
+target("rlimgui")
+    set_kind("static")
+    
+    add_includedirs("vendor/rlImGui", {public = true})
+    add_includedirs("vendor/rlImGui/extras", {public = true})
+    
+    add_files("vendor/rlImGui/*.cpp")
+    add_headerfiles("vendor/rlImGui/*.h")
+    add_headerfiles("vendor/rlImGui/extras/*.h")
+    
+    add_packages("raylib", {public = true})
+    add_packages("imgui", {public = true})
+
+-- package("raylib-cpp")
+--     set_sourcedir(path.join(os.scriptdir(), "vendor", "raylib-cpp"))
+--     on_install(function (package)
+--         os.cp("include/*.hpp", package:installdir("include"))
+--     end)
+--     add_deps("raylib")
+-- package_end()
+
+target("raylib-cpp")
+    set_kind("headeronly")
+    
+    add_headerfiles("vendor/raylib-cpp/include/*.hpp")
+    add_includedirs("vendor/raylib-cpp/include", {public = true})
+    
+    add_packages("raylib", {public = true})
+
+-- add_requires("rlimgui", { system = false, debug = is_mode("debug") })
+-- add_requires("raylib-cpp", { system = false, debug = is_mode("debug") })
 
 target("linp-core")
     set_kind("static")
     add_includedirs(
         "core/include",
-        "vendor/rlImGui",
-        "vendor/rlImGui/extras",
-        "vendor/raylib-cpp/include",
         { public = true }
     )
+    add_headerfiles("core/include")
+
     -- On windows needed for physfs
-    add_links("Advapi32")
-    add_packages("glfw", "raylib", "imgui", "entt", "spdlog", "physfs", { public = true })
-    add_files("vendor/rlImGui/rlImGui.cpp", "core/src/**.cpp")
+    if is_plat("windows") then
+        add_links("Advapi32")
+    end
+
+    -- xrepo packages
+    add_packages("glfw", { public = true })
+    add_packages("raylib", { public = true })
+    add_packages("imgui", { public = true })
+    add_packages("entt", { public = true })
+    add_packages("spdlog", { public = true })
+    -- Manual packages
+    add_packages("physfs", { public = true })
+    add_deps("rlimgui", { public = true })
+    add_deps("raylib-cpp", { public = true })
+
+    add_files("core/src/**.cpp")
+
     -- Dealing with engine resources for PsysFS to read.
     after_build(function(target)
         local target_dir = path.directory(target:targetfile())

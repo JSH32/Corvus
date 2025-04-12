@@ -1,8 +1,7 @@
 #include "linp/layerstack.hpp"
+#include <algorithm>
 
 namespace Linp::Core {
-LayerStack::LayerStack() { }
-
 // Layers will live until application exit
 LayerStack::~LayerStack() {
     for (Layer* layer : layers)
