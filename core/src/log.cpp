@@ -6,7 +6,7 @@
 
 namespace Linp {
 void spdCustomLog(int msgType, const char* text, va_list args) {
-    std::vector<char> buf(1 + std::vsnprintf(nullptr, 0, text, args)); // <<<
+    std::vector<char> buf(1 + std::vsnprintf(nullptr, 0, text, args));
     std::vsnprintf(buf.data(), buf.size(), text, args);
 
     std::string output(buf.data(), buf.size());

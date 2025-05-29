@@ -1,8 +1,13 @@
 BasedOnStyle: WebKit
 Standard: Cpp11
 
-AlignConsecutiveAssignments: true
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveMacros: Consecutive
 IndentCaseLabels: true
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 2
 PointerAlignment: Left
 SortIncludes: true
 BreakBeforeBraces: Custom
@@ -12,3 +17,4 @@ BraceWrapping:
 AllowShortEnumsOnASingleLine: false
 PackConstructorInitializers: BinPack
 BreakConstructorInitializers: BeforeColon
+InsertNewlineAtEOF: true

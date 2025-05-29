@@ -44,6 +44,10 @@ public:
         return !(*this == other);
     }
 
+    bool isValid() {
+        return this->entityHandle != entt::null;
+    }
+
     operator bool() const { return entityHandle != entt::null; }
     operator uint32_t() const { return (uint32_t)entityHandle; }
     operator entt::entity() const { return entityHandle; }

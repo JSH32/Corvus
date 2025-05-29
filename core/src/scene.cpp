@@ -4,6 +4,8 @@
 
 #include "RenderTexture.hpp"
 #include "linp/components/entity_info.hpp"
+#include "linp/components/mesh_renderer.hpp"
+#include "linp/components/transform.hpp"
 #include "linp/entity.hpp"
 #include "linp/log.hpp"
 #include "linp/scene.hpp"
@@ -34,9 +36,9 @@ void Scene::render(raylib::RenderTexture& target) {
             entity.addComponent<Components::EntityInfoComponent>();
         }
 
-        // auto& eInfo = entity.getComponent<Components::EntityInfoComponent>();
-        // if (!eInfo.enabled)
-        //     return;
+        auto& eInfo = entity.getComponent<Components::EntityInfoComponent>();
+        if (!eInfo.enabled)
+            return;
 
         // // Add a transform component back
         // if (!entity.hasComponent<sf::Transformable>()) {
@@ -48,6 +50,28 @@ void Scene::render(raylib::RenderTexture& target) {
 
         // if (entity.hasComponent<Components::ShapeComponent>())
         //     target.draw(entity.getComponent<Components::ShapeComponent>(), sf::RenderStates(transform.getTransform()));
+    }
+
+    auto meshView = registry.view<Components::TransformComponent, Components::MeshRendererComponent>();
+    for (auto entityHandle : meshView) {
+        Entity entity { entityHandle, this };
+
+        // Check if entity is enabled
+        if (entity.hasComponent<Components::EntityInfoComponent>()) {
+            auto& entityInfo = entity.getComponent<Components::EntityInfoComponent>();
+            if (!entityInfo.enabled)
+                continue;
+        }
+
+        auto& transform    = meshView.get<Components::TransformComponent>(entityHandle);
+        auto& meshRenderer = meshView.get<Components::MeshRendererComponent>(entityHandle);
+
+        // Skip if no mesh or material
+        if (!meshRenderer.mesh || !meshRenderer.material)
+            continue;
+
+        // Render the mesh with transform
+        DrawMesh(*meshRenderer.mesh, *meshRenderer.material, transform.getMatrix());
     }
 }
 

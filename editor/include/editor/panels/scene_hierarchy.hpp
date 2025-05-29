@@ -11,7 +11,7 @@ public:
 
     void onUpdate() override;
 
-    Core::Scene& scene;
+    Core::Scene&  scene;
     Core::Entity& selectedEntity;
 
 private:

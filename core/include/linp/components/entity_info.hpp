@@ -9,6 +9,7 @@ public:
         : tag(std::move(tag)), enabled(enabled) { }
 
     std::string tag;
-    bool enabled {};
+    bool        enabled {};
 };
+
 }

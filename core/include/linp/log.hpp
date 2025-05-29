@@ -1,7 +1,7 @@
 #pragma once
 
 #if defined(_WIN32)
-#define NOGDI // All GDI defines and routines
+#define NOGDI  // All GDI defines and routines
 #define NOUSER // All USER defines and routines
 #endif
 
@@ -31,14 +31,14 @@ private:
 };
 }
 
-#define LINP_CORE_TRACE(...) ::Linp::Log::GetCoreLogger()->trace(__VA_ARGS__)
-#define LINP_CORE_INFO(...) ::Linp::Log::GetCoreLogger()->info(__VA_ARGS__)
-#define LINP_CORE_WARN(...) ::Linp::Log::GetCoreLogger()->warn(__VA_ARGS__)
-#define LINP_CORE_ERROR(...) ::Linp::Log::GetCoreLogger()->error(__VA_ARGS__)
+#define LINP_CORE_TRACE(...)    ::Linp::Log::GetCoreLogger()->trace(__VA_ARGS__)
+#define LINP_CORE_INFO(...)     ::Linp::Log::GetCoreLogger()->info(__VA_ARGS__)
+#define LINP_CORE_WARN(...)     ::Linp::Log::GetCoreLogger()->warn(__VA_ARGS__)
+#define LINP_CORE_ERROR(...)    ::Linp::Log::GetCoreLogger()->error(__VA_ARGS__)
 #define LINP_CORE_CRITICAL(...) ::Linp::Log::GetCoreLogger()->critical(__VA_ARGS__)
 
-#define LINP_TRACE(...) ::Linp::Log::GetClientLogger()->trace(__VA_ARGS__)
-#define LINP_INFO(...) ::Linp::Log::GetClientLogger()->info(__VA_ARGS__)
-#define LINP_WARN(...) ::Linp::Log::GetClientLogger()->warn(__VA_ARGS__)
-#define LINP_ERROR(...) ::Linp::Log::GetClientLogger()->error(__VA_ARGS__)
+#define LINP_TRACE(...)    ::Linp::Log::GetClientLogger()->trace(__VA_ARGS__)
+#define LINP_INFO(...)     ::Linp::Log::GetClientLogger()->info(__VA_ARGS__)
+#define LINP_WARN(...)     ::Linp::Log::GetClientLogger()->warn(__VA_ARGS__)
+#define LINP_ERROR(...)    ::Linp::Log::GetClientLogger()->error(__VA_ARGS__)
 #define LINP_CRITICAL(...) ::Linp::Log::GetClientLogger()->critical(__VA_ARGS__)

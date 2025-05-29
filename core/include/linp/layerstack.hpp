@@ -19,6 +19,6 @@ public:
 
 private:
     std::vector<Layer*> layers;
-    unsigned int layerInsertIndex = 0;
+    unsigned int        layerInsertIndex = 0;
 };
 }

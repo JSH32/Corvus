@@ -8,7 +8,7 @@
 
 namespace Linp::Core {
 Application::Application(unsigned int width, unsigned int height, const std::string& title)
-    : raylib::Window(width, height, title) {
+    : raylib::Window(width, height, title, FLAG_WINDOW_RESIZABLE) {
     PHYSFS_init(nullptr);
     // Add engine zip, contains all engine resources required by the engine.
     PHYSFS_addToSearchPath("engine.zip", 1);
@@ -118,6 +118,7 @@ void Application::setupImgui() {
     style.Colors[ImGuiCol_NavWindowingDimBg]     = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
     style.Colors[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
     style.GrabRounding = style.FrameRounding = 2.3f;
+    style.TabRounding                        = 0.f;
 
     ImFontConfig fontConfig;
     static constexpr ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };

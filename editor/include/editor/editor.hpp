@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-
 namespace Linp::Editor {
 class EditorLayer : public Core::Layer {
 public:
@@ -17,9 +16,9 @@ public:
 
 private:
     std::vector<std::unique_ptr<EditorPanel>> panels;
-    Core::Scene scene;
-    Core::Entity selectedEntity;
-    Core::Application* application;
+    Core::Scene                               scene;
+    Core::Entity                              selectedEntity;
+    Core::Application*                        application;
 
     void startDockspace();
 };

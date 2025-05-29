@@ -1,12 +1,17 @@
 #pragma once
 
 #include "editor/editor.hpp"
+#include "editor/panels/inspector/inspector.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
+#include "editor/panels/scene_view.hpp"
 #include "imgui.h"
 
 namespace Linp::Editor {
 EditorLayer::EditorLayer(Core::Application* application) : Core::Layer("Editor"), scene(Core::Scene("Test Scene")), application(application) {
-    panels.push_back(std::make_unique<SceneHierarchyPanel>(scene, selectedEntity));
+    auto sceneHierarchy = std::make_unique<SceneHierarchyPanel>(scene, selectedEntity);
+    panels.push_back(std::make_unique<InspectorPanel>(scene, sceneHierarchy.get()));
+    panels.push_back(std::make_unique<SceneViewPanel>(scene, sceneHierarchy.get()));
+    panels.push_back(std::move(sceneHierarchy));
 }
 
 void EditorLayer::onImGuiRender() {
@@ -27,8 +32,8 @@ void EditorLayer::onImGuiRender() {
 }
 
 void EditorLayer::startDockspace() {
-    ImGuiWindowFlags windowFlags  = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGuiWindowFlags     windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    const ImGuiViewport* viewport    = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);

@@ -17,11 +17,11 @@ public:
     }
 
     Entity createEntity(const std::string& entityName = std::string());
-    void destroyEntity(Entity entity);
+    void   destroyEntity(Entity entity);
 
     void render(raylib::RenderTexture& target);
 
-    std::string name;
+    std::string    name;
     entt::registry registry;
 
 private:

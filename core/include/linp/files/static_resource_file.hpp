@@ -9,7 +9,7 @@ namespace Linp::Core {
 class StaticResourceFile {
 private:
     PHYSFS_File* file;
-    std::string fileName;
+    std::string  fileName;
 
 public:
     /**

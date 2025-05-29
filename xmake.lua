@@ -1,10 +1,10 @@
 add_rules("mode.release", "mode.debug")
 add_rules("plugin.compile_commands.autoupdate")
-set_languages("c++17", "c++23")
+set_languages("c++20")
 
 task("submodule")
     on_run(function ()
-        os.execv("git", {"submodule", "update", "--init", "--recursive"}, {stdout = outfile, stderr = errfile})    
+        os.execv("git", {"submodule", "update", "--init", "--recursive"}, { stdout = outfile, stderr = errfile })    
     end)
     set_menu {
         usage = "xmake submodule",
@@ -14,8 +14,8 @@ task("submodule")
 
 task("configure")
     on_run(function ()        
-        os.execv("xmake", {"project", "-k", "compile_commands"}, {stdout = outfile, stderr = errfile})
-        os.execv("xmake", {"project", "-k", "cmakelists"}, {stdout = outfile, stderr = errfile})
+        os.execv("xmake", {"project", "-k", "compile_commands"}, { stdout = outfile, stderr = errfile })
+        os.execv("xmake", {"project", "-k", "cmakelists"}, { stdout = outfile, stderr = errfile })
     end)
     set_menu {
         usage = "xmake configure",
@@ -46,34 +46,33 @@ add_requires("physfs")
 target("rlimgui")
     set_kind("static")
     
-    add_includedirs("vendor/rlImGui", {public = true})
-    add_includedirs("vendor/rlImGui/extras", {public = true})
+    add_includedirs("vendor/rlImGui", { public = true })
+    add_includedirs("vendor/rlImGui/extras", { public = true })
     
     add_files("vendor/rlImGui/*.cpp")
     add_headerfiles("vendor/rlImGui/*.h")
     add_headerfiles("vendor/rlImGui/extras/*.h")
     
-    add_packages("raylib", {public = true})
-    add_packages("imgui", {public = true})
+    add_packages("raylib", { public = true })
+    add_packages("imgui", { public = true })
 
--- package("raylib-cpp")
---     set_sourcedir(path.join(os.scriptdir(), "vendor", "raylib-cpp"))
---     on_install(function (package)
---         os.cp("include/*.hpp", package:installdir("include"))
---     end)
---     add_deps("raylib")
--- package_end()
+target("ImGuizmo")
+    set_kind("static")
+    
+    add_includedirs("vendor/ImGuizmo", { public = true })
+    
+    add_files("vendor/ImGuizmo/*.cpp")
+    add_headerfiles("vendor/ImGuizmo/*.h")
+    
+    add_packages("imgui", { public = true })
 
 target("raylib-cpp")
     set_kind("headeronly")
     
     add_headerfiles("vendor/raylib-cpp/include/*.hpp")
-    add_includedirs("vendor/raylib-cpp/include", {public = true})
+    add_includedirs("vendor/raylib-cpp/include", { public = true })
     
-    add_packages("raylib", {public = true})
-
--- add_requires("rlimgui", { system = false, debug = is_mode("debug") })
--- add_requires("raylib-cpp", { system = false, debug = is_mode("debug") })
+    add_packages("raylib", { public = true })
 
 target("linp-core")
     set_kind("static")
@@ -97,6 +96,7 @@ target("linp-core")
     -- Manual packages
     add_packages("physfs", { public = true })
     add_deps("rlimgui", { public = true })
+    add_deps("ImGuizmo", { public = true })
     add_deps("raylib-cpp", { public = true })
 
     add_files("core/src/**.cpp")
