@@ -1,8 +1,10 @@
 #pragma once
 
 #include "entt/entt.hpp"
+#include "linp/components/component_registry.hpp"
 #include "linp/entity.hpp"
 #include "raylib-cpp.hpp"
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,6 +25,26 @@ public:
 
     std::string    name;
     entt::registry registry;
+
+    template <class Archive>
+    void serialize(Archive& ar) {
+        ar(CEREAL_NVP(name));
+        ar(cereal::make_nvp("entities", rootOrderedEntities));
+    }
+
+    // Save scene to file
+    void saveToFile(const std::string& filename) {
+        std::ofstream             file(filename);
+        cereal::JSONOutputArchive ar(file);
+        ar(cereal::make_nvp("scene", *this));
+    }
+
+    // Load scene from file
+    void loadFromFile(const std::string& filename) {
+        std::ifstream            file(filename);
+        cereal::JSONInputArchive ar(file);
+        ar(cereal::make_nvp("scene", *this));
+    }
 
 private:
     std::vector<Entity> rootOrderedEntities;

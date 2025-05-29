@@ -19,6 +19,7 @@ void Scene::destroyEntity(const Entity entity) {
 
 Entity Scene::createEntity(const std::string& entityName) {
     Entity entity = { registry.create(), this };
+
     entity.addComponent<Components::EntityInfoComponent>(entityName.empty() ? "New entity" : entityName);
     entity.addComponent<Components::TransformComponent>();
 

@@ -26,10 +26,12 @@ task_end()
 
 -- xrepo packages
 add_requires("glfw")
+add_requires("cereal")
 add_requires("spdlog v1.11.0")
 add_requires("raylib 5.5")
 add_requires("entt v3.9.0")
 add_requires("imgui v1.91.9b-docking")
+add_requires("boost")
 
 package("physfs")
     add_deps("cmake")
@@ -74,9 +76,11 @@ target("linp-core")
     -- xrepo packages
     add_packages("glfw", { public = true })
     add_packages("raylib", { public = true })
+    add_packages("boost", { public = true })
     add_packages("imgui", { public = true })
     add_packages("entt", { public = true })
     add_packages("spdlog", { public = true })
+    add_packages("cereal", { public = true })
     -- Manual packages
     add_packages("physfs", { public = true })
     add_deps("rlimgui", { public = true })

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/component_registry.hpp"
 #include "entt/core/fwd.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
@@ -47,6 +48,29 @@ public:
     operator bool() const { return entityHandle != entt::null; }
     operator uint32_t() const { return (uint32_t)entityHandle; }
     operator entt::entity() const { return entityHandle; }
+
+    template <class Archive>
+    void serialize(Archive& ar) const {
+        auto& registry = Components::ComponentRegistry::get();
+
+        if constexpr (Archive::is_saving::value) {
+            // Serialize all components this entity has
+            for (const auto& typeIdx : registry.getRegisteredTypeIndices()) {
+                if (registry.hasComponent(typeIdx, entityHandle, getRegistry())) {
+                    std::string typeName = registry.getTypeName(typeIdx);
+                    registry.serializeComponent(typeIdx, entityHandle, getRegistry(), ar, typeName);
+                }
+            }
+        } else {
+            for (const auto& componentName : registry.getRegisteredTypes()) {
+                try {
+                    registry.deserializeComponent(componentName, entityHandle, getRegistry(), ar);
+                } catch (...) {
+                    /* Component doesn't exist on entity */
+                }
+            }
+        }
+    }
 
 private:
     entt::entity entityHandle { entt::null };

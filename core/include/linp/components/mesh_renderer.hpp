@@ -1,6 +1,9 @@
 #pragma once
+#include "cereal/cereal.hpp"
+#include "component_registry.hpp"
 #include "raylib-cpp.hpp"
 #include "raylib.h"
+#include <cereal/archives/json.hpp>
 #include <memory>
 
 namespace Linp::Core::Components {
@@ -13,7 +16,7 @@ enum class PrimitiveType {
     Custom
 };
 
-struct MeshRendererComponent {
+struct MeshRendererComponent : public Linp::Core::Components::SerializableComponent<MeshRendererComponent> {
     PrimitiveType                     primitiveType = PrimitiveType::Cube;
     std::shared_ptr<raylib::Mesh>     mesh;
     std::shared_ptr<raylib::Material> material;
@@ -39,10 +42,34 @@ struct MeshRendererComponent {
         } cylinder;
     } params;
 
-    MeshRendererComponent() {
+    MeshRendererComponent() : SerializableComponent("MeshRenderer") {
         params.cube.size = 1.0f;
         material         = std::make_shared<raylib::Material>(LoadMaterialDefault());
         generateMesh();
+    }
+
+    template <class Archive>
+    void serialize(Archive& ar) {
+        int primitiveTypeInt = static_cast<int>(primitiveType);
+        ar(CEREAL_NVP(primitiveTypeInt));
+
+        // Serialize all union data
+        ar(cereal::make_nvp("cube_size", params.cube.size));
+        ar(cereal::make_nvp("sphere_radius", params.sphere.radius));
+        ar(cereal::make_nvp("sphere_rings", params.sphere.rings));
+        ar(cereal::make_nvp("sphere_slices", params.sphere.slices));
+        ar(cereal::make_nvp("plane_width", params.plane.width));
+        ar(cereal::make_nvp("plane_length", params.plane.length));
+        ar(cereal::make_nvp("cylinder_radius", params.cylinder.radius));
+        ar(cereal::make_nvp("cylinder_height", params.cylinder.height));
+        ar(cereal::make_nvp("cylinder_slices", params.cylinder.slices));
+
+        // After deserialization, regenerate GPU resources
+        if constexpr (Archive::is_loading::value) {
+            primitiveType = static_cast<PrimitiveType>(primitiveTypeInt);
+            material      = std::make_shared<raylib::Material>(LoadMaterialDefault());
+            generateMesh();
+        }
     }
 
     void generateMesh() {

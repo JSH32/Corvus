@@ -18,6 +18,10 @@ void EditorLayer::onImGuiRender() {
     startDockspace();
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Save Scene (TEST)")) {
+                scene.saveToFile("test.scene");
+            }
+
             if (ImGui::MenuItem("Exit")) {
                 application->stop();
             }

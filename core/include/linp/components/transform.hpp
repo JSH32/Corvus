@@ -1,10 +1,16 @@
 #pragma once
 
+#include "cereal/cereal.hpp"
+#include "component_registry.hpp"
+#include "entity_info.hpp"
+#include "linp/components/serializers.hpp"
+#include <array>
+#include <cereal/archives/json.hpp>
 #include <raylib-cpp.hpp>
 #include <string>
 
 namespace Linp::Core::Components {
-struct TransformComponent {
+struct TransformComponent : public Linp::Core::Components::SerializableComponent<TransformComponent> {
     raylib::Vector3    position = raylib::Vector3(0.0f, 0.0f, 0.0f);
     raylib::Quaternion rotation = raylib::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
     raylib::Vector3    scale    = raylib::Vector3(1.0f, 1.0f, 1.0f);
@@ -14,6 +20,15 @@ struct TransformComponent {
         auto rotationMat = QuaternionToMatrix(rotation);
         auto scaling     = MatrixScale(scale.x, scale.y, scale.z);
         return MatrixMultiply(MatrixMultiply(scaling, rotationMat), translation);
+    }
+
+    TransformComponent() : SerializableComponent("Transform") { }
+
+    template <class Archive>
+    void serialize(Archive& ar) {
+        ar(cereal::make_nvp("position", position));
+        ar(cereal::make_nvp("rotation", rotation));
+        ar(cereal::make_nvp("scale", scale));
     }
 
     static TransformComponent fromMatrix(const raylib::Matrix& matrix) {
@@ -72,4 +87,5 @@ struct TransformComponent {
         return transform;
     }
 };
+
 }
