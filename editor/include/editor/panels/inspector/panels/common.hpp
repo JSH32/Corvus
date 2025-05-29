@@ -63,16 +63,11 @@ struct ComponentInfo<Linp::Core::Components::TransformComponent> {
         }
 
         // Rotation - convert quaternion to Euler for editing
-        static raylib::Vector3 eulerAngles      = { 0.0f, 0.0f, 0.0f };
-        static bool            eulerInitialized = false;
-
-        if (!eulerInitialized) {
-            eulerAngles = QuaternionToEuler(transform.rotation);
-            eulerAngles.x *= RAD2DEG;
-            eulerAngles.y *= RAD2DEG;
-            eulerAngles.z *= RAD2DEG;
-            eulerInitialized = true;
-        }
+        // ALWAYS update the Euler angles to reflect current quaternion
+        raylib::Vector3 eulerAngles = QuaternionToEuler(transform.rotation);
+        eulerAngles.x *= RAD2DEG;
+        eulerAngles.y *= RAD2DEG;
+        eulerAngles.z *= RAD2DEG;
 
         if (ImGui::Vector3Editor("Rotation", eulerAngles)) {
             transform.rotation = QuaternionFromEuler(

@@ -10,3 +10,6 @@
 [submodule "vendor/ImGuizmo"]
 	path = vendor/ImGuizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "vendor/raylib-gizmo"]
+	path = vendor/raylib-gizmo
+	url = https://github.com/cloudofoz/raylib-gizmo.git

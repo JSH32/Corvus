@@ -120,7 +120,7 @@ void Application::setupImgui() {
     style.GrabRounding = style.FrameRounding = 2.3f;
     style.TabRounding                        = 0.f;
 
-    ImFontConfig fontConfig;
+    ImFontConfig             fontConfig;
     static constexpr ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
     fontConfig.PixelSnapH                 = true;
 

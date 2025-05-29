@@ -24,6 +24,7 @@ task("configure")
     }
 task_end()
 
+-- xrepo packages
 add_requires("glfw")
 add_requires("spdlog v1.11.0")
 add_requires("raylib 5.5")
@@ -45,34 +46,18 @@ add_requires("physfs")
 
 target("rlimgui")
     set_kind("static")
-    
     add_includedirs("vendor/rlImGui", { public = true })
     add_includedirs("vendor/rlImGui/extras", { public = true })
-    
     add_files("vendor/rlImGui/*.cpp")
-    add_headerfiles("vendor/rlImGui/*.h")
-    add_headerfiles("vendor/rlImGui/extras/*.h")
-    
-    add_packages("raylib", { public = true })
-    add_packages("imgui", { public = true })
-
-target("ImGuizmo")
-    set_kind("static")
-    
-    add_includedirs("vendor/ImGuizmo", { public = true })
-    
-    add_files("vendor/ImGuizmo/*.cpp")
-    add_headerfiles("vendor/ImGuizmo/*.h")
-    
-    add_packages("imgui", { public = true })
+    -- Deps
+    add_packages("raylib")
+    add_packages("imgui")
 
 target("raylib-cpp")
     set_kind("headeronly")
-    
-    add_headerfiles("vendor/raylib-cpp/include/*.hpp")
     add_includedirs("vendor/raylib-cpp/include", { public = true })
-    
-    add_packages("raylib", { public = true })
+    -- Deps
+    add_packages("raylib")
 
 target("linp-core")
     set_kind("static")
@@ -80,7 +65,6 @@ target("linp-core")
         "core/include",
         { public = true }
     )
-    add_headerfiles("core/include")
 
     -- On windows needed for physfs
     if is_plat("windows") then
@@ -96,7 +80,6 @@ target("linp-core")
     -- Manual packages
     add_packages("physfs", { public = true })
     add_deps("rlimgui", { public = true })
-    add_deps("ImGuizmo", { public = true })
     add_deps("raylib-cpp", { public = true })
 
     add_files("core/src/**.cpp")
@@ -125,5 +108,8 @@ target("linp-editor")
         "editor/include"
     )
     add_files(
-        "editor/src/**.cpp"
+        "editor/src/**.cpp",
+        "editor/src/**.c",
+        "editor/src/**/**.cpp",
+        "editor/src/**/**.c"
     )

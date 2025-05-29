@@ -20,7 +20,7 @@ void Scene::destroyEntity(const Entity entity) {
 Entity Scene::createEntity(const std::string& entityName) {
     Entity entity = { registry.create(), this };
     entity.addComponent<Components::EntityInfoComponent>(entityName.empty() ? "New entity" : entityName);
-    // entity.addComponent<sf::Transformable>();
+    entity.addComponent<Components::TransformComponent>();
 
     rootOrderedEntities.push_back(entity);
 
@@ -35,21 +35,6 @@ void Scene::render(raylib::RenderTexture& target) {
             LINP_ERROR("An Entity did not have a EntityInfo component, this should not happen. It has been added automatically.");
             entity.addComponent<Components::EntityInfoComponent>();
         }
-
-        auto& eInfo = entity.getComponent<Components::EntityInfoComponent>();
-        if (!eInfo.enabled)
-            return;
-
-        // // Add a transform component back
-        // if (!entity.hasComponent<sf::Transformable>()) {
-        //     LINP_ERROR("Entity \"{0}\" did not have a Transform component, this should not happen. It has been added automatically.", eInfo.tag);
-        //     entity.addComponent<sf::Transformable>();
-        // }
-
-        // const auto& transform = entity.getComponent<sf::Transformable>();
-
-        // if (entity.hasComponent<Components::ShapeComponent>())
-        //     target.draw(entity.getComponent<Components::ShapeComponent>(), sf::RenderStates(transform.getTransform()));
     }
 
     auto meshView = registry.view<Components::TransformComponent, Components::MeshRendererComponent>();

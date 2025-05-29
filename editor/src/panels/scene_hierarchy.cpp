@@ -38,17 +38,23 @@ void SceneHierarchyPanel::drawEntity(Core::Entity entity) const {
     }
 }
 
+bool SceneHierarchyPanel::isFocused() {
+    return windowFocused;
+}
+
 void SceneHierarchyPanel::onUpdate() {
-    ImGui::Begin(ICON_FA_LIST_UL " Hierarchy");
+    if (ImGui::Begin(ICON_FA_LIST_UL " Hierarchy")) {
+        windowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
-    for (auto& entity : scene.getRootOrderedEntities())
-        drawEntity(entity);
+        for (auto& entity : scene.getRootOrderedEntities())
+            drawEntity(entity);
 
-    if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight)) {
-        if (ImGui::MenuItem("Create New Entity"))
-            scene.createEntity("New Entity");
+        if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight)) {
+            if (ImGui::MenuItem("Create New Entity"))
+                scene.createEntity("New Entity");
 
-        ImGui::EndPopup();
+            ImGui::EndPopup();
+        }
     }
 
     ImGui::End();

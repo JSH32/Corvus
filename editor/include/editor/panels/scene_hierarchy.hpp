@@ -13,8 +13,10 @@ public:
 
     Core::Scene&  scene;
     Core::Entity& selectedEntity;
+    bool          isFocused();
 
 private:
     void drawEntity(Core::Entity entity) const;
+    bool windowFocused;
 };
 }

@@ -3,7 +3,7 @@
 #include "editor/editor.hpp"
 #include "editor/panels/inspector/inspector.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
-#include "editor/panels/scene_view.hpp"
+#include "editor/panels/scene_view/scene_view.hpp"
 #include "imgui.h"
 
 namespace Linp::Editor {
