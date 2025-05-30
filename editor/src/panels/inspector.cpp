@@ -13,7 +13,8 @@ void InspectorPanel::onUpdate() {
 
         // Add Component section
         ImGui::Separator();
-        if (ImGui::Button(ICON_FA_PLUS " Add Component", ImVec2(ImGui::GetContentRegionAvail().x, 25))) {
+        if (ImGui::Button(ICON_FA_PLUS " Add Component",
+                          ImVec2(ImGui::GetContentRegionAvail().x, 25))) {
             ImGui::OpenPopup("AddComponent");
         }
 
@@ -36,11 +37,10 @@ void InspectorPanel::drawAllComponents(Core::Entity entity) {
         if constexpr (HasComponentInfo<ComponentType>) {
             if (entity.hasComponent<ComponentType>()) {
                 auto& component = entity.getComponent<ComponentType>();
-                drawComponentImpl<ComponentType>(
-                    entity,
-                    std::string(ComponentInfo<ComponentType>::name),
-                    ComponentInfo<ComponentType>::removable,
-                    ComponentInfo<ComponentType>::flat);
+                drawComponentImpl<ComponentType>(entity,
+                                                 std::string(ComponentInfo<ComponentType>::name),
+                                                 ComponentInfo<ComponentType>::removable,
+                                                 ComponentInfo<ComponentType>::flat);
             }
         }
 
@@ -50,14 +50,17 @@ void InspectorPanel::drawAllComponents(Core::Entity entity) {
 }
 
 template <typename T>
-void InspectorPanel::drawComponentImpl(Core::Entity entity, const std::string& name, bool removable, bool flat) {
+void InspectorPanel::drawComponentImpl(Core::Entity       entity,
+                                       const std::string& name,
+                                       bool               removable,
+                                       bool               flat) {
     auto& component = entity.getComponent<T>();
 
     if (flat) {
         // Still show settings button if removable
         if (removable) {
             ImGui::SameLine();
-            const float lineHeight             = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+            const float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
             const auto  contentRegionAvailable = ImGui::GetContentRegionAvail();
 
             ImGui::SameLine(contentRegionAvailable.x - lineHeight * 0.5f);
@@ -88,17 +91,16 @@ void InspectorPanel::drawComponentImpl(Core::Entity entity, const std::string& n
         ComponentInfo<T>::draw(component);
         ImGui::PopID();
     } else {
-        constexpr ImGuiTreeNodeFlags treeNodeFlags          = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
-        const auto                   contentRegionAvailable = ImGui::GetContentRegionAvail();
+        constexpr ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_DefaultOpen
+            | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth
+            | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
+        const auto contentRegionAvailable = ImGui::GetContentRegionAvail();
 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2 { 4, 4 });
         const float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
         ImGui::Separator();
         const bool open = ImGui::TreeNodeEx(
-            reinterpret_cast<void*>(typeid(T).hash_code()),
-            treeNodeFlags,
-            "%s",
-            name.c_str());
+            reinterpret_cast<void*>(typeid(T).hash_code()), treeNodeFlags, "%s", name.c_str());
         ImGui::PopStyleVar();
 
         // Settings button
@@ -143,7 +145,8 @@ void InspectorPanel::drawAddComponentMenu(Core::Entity entity) {
 
         if constexpr (HasComponentInfo<ComponentType>) {
             // Only show components that can be added (removable) and aren't already present
-            bool shouldShow = (ComponentInfo<ComponentType>::removable || !entity.hasComponent<ComponentType>())
+            bool shouldShow
+                = (ComponentInfo<ComponentType>::removable || !entity.hasComponent<ComponentType>())
                 && !entity.hasComponent<ComponentType>();
 
             if (shouldShow) {

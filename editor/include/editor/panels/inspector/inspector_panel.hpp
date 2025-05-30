@@ -63,9 +63,8 @@ concept HasComponentInfo = requires(T component) {
  *
  * The inspector will iterate over this to know what is renderable
  */
-using DrawableComponents = std::tuple<
-    Linp::Core::Components::EntityInfoComponent,
-    Linp::Core::Components::TransformComponent,
-    Linp::Core::Components::MeshRendererComponent>;
+using DrawableComponents = std::tuple<Linp::Core::Components::EntityInfoComponent,
+                                      Linp::Core::Components::TransformComponent,
+                                      Linp::Core::Components::MeshRendererComponent>;
 
 }

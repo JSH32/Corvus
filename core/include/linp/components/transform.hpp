@@ -10,7 +10,7 @@
 #include <string>
 
 namespace Linp::Core::Components {
-struct TransformComponent : public Linp::Core::Components::SerializableComponent<TransformComponent> {
+struct TransformComponent {
     raylib::Vector3    position = raylib::Vector3(0.0f, 0.0f, 0.0f);
     raylib::Quaternion rotation = raylib::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
     raylib::Vector3    scale    = raylib::Vector3(1.0f, 1.0f, 1.0f);
@@ -21,8 +21,6 @@ struct TransformComponent : public Linp::Core::Components::SerializableComponent
         auto scaling     = MatrixScale(scale.x, scale.y, scale.z);
         return MatrixMultiply(MatrixMultiply(scaling, rotationMat), translation);
     }
-
-    TransformComponent() : SerializableComponent("Transform") { }
 
     template <class Archive>
     void serialize(Archive& ar) {
@@ -87,5 +85,7 @@ struct TransformComponent : public Linp::Core::Components::SerializableComponent
         return transform;
     }
 };
+
+REGISTER_COMPONENT(TransformComponent, "Transform");
 
 }

@@ -3,7 +3,5 @@
 #include "linp/scene.hpp"
 
 namespace Linp::Core {
-entt::registry& Entity::getRegistry() const {
-    return scene->registry;
-}
+entt::registry& Entity::getRegistry() const { return scene->registry; }
 }

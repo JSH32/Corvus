@@ -12,10 +12,7 @@
 namespace Linp::Editor {
 
 SceneViewport::SceneViewport(Core::Scene& scene)
-    : scene(scene),
-      editorCamera(),
-      editorGizmo(),
-      sceneTexture({ 0 }),
+    : scene(scene), editorCamera(), editorGizmo(), sceneTexture({ 0 }),
       currentSize({ 1.0f, 1.0f }) {
 
     // Set up camera with good defaults for scene editing
@@ -23,8 +20,8 @@ SceneViewport::SceneViewport(Core::Scene& scene)
     editorCamera.setDistance(10.0f);
     editorCamera.setOrbitAngles({ 0.45f, -0.45f });
 
-    auto        vertBytes = Core::StaticResourceFile::create("engine/shaders/grid.vert")->readAllBytes();
-    auto        fragBytes = Core::StaticResourceFile::create("engine/shaders/grid.frag")->readAllBytes();
+    auto vertBytes = Core::StaticResourceFile::create("engine/shaders/grid.vert")->readAllBytes();
+    auto fragBytes = Core::StaticResourceFile::create("engine/shaders/grid.frag")->readAllBytes();
     std::string vertShader(vertBytes.begin(), vertBytes.end());
     std::string fragShader(fragBytes.begin(), fragBytes.end());
 
@@ -50,7 +47,8 @@ void SceneViewport::manageRenderTexture(const ImVec2& size) {
     int height = static_cast<int>(size.y);
 
     // Only recreate if size changed or texture doesn't exist
-    bool needsRecreation = (sceneTexture.id == 0) || (sceneTexture.texture.width != width) || (sceneTexture.texture.height != height);
+    bool needsRecreation = (sceneTexture.id == 0) || (sceneTexture.texture.width != width)
+        || (sceneTexture.texture.height != height);
 
     if (needsRecreation) {
         if (sceneTexture.id != 0) {
@@ -90,10 +88,7 @@ void SceneViewport::renderSceneToTexture() {
 
 void SceneViewport::render(const ImVec2& size) {
     // Ensure valid size
-    ImVec2 validSize = {
-        std::max(1.0f, size.x),
-        std::max(1.0f, size.y)
-    };
+    ImVec2 validSize = { std::max(1.0f, size.x), std::max(1.0f, size.y) };
 
     // Update viewport size if changed
     if (validSize.x != currentSize.x || validSize.y != currentSize.y) {
@@ -114,9 +109,10 @@ Core::Entity SceneViewport::pickEntity(const Vector2& mousePos) {
     }
 
     // Cast ray from mouse position into 3D world using EditorCamera
-    Ray mouseRay = GetScreenToWorldRayEx(mousePos, editorCamera.getCamera(),
-        sceneTexture.texture.width,
-        sceneTexture.texture.height);
+    Ray mouseRay = GetScreenToWorldRayEx(mousePos,
+                                         editorCamera.getCamera(),
+                                         sceneTexture.texture.width,
+                                         sceneTexture.texture.height);
 
     Core::Entity closestEntity   = {};
     float        closestDistance = FLT_MAX;
@@ -127,12 +123,14 @@ Core::Entity SceneViewport::pickEntity(const Vector2& mousePos) {
         Core::Entity& entity = *it;
 
         // Skip disabled entities
-        if (!entity.hasComponent<Core::Components::EntityInfoComponent>() || !entity.getComponent<Core::Components::EntityInfoComponent>().enabled) {
+        if (!entity.hasComponent<Core::Components::EntityInfoComponent>()
+            || !entity.getComponent<Core::Components::EntityInfoComponent>().enabled) {
             continue;
         }
 
         // Only check entities with transform
-        if (!entity.hasComponent<Core::Components::MeshRendererComponent>() || !entity.hasComponent<Core::Components::TransformComponent>()) {
+        if (!entity.hasComponent<Core::Components::MeshRendererComponent>()
+            || !entity.hasComponent<Core::Components::TransformComponent>()) {
             continue;
         }
 
@@ -140,7 +138,8 @@ Core::Entity SceneViewport::pickEntity(const Vector2& mousePos) {
         const auto& transformComp = entity.getComponent<Core::Components::TransformComponent>();
 
         if (meshRenderer.mesh) {
-            RayCollision collision = GetRayCollisionMesh(mouseRay, *meshRenderer.mesh, transformComp.getMatrix());
+            RayCollision collision
+                = GetRayCollisionMesh(mouseRay, *meshRenderer.mesh, transformComp.getMatrix());
             if (collision.hit && collision.distance < closestDistance) {
                 closestDistance = collision.distance;
                 closestEntity   = entity;
@@ -151,8 +150,13 @@ Core::Entity SceneViewport::pickEntity(const Vector2& mousePos) {
     return closestEntity;
 }
 
-void SceneViewport::updateGizmo(Core::Entity& entity, const Vector2& mousePos, bool mousePressed,
-    bool mouseDown, bool mouseInViewport, float viewportWidth, float viewportHeight) {
+void SceneViewport::updateGizmo(Core::Entity&  entity,
+                                const Vector2& mousePos,
+                                bool           mousePressed,
+                                bool           mouseDown,
+                                bool           mouseInViewport,
+                                float          viewportWidth,
+                                float          viewportHeight) {
     if (!entity || !entity.hasComponent<Core::Components::TransformComponent>()) {
         return;
     }
@@ -164,7 +168,13 @@ void SceneViewport::updateGizmo(Core::Entity& entity, const Vector2& mousePos, b
         BeginTextureMode(sceneTexture);
         BeginMode3D(editorCamera.getCamera());
 
-        editorGizmo.update(transform, mousePos, mousePressed, mouseDown, mouseInViewport, viewportWidth, viewportHeight);
+        editorGizmo.update(transform,
+                           mousePos,
+                           mousePressed,
+                           mouseDown,
+                           mouseInViewport,
+                           viewportWidth,
+                           viewportHeight);
 
         EndMode3D();
         EndTextureMode();
@@ -176,16 +186,23 @@ void SceneViewport::renderGrid(const Camera3D& camera) {
         return;
 
     // Set shader uniforms
-    Matrix viewProjection = MatrixMultiply(GetCameraMatrix(camera),
+    Matrix viewProjection = MatrixMultiply(
+        GetCameraMatrix(camera),
         MatrixPerspective(camera.fovy * DEG2RAD,
-            (float)sceneTexture.texture.width / sceneTexture.texture.height,
-            0.1f, 1000.0f));
+                          (float)sceneTexture.texture.width / sceneTexture.texture.height,
+                          0.1f,
+                          1000.0f));
 
-    SetShaderValueMatrix(gridShader, GetShaderLocation(gridShader, "viewProjection"), viewProjection);
-    SetShaderValue(gridShader, GetShaderLocation(gridShader, "cameraPos"), &camera.position, SHADER_UNIFORM_VEC3);
+    SetShaderValueMatrix(
+        gridShader, GetShaderLocation(gridShader, "viewProjection"), viewProjection);
+    SetShaderValue(gridShader,
+                   GetShaderLocation(gridShader, "cameraPos"),
+                   &camera.position,
+                   SHADER_UNIFORM_VEC3);
 
     float gridSize = 1000.0f;
-    SetShaderValue(gridShader, GetShaderLocation(gridShader, "gridSize"), &gridSize, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(
+        gridShader, GetShaderLocation(gridShader, "gridSize"), &gridSize, SHADER_UNIFORM_FLOAT);
 
     Material gridMaterial = LoadMaterialDefault();
     gridMaterial.shader   = gridShader;

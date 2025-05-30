@@ -12,7 +12,8 @@ namespace Linp::Editor {
 
 /**
  * @class SceneViewport
- * @brief Core 3D viewport functionality for rendering scenes with camera controls and entity interaction.
+ * @brief Core 3D viewport functionality for rendering scenes with camera controls and entity
+ * interaction.
  *
  * Handles scene rendering to texture, camera management, entity picking, and gizmo manipulation.
  * Designed to be reusable across different editor UI contexts.
@@ -60,8 +61,13 @@ public:
      * @param viewportWidth Current viewport width.
      * @param viewportHeight Current viewport height.
      */
-    void updateGizmo(Core::Entity& entity, const Vector2& mousePos, bool mousePressed,
-        bool mouseDown, bool mouseInViewport, float viewportWidth, float viewportHeight);
+    void updateGizmo(Core::Entity&  entity,
+                     const Vector2& mousePos,
+                     bool           mousePressed,
+                     bool           mouseDown,
+                     bool           mouseInViewport,
+                     float          viewportWidth,
+                     float          viewportHeight);
 
     /**
      * @brief Gets the render texture for display in ImGui.

@@ -7,21 +7,15 @@
 
 namespace Linp::Editor {
 
-EditorCamera::EditorCamera()
-    : EditorCamera({ 0.0f, 0.0f, 0.0f }, 10.0f, { 0.45f, -0.45f }) {
-}
+EditorCamera::EditorCamera() : EditorCamera({ 0.0f, 0.0f, 0.0f }, 10.0f, { 0.45f, -0.45f }) { }
 
-EditorCamera::EditorCamera(const raylib::Vector3& target, float distance, const raylib::Vector2& orbitAngles)
-    : target(target),
-      orbitAngles(orbitAngles),
-      distance(distance),
-      minDistance(DEFAULT_MIN_DISTANCE),
-      maxDistance(DEFAULT_MAX_DISTANCE),
-      pitchMin(DEFAULT_PITCH_MIN),
-      pitchMax(DEFAULT_PITCH_MAX),
-      zoomSpeed(DEFAULT_ZOOM_SPEED),
-      orbitSpeed(DEFAULT_ORBIT_SPEED),
-      panSpeedFactor(DEFAULT_PAN_SPEED_FACTOR) {
+EditorCamera::EditorCamera(const raylib::Vector3& target,
+                           float                  distance,
+                           const raylib::Vector2& orbitAngles)
+    : target(target), orbitAngles(orbitAngles), distance(distance),
+      minDistance(DEFAULT_MIN_DISTANCE), maxDistance(DEFAULT_MAX_DISTANCE),
+      pitchMin(DEFAULT_PITCH_MIN), pitchMax(DEFAULT_PITCH_MAX), zoomSpeed(DEFAULT_ZOOM_SPEED),
+      orbitSpeed(DEFAULT_ORBIT_SPEED), panSpeedFactor(DEFAULT_PAN_SPEED_FACTOR) {
 
     // Initialize camera with sensible defaults
     camera.target     = this->target;

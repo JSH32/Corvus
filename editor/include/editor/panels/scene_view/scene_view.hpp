@@ -12,7 +12,8 @@ namespace Linp::Editor {
 
 /**
  * @class SceneViewPanel
- * @brief An ImGui panel that displays a 3D scene viewport with camera controls and entity selection.
+ * @brief An ImGui panel that displays a 3D scene viewport with camera controls and entity
+ * selection.
  *
  * Wraps SceneViewport with ImGui-specific UI handling, window management, and integration
  * with the SceneHierarchyPanel for entity selection synchronization.

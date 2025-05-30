@@ -33,9 +33,7 @@ void Application::pushOverlay(Layer* layer) {
     layer->onAttach();
 }
 
-void Application::stop() {
-    this->isRunning = false;
-}
+void Application::stop() { this->isRunning = false; }
 
 void Application::run() {
     SetTargetFPS(60);
@@ -125,10 +123,15 @@ void Application::setupImgui() {
     fontConfig.PixelSnapH                 = true;
 
     const auto bytes = StaticResourceFile::create("engine/fonts/DroidSans.ttf")->readAllBytes();
-    io.FontDefault   = io.Fonts->AddFontFromMemoryTTF((void*)bytes.data(), (int)bytes.size(), 16.f, &fontConfig);
+    io.FontDefault
+        = io.Fonts->AddFontFromMemoryTTF((void*)bytes.data(), (int)bytes.size(), 16.f, &fontConfig);
 
     fontConfig.MergeMode = true;
-    io.Fonts->AddFontFromMemoryCompressedTTF((void*)fa_solid_900_compressed_data, fa_solid_900_compressed_size, 14.f, &fontConfig, iconRanges);
+    io.Fonts->AddFontFromMemoryCompressedTTF((void*)fa_solid_900_compressed_data,
+                                             fa_solid_900_compressed_size,
+                                             14.f,
+                                             &fontConfig,
+                                             iconRanges);
     io.Fonts->Build();
 
     rlImGuiReloadFonts();

@@ -16,7 +16,7 @@ enum class PrimitiveType {
     Custom
 };
 
-struct MeshRendererComponent : public Linp::Core::Components::SerializableComponent<MeshRendererComponent> {
+struct MeshRendererComponent {
     PrimitiveType                     primitiveType = PrimitiveType::Cube;
     std::shared_ptr<raylib::Mesh>     mesh;
     std::shared_ptr<raylib::Material> material;
@@ -42,7 +42,7 @@ struct MeshRendererComponent : public Linp::Core::Components::SerializableCompon
         } cylinder;
     } params;
 
-    MeshRendererComponent() : SerializableComponent("MeshRenderer") {
+    MeshRendererComponent() {
         params.cube.size = 1.0f;
         material         = std::make_shared<raylib::Material>(LoadMaterialDefault());
         generateMesh();
@@ -92,5 +92,7 @@ struct MeshRendererComponent : public Linp::Core::Components::SerializableCompon
         }
     }
 };
+
+REGISTER_COMPONENT(MeshRendererComponent, "EntityInfo");
 
 }

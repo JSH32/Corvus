@@ -10,8 +10,12 @@
 
 namespace Linp::Core::Components {
 
-using SerializerFunc       = std::function<void(entt::entity, entt::registry&, cereal::JSONOutputArchive&, const std::string&)>;
-using DeserializerFunc     = std::function<void(entt::entity, entt::registry&, cereal::JSONInputArchive&)>;
+using SerializerFunc = std::function<void(
+    entt::entity, entt::registry&, cereal::JSONOutputArchive&, const std::string&)>;
+
+using DeserializerFunc
+    = std::function<void(entt::entity, entt::registry&, cereal::JSONInputArchive&)>;
+
 using ComponentCheckerFunc = std::function<bool(entt::entity, entt::registry&)>;
 
 using TypeToNameMap   = std::unordered_map<std::type_index, std::string>;
@@ -22,10 +26,11 @@ using CheckerMap      = std::unordered_map<std::type_index, ComponentCheckerFunc
 
 /**
  * @class ComponentRegistry
- * @brief Central registry that manages component metadata, serialization, and type mapping
+ * @brief Central registry that manages component metadata, serialization, and
+ * type mapping
  *
- * This singleton class maintains mappings between component types and their names,
- * and stores serialization functions for each registered component type.
+ * This singleton class maintains mappings between component types and their
+ * names, and stores serialization functions for each registered component type.
  * Components are automatically registered statically.
  */
 class ComponentRegistry {
@@ -51,7 +56,8 @@ public:
     /**
      * @brief Register a component type with the registry
      * @tparam T The component type to register
-     * @param typeName The string name to use for this component in serialization
+     * @param typeName The string name to use for this component in
+     * serialization
      *
      * This creates the serialization, deserialization, and checker functions
      * for the component type and stores them in the registry.
@@ -63,7 +69,10 @@ public:
         nameToType.insert({ typeName, typeIdx });
 
         // Serializer writes component directly to JSON archive with proper name
-        serializers[typeIdx] = [](entt::entity entity, entt::registry& registry, cereal::JSONOutputArchive& ar, const std::string& name) {
+        serializers[typeIdx] = [](entt::entity               entity,
+                                  entt::registry&            registry,
+                                  cereal::JSONOutputArchive& ar,
+                                  const std::string&         name) {
             if (registry.all_of<T>(entity)) {
                 auto& component = registry.get<T>(entity);
                 ar(cereal::make_nvp(name, component));
@@ -71,11 +80,12 @@ public:
         };
 
         // Deserializer reads component from JSON archive and adds to entity
-        deserializers[typeName] = [](entt::entity entity, entt::registry& registry, cereal::JSONInputArchive& ar) {
-            T component;
-            ar(component);
-            registry.emplace<T>(entity, std::move(component));
-        };
+        deserializers[typeName]
+            = [](entt::entity entity, entt::registry& registry, cereal::JSONInputArchive& ar) {
+                  T component;
+                  ar(component);
+                  registry.emplace<T>(entity, std::move(component));
+              };
 
         // Checker tests if entity has this component type
         checkers[typeIdx] = [](entt::entity entity, entt::registry& registry) -> bool {
@@ -105,7 +115,11 @@ public:
      * @param ar The JSON output archive to write to
      * @param componentName The name to use in the JSON output
      */
-    void serializeComponent(std::type_index typeIdx, entt::entity entity, entt::registry& registry, cereal::JSONOutputArchive& ar, const std::string& componentName);
+    void serializeComponent(std::type_index            typeIdx,
+                            entt::entity               entity,
+                            entt::registry&            registry,
+                            cereal::JSONOutputArchive& ar,
+                            const std::string&         componentName);
 
     /**
      * @brief Deserialize a component from JSON archive
@@ -114,7 +128,10 @@ public:
      * @param registry The registry to add the component to
      * @param ar The JSON input archive to read from
      */
-    void deserializeComponent(const std::string& typeName, entt::entity entity, entt::registry& registry, cereal::JSONInputArchive& ar);
+    void deserializeComponent(const std::string&        typeName,
+                              entt::entity              entity,
+                              entt::registry&           registry,
+                              cereal::JSONInputArchive& ar);
 
     /**
      * @brief Check if an entity has a specific component type
@@ -139,19 +156,17 @@ public:
 };
 
 /**
- * @class SerializableComponent
- * @brief CRTP base class for components that can be automatically serialized
- * @tparam T The derived component type
+ * @brief Macro to register any component type with the ComponentRegistry
+ * @param ComponentType The class name of the component
+ * @param ComponentName The string name for serialization
  *
- * Components should inherit from this class and provide a custom name in the constructor.
- * The component will be automatically registered with the ComponentRegistry.
+ * This macro can be used with any component class
+ * It automatically registers the component at program startup.
  *
- * Example:
+ * Usage:
  * @code
- * class MyComponent : public SerializableComponent<MyComponent> {
+ * class MyComponent {
  * public:
- *     MyComponent() : SerializableComponent("MyComponent") {}
- *
  *     int value = 0;
  *
  *     template<class Archive>
@@ -159,44 +174,15 @@ public:
  *         ar(CEREAL_NVP(value));
  *     }
  * };
+ * REGISTER_COMPONENT(MyComponent, "MyComponent")
  * @endcode
  */
-template <typename T>
-class SerializableComponent {
-private:
-    static inline std::string componentName; ///< Static storage for component name per type
-
-public:
-    /**
-     * @brief Constructor that handles automatic registration
-     * @param name The string name to use for this component type in serialization
-     *
-     * If a name is provided, it will be used for serialization. Otherwise, the mangled
-     * type name from typeid() will be used as a fallback.
-     *
-     * Registration happens automatically via a static lambda.
-     */
-    SerializableComponent(const std::string& name = "") {
-        // Static lambda runs once per component type at program startup
-        static bool registered = [&name]() {
-            if (!name.empty())
-                componentName = name;
-            ComponentRegistry::get().registerComponent<T>(componentName.empty() ? typeid(T).name() : componentName);
-            return true;
-        }();
-
-        if (!name.empty() && componentName.empty()) {
-            componentName = name;
-        }
+#define REGISTER_COMPONENT(ComponentType, ComponentName)                                           \
+    namespace {                                                                                    \
+        static bool _reg_##ComponentType = []() {                                                  \
+            ComponentRegistry::get().registerComponent<ComponentType>(ComponentName);              \
+            return true;                                                                           \
+        }();                                                                                       \
     }
 
-    /**
-     * @brief Get the component name for this type
-     * @return The component name string, or mangled type name if no custom name was set
-     */
-    static const char* getComponentName() {
-        return componentName.empty() ? typeid(T).name() : componentName.c_str();
-    }
-};
-
-}
+} // namespace Linp::Core::Components

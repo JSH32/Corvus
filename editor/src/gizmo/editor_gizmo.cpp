@@ -3,12 +3,12 @@
 namespace Linp::Editor {
 
 void EditorGizmo::update(Core::Components::TransformComponent& transform,
-    const Vector2&                                             mousePos,
-    bool                                                       mousePressed,
-    bool                                                       mouseDown,
-    bool                                                       mouseInViewport,
-    float                                                      viewportWidth,
-    float                                                      viewportHeight) {
+                         const Vector2&                        mousePos,
+                         bool                                  mousePressed,
+                         bool                                  mouseDown,
+                         bool                                  mouseInViewport,
+                         float                                 viewportWidth,
+                         float                                 viewportHeight) {
 
     if (!gizmoEnabled) {
         gizmoIsActive = false;
@@ -23,8 +23,8 @@ void EditorGizmo::update(Core::Components::TransformComponent& transform,
     updateHoverState(mousePos, viewportWidth, viewportHeight);
 
     // Render gizmo and handle interaction
-    bool wasManipulated = renderAndInteract(mousePos, mousePressed, mouseDown,
-        mouseInViewport, viewportWidth, viewportHeight);
+    bool wasManipulated = renderAndInteract(
+        mousePos, mousePressed, mouseDown, mouseInViewport, viewportWidth, viewportHeight);
 
     gizmoIsActive = wasManipulated;
 
@@ -35,9 +35,9 @@ void EditorGizmo::update(Core::Components::TransformComponent& transform,
 }
 
 void EditorGizmo::updateReadOnly(const Core::Components::TransformComponent& transform,
-    const Vector2&                                                           mousePos,
-    float                                                                    viewportWidth,
-    float                                                                    viewportHeight) {
+                                 const Vector2&                              mousePos,
+                                 float                                       viewportWidth,
+                                 float                                       viewportHeight) {
 
     if (!gizmoEnabled) {
         gizmoIsActive = false;
@@ -52,14 +52,13 @@ void EditorGizmo::updateReadOnly(const Core::Components::TransformComponent& tra
     updateHoverState(mousePos, viewportWidth, viewportHeight);
 
     // Render gizmo without interaction (read-only)
-    DrawGizmo3D(
-        static_cast<int>(currentMode),
-        &gizmoTransform,
-        mousePos,
-        false, // No mouse pressed
-        false, // No mouse down
-        viewportWidth,
-        viewportHeight);
+    DrawGizmo3D(static_cast<int>(currentMode),
+                &gizmoTransform,
+                mousePos,
+                false, // No mouse pressed
+                false, // No mouse down
+                viewportWidth,
+                viewportHeight);
 
     // Always inactive in read-only mode
     gizmoIsActive = false;
@@ -78,33 +77,28 @@ void EditorGizmo::syncToTransform(Core::Components::TransformComponent& transfor
 }
 
 bool EditorGizmo::renderAndInteract(const Vector2& mousePos,
-    bool                                           mousePressed,
-    bool                                           mouseDown,
-    bool                                           mouseInViewport,
-    float                                          viewportWidth,
-    float                                          viewportHeight) {
+                                    bool           mousePressed,
+                                    bool           mouseDown,
+                                    bool           mouseInViewport,
+                                    float          viewportWidth,
+                                    float          viewportHeight) {
 
     // Render and check if gizmo was used
-    return DrawGizmo3D(
-        static_cast<int>(currentMode),
-        &gizmoTransform,
-        mousePos,
-        mousePressed,
-        mouseDown && mouseInViewport,
-        viewportWidth,
-        viewportHeight);
+    return DrawGizmo3D(static_cast<int>(currentMode),
+                       &gizmoTransform,
+                       mousePos,
+                       mousePressed,
+                       mouseDown && mouseInViewport,
+                       viewportWidth,
+                       viewportHeight);
 }
 
 void EditorGizmo::updateHoverState(const Vector2& mousePos,
-    float                                         viewportWidth,
-    float                                         viewportHeight) {
+                                   float          viewportWidth,
+                                   float          viewportHeight) {
 
     gizmoHovered = WouldGizmoHandleInput(
-        static_cast<int>(currentMode),
-        &gizmoTransform,
-        mousePos,
-        viewportWidth,
-        viewportHeight);
+        static_cast<int>(currentMode), &gizmoTransform, mousePos, viewportWidth, viewportHeight);
 }
 
 } // namespace Linp::Editor

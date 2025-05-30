@@ -9,6 +9,9 @@ void serialize(Archive& ar, raylib::Vector3& v) {
 
 template <class Archive>
 void serialize(Archive& ar, raylib::Quaternion& q) {
-    ar(cereal::make_nvp("x", q.x), cereal::make_nvp("y", q.y), cereal::make_nvp("z", q.z), cereal::make_nvp("w", q.w));
+    ar(cereal::make_nvp("x", q.x),
+       cereal::make_nvp("y", q.y),
+       cereal::make_nvp("z", q.z),
+       cereal::make_nvp("w", q.w));
 }
 }

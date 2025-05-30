@@ -41,9 +41,7 @@ public:
         return entityHandle == other.entityHandle && scene == other.scene;
     }
 
-    bool operator!=(const Entity& other) const {
-        return !(*this == other);
-    }
+    bool operator!=(const Entity& other) const { return !(*this == other); }
 
     operator bool() const { return entityHandle != entt::null; }
     operator uint32_t() const { return (uint32_t)entityHandle; }

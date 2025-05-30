@@ -20,7 +20,8 @@ private:
     static void drawAllComponents(Core::Entity entity);
 
     template <typename T>
-    static void drawComponentImpl(Core::Entity entity, const std::string& name, bool removable, bool flat);
+    static void
+    drawComponentImpl(Core::Entity entity, const std::string& name, bool removable, bool flat);
 
     template <std::size_t I = 0>
     static void drawAddComponentMenu(Core::Entity entity);

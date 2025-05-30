@@ -36,12 +36,12 @@ public:
      * @param viewportHeight Height of the viewport
      */
     void update(Core::Components::TransformComponent& transform,
-        const Vector2&                                mousePos,
-        bool                                          mousePressed,
-        bool                                          mouseDown,
-        bool                                          mouseInViewport,
-        float                                         viewportWidth,
-        float                                         viewportHeight);
+                const Vector2&                        mousePos,
+                bool                                  mousePressed,
+                bool                                  mouseDown,
+                bool                                  mouseInViewport,
+                float                                 viewportWidth,
+                float                                 viewportHeight);
 
     /**
      * @brief Updates and renders gizmo but doesn't modify any transform.
@@ -52,9 +52,9 @@ public:
      * @param viewportHeight Height of the viewport
      */
     void updateReadOnly(const Core::Components::TransformComponent& transform,
-        const Vector2&                                              mousePos,
-        float                                                       viewportWidth,
-        float                                                       viewportHeight);
+                        const Vector2&                              mousePos,
+                        float                                       viewportWidth,
+                        float                                       viewportHeight);
 
     /**
      * @brief Gets whether gizmo is currently active (being dragged).
@@ -102,18 +102,16 @@ private:
      * @return True if gizmo was manipulated this frame
      */
     bool renderAndInteract(const Vector2& mousePos,
-        bool                              mousePressed,
-        bool                              mouseDown,
-        bool                              mouseInViewport,
-        float                             viewportWidth,
-        float                             viewportHeight);
+                           bool           mousePressed,
+                           bool           mouseDown,
+                           bool           mouseInViewport,
+                           float          viewportWidth,
+                           float          viewportHeight);
 
     /**
      * @brief Updates hover state based on mouse position.
      */
-    void updateHoverState(const Vector2& mousePos,
-        float                            viewportWidth,
-        float                            viewportHeight);
+    void updateHoverState(const Vector2& mousePos, float viewportWidth, float viewportHeight);
 
     Transform gizmoTransform = GizmoIdentity();
     Mode      currentMode    = Mode::All;

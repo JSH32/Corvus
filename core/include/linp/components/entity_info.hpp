@@ -11,10 +11,10 @@
 
 namespace Linp::Core::Components {
 
-class EntityInfoComponent : public Linp::Core::Components::SerializableComponent<EntityInfoComponent> {
+class EntityInfoComponent {
 public:
     explicit EntityInfoComponent(std::string tag = "New entity", const bool enabled = true)
-        : SerializableComponent("EntityInfo"), tag(std::move(tag)), enabled(enabled) {
+        : tag(std::move(tag)), enabled(enabled) {
         boost::uuids::random_generator gen;
         id = boost::uuids::to_string(gen());
     }
@@ -29,4 +29,5 @@ public:
     }
 };
 
+REGISTER_COMPONENT(EntityInfoComponent, "EntityInfo");
 }

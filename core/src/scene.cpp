@@ -12,7 +12,8 @@
 
 namespace Linp::Core {
 void Scene::destroyEntity(const Entity entity) {
-    rootOrderedEntities.erase(std::remove(rootOrderedEntities.begin(), rootOrderedEntities.end(), entity),
+    rootOrderedEntities.erase(
+        std::remove(rootOrderedEntities.begin(), rootOrderedEntities.end(), entity),
         rootOrderedEntities.end());
     registry.destroy(entity);
 }
@@ -20,7 +21,8 @@ void Scene::destroyEntity(const Entity entity) {
 Entity Scene::createEntity(const std::string& entityName) {
     Entity entity = { registry.create(), this };
 
-    entity.addComponent<Components::EntityInfoComponent>(entityName.empty() ? "New entity" : entityName);
+    entity.addComponent<Components::EntityInfoComponent>(entityName.empty() ? "New entity"
+                                                                            : entityName);
     entity.addComponent<Components::TransformComponent>();
 
     rootOrderedEntities.push_back(entity);
@@ -33,12 +35,14 @@ void Scene::render(raylib::RenderTexture& target) {
         auto& entity = *it;
 
         if (!entity.hasComponent<Components::EntityInfoComponent>()) {
-            LINP_ERROR("An Entity did not have a EntityInfo component, this should not happen. It has been added automatically.");
+            LINP_ERROR("An Entity did not have a EntityInfo component, this should not happen. It "
+                       "has been added automatically.");
             entity.addComponent<Components::EntityInfoComponent>();
         }
     }
 
-    auto meshView = registry.view<Components::TransformComponent, Components::MeshRendererComponent>();
+    auto meshView
+        = registry.view<Components::TransformComponent, Components::MeshRendererComponent>();
     for (auto entityHandle : meshView) {
         Entity entity { entityHandle, this };
 

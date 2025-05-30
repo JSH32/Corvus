@@ -40,9 +40,9 @@ typedef enum {
     GIZMO_DISABLED = 0, // 0: Disables gizmo drawing
 
     // Bitwise flags
-    GIZMO_TRANSLATE = 1 << 0,                                       // Enables translation gizmo
-    GIZMO_ROTATE    = 1 << 1,                                       // Enables rotation gizmo
-    GIZMO_SCALE     = 1 << 2,                                       // Enables scaling gizmo (implicitly enables GIZMO_LOCAL)
+    GIZMO_TRANSLATE = 1 << 0, // Enables translation gizmo
+    GIZMO_ROTATE    = 1 << 1, // Enables rotation gizmo
+    GIZMO_SCALE     = 1 << 2, // Enables scaling gizmo (implicitly enables GIZMO_LOCAL)
     GIZMO_ALL       = GIZMO_TRANSLATE | GIZMO_ROTATE | GIZMO_SCALE, // Enables all gizmos
 
     // Mutually exclusive axis orientation flags
@@ -82,8 +82,13 @@ RLAPI Matrix GizmoToMatrix(Transform transform);
  * @param transform A pointer to the Transform affected by the gizmo.
  * @return true if the gizmo is active and affecting the transform; false otherwise.
  */
-RLAPI bool DrawGizmo3D(int flags, Transform* transform, Vector2 mousePos,
-    bool mousePressed, bool mouseDown, float viewportWidth, float viewportHeight);
+RLAPI bool DrawGizmo3D(int        flags,
+                       Transform* transform,
+                       Vector2    mousePos,
+                       bool       mousePressed,
+                       bool       mouseDown,
+                       float      viewportWidth,
+                       float      viewportHeight);
 
 /**
  * Set the size of the gizmo.
@@ -120,8 +125,8 @@ RLAPI void SetGizmoColors(Color x, Color y, Color z, Color center);
  */
 RLAPI void SetGizmoGlobalAxis(Vector3 right, Vector3 up, Vector3 forward);
 
-RLAPI bool WouldGizmoHandleInput(int flags, Transform* transform, Vector2 mousePos,
-    float viewportWidth, float viewportHeight);
+RLAPI bool WouldGizmoHandleInput(
+    int flags, Transform* transform, Vector2 mousePos, float viewportWidth, float viewportHeight);
 
 //--------------------------------------------------------------------------------------------------
 

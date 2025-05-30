@@ -86,21 +86,24 @@ typedef struct GizmoAxis {
 typedef struct GizmoGlobals {
     GizmoAxis axisCfg[GIZMO_AXIS_COUNT]; // Data related to the 3 axes, globally oriented.
 
-    float gizmoSize;                     // Size of the gizmos. All other metrics are expressed as fractions of this measure.
-    float lineWidth;                     // Width of the lines used to draw the gizmos.
+    float gizmoSize; // Size of the gizmos. All other metrics are expressed as fractions of this
+                     // measure.
+    float lineWidth; // Width of the lines used to draw the gizmos.
 
-    float trArrowWidthFactor;            // Width of the arrows (and cubes) as a fraction of gizmoSize.
-    float trArrowLengthFactor;           // Length of the arrows as a fraction of gizmoSize.
-    float trPlaneOffsetFactor;           // Offset of the gizmo planes from the center as a fraction of gizmoSize.
-    float trPlaneSizeFactor;             // Size of the planes (quad representation) as a fraction of gizmoSize.
-    float trCircleRadiusFactor;          // Radius of the central circle as a fraction of gizmoSize.
-    Color trCircleColor;                 // Color of the central circle.
+    float trArrowWidthFactor;  // Width of the arrows (and cubes) as a fraction of gizmoSize.
+    float trArrowLengthFactor; // Length of the arrows as a fraction of gizmoSize.
+    float trPlaneOffsetFactor; // Offset of the gizmo planes from the center as a fraction of
+                               // gizmoSize.
+    float trPlaneSizeFactor; // Size of the planes (quad representation) as a fraction of gizmoSize.
+    float trCircleRadiusFactor; // Radius of the central circle as a fraction of gizmoSize.
+    Color trCircleColor;        // Color of the central circle.
 
-    int        curAction;                // Currently active GizmoAction.
-    int        activeAxis;               // Active axis (a combination of GizmoActiveAxis flags) for the current action.
-    Transform  startTransform;           // Backup Transform saved before the transformation begins.
-    Transform* activeTransform;          // Pointer to the active Transform to update during transformation.
-    Vector3    startWorldMouse;          // Position of the mouse in world space at the start of the transformation.
+    int curAction;              // Currently active GizmoAction.
+    int activeAxis; // Active axis (a combination of GizmoActiveAxis flags) for the current action.
+    Transform  startTransform;  // Backup Transform saved before the transformation begins.
+    Transform* activeTransform; // Pointer to the active Transform to update during transformation.
+    Vector3
+        startWorldMouse; // Position of the mouse in world space at the start of the transformation.
 } GizmoGlobals;
 
 /**
@@ -108,15 +111,17 @@ typedef struct GizmoGlobals {
  * This data is recalculated at each call to DrawGizmo3D(), in immediate-mode style.
  */
 typedef struct GizmoData {
-    Matrix     invViewProj;            // Inverted View-Projection matrix.
-    Transform* curTransform;           // Pointer to the current Transform. Only one can be the "activeTransform" at a time.
-    Vector3    axis[GIZMO_AXIS_COUNT]; // Current axes used for transformations (may differ from global axes).
-                                       // Axes can be in global, view, or local mode depending on configuration.
+    Matrix     invViewProj;         // Inverted View-Projection matrix.
+    Transform* curTransform;        // Pointer to the current Transform. Only one can be the
+                                    // "activeTransform" at a time.
+    Vector3 axis[GIZMO_AXIS_COUNT]; // Current axes used for transformations (may differ from global
+                                    // axes). Axes can be in global, view, or local mode depending
+                                    // on configuration.
 
-    float   gizmoSize;                 // Actual gizmo size, adjusted to maintain camera-independent scaling.
-    Vector3 camPos;                    // Position of the camera, extracted during rendering.
-    Vector3 right, up, forward;        // Local orientation vectors: right, up, and forward.
-    int     flags;                     // Configuration flags for the gizmo.
+    float   gizmoSize; // Actual gizmo size, adjusted to maintain camera-independent scaling.
+    Vector3 camPos;    // Position of the camera, extracted during rendering.
+    Vector3 right, up, forward; // Local orientation vectors: right, up, and forward.
+    int     flags;              // Configuration flags for the gizmo.
 } GizmoData;
 
 //---------------------------------------------------------------------------------------------------
@@ -126,10 +131,9 @@ typedef struct GizmoData {
 // Initialize GIZMO with default values
 static GizmoGlobals GIZMO = {
 
-    .axisCfg = {
-        { .normal = { 1, 0, 0 }, .color = { 229, 72, 91, 255 } },
-        { .normal = { 0, 1, 0 }, .color = { 131, 205, 56, 255 } },
-        { .normal = { 0, 0, 1 }, .color = { 69, 138, 242, 255 } } },
+    .axisCfg = { { .normal = { 1, 0, 0 }, .color = { 229, 72, 91, 255 } },
+                 { .normal = { 0, 1, 0 }, .color = { 131, 205, 56, 255 } },
+                 { .normal = { 0, 0, 1 }, .color = { 69, 138, 242, 255 } } },
 
     .gizmoSize = 1.5f,
     .lineWidth = 2.5f,
@@ -207,7 +211,8 @@ static bool IsGizmoRotating(void);
  * @param source The screen-space Vector3 to convert.
  * @param matViewProjInv Pointer to the inverted view-projection matrix.
  * @return The input vector transformed to world space.
- * @note This function does not depend on a Camera. Refer to raylib's Vector3Unproject() for the original implementation.
+ * @note This function does not depend on a Camera. Refer to raylib's Vector3Unproject() for the
+ * original implementation.
  */
 static Vector3 Vec3ScreenToWorld(Vector3 source, const Matrix* matViewProjInv);
 
@@ -216,10 +221,13 @@ static Vector3 Vec3ScreenToWorld(Vector3 source, const Matrix* matViewProjInv);
  * @param position The screen-space position (Vector2) from which to emit the ray.
  * @param matViewProjInv Pointer to the inverted view-projection matrix.
  * @return A Ray representing the world-space ray emitted from the screen position.
- * @note This function does not depend on a Camera. Refer to raylib's GetScreenToWorldRayEx() for the original implementation.
+ * @note This function does not depend on a Camera. Refer to raylib's GetScreenToWorldRayEx() for
+ * the original implementation.
  */
-static Ray Vec3ScreenToWorldRay(Vector2 position, const Matrix* matViewProjInv,
-    float viewportWidth, float viewportHeight);
+static Ray Vec3ScreenToWorldRay(Vector2       position,
+                                const Matrix* matViewProjInv,
+                                float         viewportWidth,
+                                float         viewportHeight);
 
 //---------------------------------------------------------------------------------------------------
 // Functions Declaration - Drawing functions
@@ -271,21 +279,24 @@ static void DrawGizmoCircle(const GizmoData* data, int axis);
  * @param obbHalfSize Half-size of the oriented bounding box along each axis.
  * @return true if the ray intersects the oriented bounding box; false otherwise.
  */
-static bool CheckOrientedBoundingBox(const GizmoData* data, Ray ray, Vector3 obbCenter, Vector3 obbHalfSize);
+static bool
+CheckOrientedBoundingBox(const GizmoData* data, Ray ray, Vector3 obbCenter, Vector3 obbHalfSize);
 
 /**
  * Check for intersection between a ray and one of the axes of the gizmo.
  * @param data Pointer to the data associated with the current gizmo.
  * @param axis The axis to check (GZ_AXIS_X, GZ_AXIS_Y, or GZ_AXIS_Z).
  * @param ray Ray emitted from the camera.
- * @param type Type of the axis (GIZMO_TRANSLATE or GIZMO_SCALE), needed to differentiate computation when both are present.
+ * @param type Type of the axis (GIZMO_TRANSLATE or GIZMO_SCALE), needed to differentiate
+ * computation when both are present.
  * @return true if the ray intersects the gizmo axis; false otherwise.
  */
 static bool CheckGizmoAxis(const GizmoData* data, int axis, Ray ray, int type);
 
 /**
  * Check for intersection between a ray and one of the gizmo planes.
- * Planes are represented by small quads and are associated with translating or scaling along two axes.
+ * Planes are represented by small quads and are associated with translating or scaling along two
+ * axes.
  * @param data Pointer to the data associated with the current gizmo.
  * @param axis The axis associated with the plane (GZ_AXIS_X, GZ_AXIS_Y, or GZ_AXIS_Z).
  * @param ray Ray emitted from the camera.
@@ -296,7 +307,8 @@ static bool CheckGizmoPlane(const GizmoData* data, int axis, Ray ray);
 /**
  * Check for intersection between a ray and one of the gizmo's rotation circles.
  * @param data Pointer to the data associated with the current gizmo.
- * @param index The axis index (GZ_AXIS_X, GZ_AXIS_Y, or GZ_AXIS_Z) corresponding to the rotation circle.
+ * @param index The axis index (GZ_AXIS_X, GZ_AXIS_Y, or GZ_AXIS_Z) corresponding to the rotation
+ * circle.
  * @param ray Ray emitted from the camera.
  * @return true if the ray intersects the rotation circle; false otherwise.
  */
@@ -317,14 +329,15 @@ static bool CheckGizmoCenter(const GizmoData* data, Ray ray);
 
 /**
  * Convert the mouse position to a world-space vector.
- * The viewer's distance to the gizmo is used to determine the depth at which the world-space position is computed.
+ * The viewer's distance to the gizmo is used to determine the depth at which the world-space
+ * position is computed.
  * @param data Pointer to the data of the current gizmo.
  * @return A Vector3 representing the mouse position in world space.
  *
  * NOTE: Modified GetWorldMouse that accepts mouse position and viewport size
  */
-static Vector3 GetWorldMouse(const GizmoData* data, Vector2 mousePos,
-    float viewportWidth, float viewportHeight);
+static Vector3
+GetWorldMouse(const GizmoData* data, Vector2 mousePos, float viewportWidth, float viewportHeight);
 
 /**
  * Handle all input interactions for the gizmo.
@@ -334,9 +347,12 @@ static Vector3 GetWorldMouse(const GizmoData* data, Vector2 mousePos,
  *
  * NOTE: Modified GizmoHandleInput that accepts mouse state and viewport parameters
  */
-static void GizmoHandleInput(const GizmoData* data, Vector2 mousePos,
-    bool mousePressed, bool mouseDown,
-    float viewportWidth, float viewportHeight);
+static void GizmoHandleInput(const GizmoData* data,
+                             Vector2          mousePos,
+                             bool             mousePressed,
+                             bool             mouseDown,
+                             float            viewportWidth,
+                             float            viewportHeight);
 
 //---------------------------------------------------------------------------------------------------
 // Functions Definitions - GIZMO API
@@ -353,8 +369,8 @@ static void GizmoHandleInput(const GizmoData* data, Vector2 mousePos,
  * @param viewportHeight Height of the viewport
  * @return true if gizmo would handle input at this position
  */
-bool WouldGizmoHandleInput(int flags, Transform* transform, Vector2 mousePos,
-    float viewportWidth, float viewportHeight) {
+bool WouldGizmoHandleInput(
+    int flags, Transform* transform, Vector2 mousePos, float viewportWidth, float viewportHeight) {
     if (flags == GIZMO_DISABLED || !transform)
         return false;
 
@@ -371,13 +387,14 @@ bool WouldGizmoHandleInput(int flags, Transform* transform, Vector2 mousePos,
     data.up           = (Vector3) { matView.m1, matView.m5, matView.m9 };
     data.forward      = Vector3Normalize(Vector3Subtract(transform->translation, data.camPos));
     data.curTransform = transform;
-    data.gizmoSize    = GIZMO.gizmoSize * Vector3Distance(data.camPos, transform->translation) * 0.1f;
-    data.flags        = flags;
+    data.gizmoSize = GIZMO.gizmoSize * Vector3Distance(data.camPos, transform->translation) * 0.1f;
+    data.flags     = flags;
 
     ComputeAxisOrientation(&data);
 
     // Create ray from mouse position (using our viewport-aware version)
-    const Ray mouseRay = Vec3ScreenToWorldRay(mousePos, &data.invViewProj, viewportWidth, viewportHeight);
+    const Ray mouseRay
+        = Vec3ScreenToWorldRay(mousePos, &data.invViewProj, viewportWidth, viewportHeight);
 
     // Check all the same collision tests as the real gizmo input handler
     for (int k = 0; k < 2; ++k) {
@@ -409,8 +426,13 @@ bool WouldGizmoHandleInput(int flags, Transform* transform, Vector2 mousePos,
     return false;
 }
 
-bool DrawGizmo3D(int flags, Transform* transform, Vector2 mousePos,
-    bool mousePressed, bool mouseDown, float viewportWidth, float viewportHeight) {
+bool DrawGizmo3D(int        flags,
+                 Transform* transform,
+                 Vector2    mousePos,
+                 bool       mousePressed,
+                 bool       mouseDown,
+                 float      viewportWidth,
+                 float      viewportHeight) {
     //------------------------------------------------------------------------
 
     if (flags == GIZMO_DISABLED)
@@ -491,13 +513,9 @@ bool DrawGizmo3D(int flags, Transform* transform, Vector2 mousePos,
     return IsThisGizmoTransforming(&data);
 }
 
-void SetGizmoSize(float size) {
-    GIZMO.gizmoSize = fmaxf(0, size);
-}
+void SetGizmoSize(float size) { GIZMO.gizmoSize = fmaxf(0, size); }
 
-void SetGizmoLineWidth(float width) {
-    GIZMO.lineWidth = fmaxf(0, width);
-}
+void SetGizmoLineWidth(float width) { GIZMO.lineWidth = fmaxf(0, width); }
 
 void SetGizmoColors(Color x, Color y, Color z, Color center) {
     GIZMO.axisCfg[GZ_AXIS_X].color = x;
@@ -513,16 +531,15 @@ void SetGizmoGlobalAxis(Vector3 right, Vector3 up, Vector3 forward) {
 }
 
 Transform GizmoIdentity(void) {
-    return (Transform) {
-        .rotation    = QuaternionIdentity(),
-        .scale       = { 1.0f, 1.0f, 1.0f },
-        .translation = { 0 }
-    };
+    return (Transform) { .rotation    = QuaternionIdentity(),
+                         .scale       = { 1.0f, 1.0f, 1.0f },
+                         .translation = { 0 } };
 }
 
 Matrix GizmoToMatrix(Transform transform) {
-    return MatrixMultiply(MatrixMultiply(MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z),
-                              QuaternionToMatrix(transform.rotation)),
+    return MatrixMultiply(
+        MatrixMultiply(MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z),
+                       QuaternionToMatrix(transform.rotation)),
         MatrixTranslate(transform.translation.x, transform.translation.y, transform.translation.z));
 }
 
@@ -550,62 +567,57 @@ static void ComputeAxisOrientation(GizmoData* gizmoData) {
 
         if (flags & GIZMO_LOCAL) {
             for (int i = 0; i < 3; ++i) {
-                gizmoData->axis[i] = Vector3Normalize(
-                    Vector3RotateByQuaternion(gizmoData->axis[i], gizmoData->curTransform->rotation));
+                gizmoData->axis[i] = Vector3Normalize(Vector3RotateByQuaternion(
+                    gizmoData->axis[i], gizmoData->curTransform->rotation));
             }
         }
     }
 }
 
 static bool IsGizmoAxisActive(int axis) {
-    return (axis == GZ_AXIS_X && (GIZMO.activeAxis & GZ_ACTIVE_X)) || (axis == GZ_AXIS_Y && (GIZMO.activeAxis & GZ_ACTIVE_Y)) || (axis == GZ_AXIS_Z && (GIZMO.activeAxis & GZ_ACTIVE_Z));
+    return (axis == GZ_AXIS_X && (GIZMO.activeAxis & GZ_ACTIVE_X))
+        || (axis == GZ_AXIS_Y && (GIZMO.activeAxis & GZ_ACTIVE_Y))
+        || (axis == GZ_AXIS_Z && (GIZMO.activeAxis & GZ_ACTIVE_Z));
 }
 
-static bool CheckGizmoType(const GizmoData* data, int type) {
-    return (data->flags & type) == type;
-}
+static bool CheckGizmoType(const GizmoData* data, int type) { return (data->flags & type) == type; }
 
-static bool IsGizmoTransforming(void) {
-    return GIZMO.curAction != GZ_ACTION_NONE;
-}
+static bool IsGizmoTransforming(void) { return GIZMO.curAction != GZ_ACTION_NONE; }
 
 static bool IsThisGizmoTransforming(const GizmoData* data) {
     return IsGizmoTransforming() && data->curTransform == GIZMO.activeTransform;
 }
 
-static bool IsGizmoScaling(void) {
-    return GIZMO.curAction == GZ_ACTION_SCALE;
-}
+static bool IsGizmoScaling(void) { return GIZMO.curAction == GZ_ACTION_SCALE; }
 
-static bool IsGizmoTranslating(void) {
-    return GIZMO.curAction == GZ_ACTION_TRANSLATE;
-}
+static bool IsGizmoTranslating(void) { return GIZMO.curAction == GZ_ACTION_TRANSLATE; }
 
-static bool IsGizmoRotating(void) {
-    return GIZMO.curAction == GZ_ACTION_ROTATE;
-}
+static bool IsGizmoRotating(void) { return GIZMO.curAction == GZ_ACTION_ROTATE; }
 
 static Vector3 Vec3ScreenToWorld(Vector3 source, const Matrix* matViewProjInv) {
-    const Quaternion qt = QuaternionTransform((Quaternion) { source.x, source.y, source.z, 1.0f }, *matViewProjInv);
-    return (Vector3) {
-        qt.x / qt.w,
-        qt.y / qt.w,
-        qt.z / qt.w
-    };
+    const Quaternion qt
+        = QuaternionTransform((Quaternion) { source.x, source.y, source.z, 1.0f }, *matViewProjInv);
+    return (Vector3) { qt.x / qt.w, qt.y / qt.w, qt.z / qt.w };
 }
 
-static Ray Vec3ScreenToWorldRay(Vector2 position, const Matrix* matViewProjInv,
-    float viewportWidth, float viewportHeight) {
+static Ray Vec3ScreenToWorldRay(Vector2       position,
+                                const Matrix* matViewProjInv,
+                                float         viewportWidth,
+                                float         viewportHeight) {
     Ray ray = { 0 };
 
     const float width  = viewportWidth;  // Use provided viewport width
     const float height = viewportHeight; // Use provided viewport height
 
-    const Vector2 deviceCoords = { (2.0f * position.x) / width - 1.0f, 1.0f - (2.0f * position.y) / height };
+    const Vector2 deviceCoords
+        = { (2.0f * position.x) / width - 1.0f, 1.0f - (2.0f * position.y) / height };
 
-    const Vector3 nearPoint             = Vec3ScreenToWorld((Vector3) { deviceCoords.x, deviceCoords.y, 0.0f }, matViewProjInv);
-    const Vector3 farPoint              = Vec3ScreenToWorld((Vector3) { deviceCoords.x, deviceCoords.y, 1.0f }, matViewProjInv);
-    const Vector3 cameraPlanePointerPos = Vec3ScreenToWorld((Vector3) { deviceCoords.x, deviceCoords.y, -1.0f }, matViewProjInv);
+    const Vector3 nearPoint
+        = Vec3ScreenToWorld((Vector3) { deviceCoords.x, deviceCoords.y, 0.0f }, matViewProjInv);
+    const Vector3 farPoint
+        = Vec3ScreenToWorld((Vector3) { deviceCoords.x, deviceCoords.y, 1.0f }, matViewProjInv);
+    const Vector3 cameraPlanePointerPos
+        = Vec3ScreenToWorld((Vector3) { deviceCoords.x, deviceCoords.y, -1.0f }, matViewProjInv);
 
     const Vector3 direction = Vector3Normalize(Vector3Subtract(farPoint, nearPoint));
 
@@ -628,8 +640,9 @@ static void DrawGizmoCube(const GizmoData* data, int axis) {
         ? data->gizmoSize * 0.5f
         : data->gizmoSize;
 
-    const Vector3 endPos = Vector3Add(data->curTransform->translation,
-        Vector3Scale(data->axis[axis], gizmoSize * (1.0f - GIZMO.trArrowWidthFactor)));
+    const Vector3 endPos
+        = Vector3Add(data->curTransform->translation,
+                     Vector3Scale(data->axis[axis], gizmoSize * (1.0f - GIZMO.trArrowWidthFactor)));
 
     DrawLine3D(data->curTransform->translation, endPos, GIZMO.axisCfg[axis].color);
 
@@ -642,7 +655,8 @@ static void DrawGizmoCube(const GizmoData* data, int axis) {
 
     const Vector3 depth = Vector3Scale(n, boxSize);
 
-    const Vector3 a = Vector3Subtract(Vector3Subtract(endPos, Vector3Scale(dim1, 0.5f)), Vector3Scale(dim2, 0.5f));
+    const Vector3 a = Vector3Subtract(Vector3Subtract(endPos, Vector3Scale(dim1, 0.5f)),
+                                      Vector3Scale(dim2, 0.5f));
     const Vector3 b = Vector3Add(a, dim1);
     const Vector3 c = Vector3Add(b, dim2);
     const Vector3 d = Vector3Add(a, dim2);
@@ -703,8 +717,9 @@ static void DrawGizmoPlane(const GizmoData* data, int index) {
     const float offset = GIZMO.trPlaneOffsetFactor * data->gizmoSize;
     const float size   = GIZMO.trPlaneSizeFactor * data->gizmoSize;
 
-    const Vector3 a = Vector3Add(Vector3Add(data->curTransform->translation, Vector3Scale(dir1, offset)),
-        Vector3Scale(dir2, offset));
+    const Vector3 a
+        = Vector3Add(Vector3Add(data->curTransform->translation, Vector3Scale(dir1, offset)),
+                     Vector3Scale(dir2, offset));
     const Vector3 b = Vector3Add(a, Vector3Scale(dir1, size));
     const Vector3 c = Vector3Add(b, Vector3Scale(dir2, size));
     const Vector3 d = Vector3Add(a, Vector3Scale(dir2, size));
@@ -744,9 +759,9 @@ static void DrawGizmoArrow(const GizmoData* data, int axis) {
         return;
     }
 
-    const Vector3 endPos = Vector3Add(data->curTransform->translation,
-        Vector3Scale(data->axis[axis],
-            data->gizmoSize * (1.0f - GIZMO.trArrowLengthFactor)));
+    const Vector3 endPos = Vector3Add(
+        data->curTransform->translation,
+        Vector3Scale(data->axis[axis], data->gizmoSize * (1.0f - GIZMO.trArrowLengthFactor)));
 
     if (!(data->flags & GIZMO_SCALE))
         DrawLine3D(data->curTransform->translation, endPos, GIZMO.axisCfg[axis].color);
@@ -761,7 +776,8 @@ static void DrawGizmoArrow(const GizmoData* data, int axis) {
 
     const Vector3 v = Vector3Add(endPos, Vector3Scale(n, arrowLength));
 
-    const Vector3 a = Vector3Subtract(Vector3Subtract(endPos, Vector3Scale(dim1, 0.5f)), Vector3Scale(dim2, 0.5f));
+    const Vector3 a = Vector3Subtract(Vector3Subtract(endPos, Vector3Scale(dim1, 0.5f)),
+                                      Vector3Scale(dim2, 0.5f));
     const Vector3 b = Vector3Add(a, dim1);
     const Vector3 c = Vector3Add(b, dim2);
     const Vector3 d = Vector3Add(a, dim2);
@@ -863,7 +879,8 @@ static void DrawGizmoCircle(const GizmoData* data, int axis) {
 // Functions Definition - Mouse ray to Gizmo intersections
 //---------------------------------------------------------------------------------------------------
 
-static bool CheckOrientedBoundingBox(const GizmoData* data, Ray ray, Vector3 obbCenter, Vector3 obbHalfSize) {
+static bool
+CheckOrientedBoundingBox(const GizmoData* data, Ray ray, Vector3 obbCenter, Vector3 obbHalfSize) {
     const Vector3 oLocal = Vector3Subtract(ray.position, obbCenter);
 
     Ray localRay;
@@ -876,10 +893,8 @@ static bool CheckOrientedBoundingBox(const GizmoData* data, Ray ray, Vector3 obb
     localRay.direction.y = Vector3DotProduct(ray.direction, data->axis[GZ_AXIS_Y]);
     localRay.direction.z = Vector3DotProduct(ray.direction, data->axis[GZ_AXIS_Z]);
 
-    const BoundingBox aabbLocal = {
-        .min = { -obbHalfSize.x, -obbHalfSize.y, -obbHalfSize.z },
-        .max = { +obbHalfSize.x, +obbHalfSize.y, +obbHalfSize.z }
-    };
+    const BoundingBox aabbLocal = { .min = { -obbHalfSize.x, -obbHalfSize.y, -obbHalfSize.z },
+                                    .max = { +obbHalfSize.x, +obbHalfSize.y, +obbHalfSize.z } };
 
     return GetRayCollisionBox(localRay, aabbLocal).hit;
 }
@@ -896,9 +911,10 @@ static bool CheckGizmoAxis(const GizmoData* data, int axis, Ray ray, int type) {
     }
 
     const Vector3 obbCenter = Vector3Add(data->curTransform->translation,
-        Vector3Scale(data->axis[axis], halfDim[axis]));
+                                         Vector3Scale(data->axis[axis], halfDim[axis]));
 
-    return CheckOrientedBoundingBox(data, ray, obbCenter, (Vector3) { halfDim[0], halfDim[1], halfDim[2] });
+    return CheckOrientedBoundingBox(
+        data, ray, obbCenter, (Vector3) { halfDim[0], halfDim[1], halfDim[2] });
 }
 
 static bool CheckGizmoPlane(const GizmoData* data, int axis, Ray ray) {
@@ -908,8 +924,9 @@ static bool CheckGizmoPlane(const GizmoData* data, int axis, Ray ray) {
     const float offset = GIZMO.trPlaneOffsetFactor * data->gizmoSize;
     const float size   = GIZMO.trPlaneSizeFactor * data->gizmoSize;
 
-    const Vector3 a = Vector3Add(Vector3Add(data->curTransform->translation, Vector3Scale(dir1, offset)),
-        Vector3Scale(dir2, offset));
+    const Vector3 a
+        = Vector3Add(Vector3Add(data->curTransform->translation, Vector3Scale(dir1, offset)),
+                     Vector3Scale(dir2, offset));
     const Vector3 b = Vector3Add(a, Vector3Scale(dir1, size));
     const Vector3 c = Vector3Add(b, Vector3Scale(dir2, size));
     const Vector3 d = Vector3Add(a, Vector3Scale(dir2, size));
@@ -942,23 +959,29 @@ static bool CheckGizmoCircle(const GizmoData* data, int index, Ray ray) {
 }
 
 static bool CheckGizmoCenter(const GizmoData* data, Ray ray) {
-    return GetRayCollisionSphere(ray, data->curTransform->translation, data->gizmoSize * GIZMO.trCircleRadiusFactor).hit;
+    return GetRayCollisionSphere(
+               ray, data->curTransform->translation, data->gizmoSize * GIZMO.trCircleRadiusFactor)
+        .hit;
 }
 
 //---------------------------------------------------------------------------------------------------
 // Functions Definitions - Input Handling
 //---------------------------------------------------------------------------------------------------
 
-static Vector3 GetWorldMouse(const GizmoData* data, Vector2 mousePos,
-    float viewportWidth, float viewportHeight) {
-    const float dist     = Vector3Distance(data->camPos, data->curTransform->translation);
-    const Ray   mouseRay = Vec3ScreenToWorldRay(mousePos, &data->invViewProj, viewportWidth, viewportHeight);
+static Vector3
+GetWorldMouse(const GizmoData* data, Vector2 mousePos, float viewportWidth, float viewportHeight) {
+    const float dist = Vector3Distance(data->camPos, data->curTransform->translation);
+    const Ray   mouseRay
+        = Vec3ScreenToWorldRay(mousePos, &data->invViewProj, viewportWidth, viewportHeight);
     return Vector3Add(mouseRay.position, Vector3Scale(mouseRay.direction, dist));
 }
 
-static void GizmoHandleInput(const GizmoData* data, Vector2 mousePos,
-    bool mousePressed, bool mouseDown,
-    float viewportWidth, float viewportHeight) {
+static void GizmoHandleInput(const GizmoData* data,
+                             Vector2          mousePos,
+                             bool             mousePressed,
+                             bool             mouseDown,
+                             float            viewportWidth,
+                             float            viewportHeight) {
     int action = GIZMO.curAction;
 
     if (action != GZ_ACTION_NONE) {
@@ -967,66 +990,84 @@ static void GizmoHandleInput(const GizmoData* data, Vector2 mousePos,
             action           = GZ_ACTION_NONE;
             GIZMO.activeAxis = 0;
         } else {
-            const Vector3 endWorldMouse = GetWorldMouse(data, mousePos, viewportWidth, viewportHeight);
-            const Vector3 pVec          = Vector3Subtract(endWorldMouse, GIZMO.startWorldMouse);
+            const Vector3 endWorldMouse
+                = GetWorldMouse(data, mousePos, viewportWidth, viewportHeight);
+            const Vector3 pVec = Vector3Subtract(endWorldMouse, GIZMO.startWorldMouse);
 
             switch (action) {
                 case GZ_ACTION_TRANSLATE: {
                     GIZMO.activeTransform->translation = GIZMO.startTransform.translation;
                     if (GIZMO.activeAxis == GZ_ACTIVE_XYZ) {
-                        GIZMO.activeTransform->translation = Vector3Add(GIZMO.activeTransform->translation,
-                            Vector3Project(pVec, data->right));
-                        GIZMO.activeTransform->translation = Vector3Add(GIZMO.activeTransform->translation,
-                            Vector3Project(pVec, data->up));
+                        GIZMO.activeTransform->translation = Vector3Add(
+                            GIZMO.activeTransform->translation, Vector3Project(pVec, data->right));
+                        GIZMO.activeTransform->translation = Vector3Add(
+                            GIZMO.activeTransform->translation, Vector3Project(pVec, data->up));
                     } else {
                         if (GIZMO.activeAxis & GZ_ACTIVE_X) {
-                            const Vector3 prj                  = Vector3Project(pVec, data->axis[GZ_AXIS_X]);
-                            GIZMO.activeTransform->translation = Vector3Add(GIZMO.activeTransform->translation, prj);
+                            const Vector3 prj = Vector3Project(pVec, data->axis[GZ_AXIS_X]);
+                            GIZMO.activeTransform->translation
+                                = Vector3Add(GIZMO.activeTransform->translation, prj);
                         }
                         if (GIZMO.activeAxis & GZ_ACTIVE_Y) {
-                            const Vector3 prj                  = Vector3Project(pVec, data->axis[GZ_AXIS_Y]);
-                            GIZMO.activeTransform->translation = Vector3Add(GIZMO.activeTransform->translation, prj);
+                            const Vector3 prj = Vector3Project(pVec, data->axis[GZ_AXIS_Y]);
+                            GIZMO.activeTransform->translation
+                                = Vector3Add(GIZMO.activeTransform->translation, prj);
                         }
                         if (GIZMO.activeAxis & GZ_ACTIVE_Z) {
-                            const Vector3 prj                  = Vector3Project(pVec, data->axis[GZ_AXIS_Z]);
-                            GIZMO.activeTransform->translation = Vector3Add(GIZMO.activeTransform->translation, prj);
+                            const Vector3 prj = Vector3Project(pVec, data->axis[GZ_AXIS_Z]);
+                            GIZMO.activeTransform->translation
+                                = Vector3Add(GIZMO.activeTransform->translation, prj);
                         }
                     }
                 } break;
                 case GZ_ACTION_SCALE: {
                     GIZMO.activeTransform->scale = GIZMO.startTransform.scale;
                     if (GIZMO.activeAxis == GZ_ACTIVE_XYZ) {
-                        const float delta            = Vector3DotProduct(pVec, GIZMO.axisCfg[GZ_AXIS_X].normal);
-                        GIZMO.activeTransform->scale = Vector3AddValue(GIZMO.activeTransform->scale, delta);
+                        const float delta
+                            = Vector3DotProduct(pVec, GIZMO.axisCfg[GZ_AXIS_X].normal);
+                        GIZMO.activeTransform->scale
+                            = Vector3AddValue(GIZMO.activeTransform->scale, delta);
                     } else {
                         if (GIZMO.activeAxis & GZ_ACTIVE_X) {
-                            const Vector3 prj            = Vector3Project(pVec, GIZMO.axisCfg[GZ_AXIS_X].normal);
-                            GIZMO.activeTransform->scale = Vector3Add(GIZMO.activeTransform->scale, prj);
+                            const Vector3 prj
+                                = Vector3Project(pVec, GIZMO.axisCfg[GZ_AXIS_X].normal);
+                            GIZMO.activeTransform->scale
+                                = Vector3Add(GIZMO.activeTransform->scale, prj);
                         }
                         if (GIZMO.activeAxis & GZ_ACTIVE_Y) {
-                            const Vector3 prj            = Vector3Project(pVec, GIZMO.axisCfg[GZ_AXIS_Y].normal);
-                            GIZMO.activeTransform->scale = Vector3Add(GIZMO.activeTransform->scale, prj);
+                            const Vector3 prj
+                                = Vector3Project(pVec, GIZMO.axisCfg[GZ_AXIS_Y].normal);
+                            GIZMO.activeTransform->scale
+                                = Vector3Add(GIZMO.activeTransform->scale, prj);
                         }
                         if (GIZMO.activeAxis & GZ_ACTIVE_Z) {
-                            const Vector3 prj            = Vector3Project(pVec, GIZMO.axisCfg[GZ_AXIS_Z].normal);
-                            GIZMO.activeTransform->scale = Vector3Add(GIZMO.activeTransform->scale, prj);
+                            const Vector3 prj
+                                = Vector3Project(pVec, GIZMO.axisCfg[GZ_AXIS_Z].normal);
+                            GIZMO.activeTransform->scale
+                                = Vector3Add(GIZMO.activeTransform->scale, prj);
                         }
                     }
                 } break;
                 case GZ_ACTION_ROTATE: {
                     GIZMO.activeTransform->rotation = GIZMO.startTransform.rotation;
-                    const float delta               = Clamp(Vector3DotProduct(pVec, Vector3Add(data->right, data->up)), -2 * PI, +2 * PI);
+                    const float delta
+                        = Clamp(Vector3DotProduct(pVec, Vector3Add(data->right, data->up)),
+                                -2 * PI,
+                                +2 * PI);
                     if (GIZMO.activeAxis & GZ_ACTIVE_X) {
-                        const Quaternion q              = QuaternionFromAxisAngle(data->axis[GZ_AXIS_X], delta);
-                        GIZMO.activeTransform->rotation = QuaternionMultiply(q, GIZMO.activeTransform->rotation);
+                        const Quaternion q = QuaternionFromAxisAngle(data->axis[GZ_AXIS_X], delta);
+                        GIZMO.activeTransform->rotation
+                            = QuaternionMultiply(q, GIZMO.activeTransform->rotation);
                     }
                     if (GIZMO.activeAxis & GZ_ACTIVE_Y) {
-                        const Quaternion q              = QuaternionFromAxisAngle(data->axis[GZ_AXIS_Y], delta);
-                        GIZMO.activeTransform->rotation = QuaternionMultiply(q, GIZMO.activeTransform->rotation);
+                        const Quaternion q = QuaternionFromAxisAngle(data->axis[GZ_AXIS_Y], delta);
+                        GIZMO.activeTransform->rotation
+                            = QuaternionMultiply(q, GIZMO.activeTransform->rotation);
                     }
                     if (GIZMO.activeAxis & GZ_ACTIVE_Z) {
-                        const Quaternion q              = QuaternionFromAxisAngle(data->axis[GZ_AXIS_Z], delta);
-                        GIZMO.activeTransform->rotation = QuaternionMultiply(q, GIZMO.activeTransform->rotation);
+                        const Quaternion q = QuaternionFromAxisAngle(data->axis[GZ_AXIS_Z], delta);
+                        GIZMO.activeTransform->rotation
+                            = QuaternionMultiply(q, GIZMO.activeTransform->rotation);
                     }
                     GIZMO.startTransform  = *GIZMO.activeTransform;
                     GIZMO.startWorldMouse = endWorldMouse;
@@ -1038,7 +1079,8 @@ static void GizmoHandleInput(const GizmoData* data, Vector2 mousePos,
     } else {
         if (mousePressed) // Use provided mousePressed instead of IsMouseButtonPressed()
         {
-            const Ray mouseRay = Vec3ScreenToWorldRay(mousePos, &data->invViewProj, viewportWidth, viewportHeight);
+            const Ray mouseRay
+                = Vec3ScreenToWorldRay(mousePos, &data->invViewProj, viewportWidth, viewportHeight);
 
             int hit = -1;
             action  = GZ_ACTION_NONE;
@@ -1107,7 +1149,8 @@ static void GizmoHandleInput(const GizmoData* data, Vector2 mousePos,
                 }
                 GIZMO.activeTransform = data->curTransform;
                 GIZMO.startTransform  = *data->curTransform;
-                GIZMO.startWorldMouse = GetWorldMouse(data, mousePos, viewportWidth, viewportHeight);
+                GIZMO.startWorldMouse
+                    = GetWorldMouse(data, mousePos, viewportWidth, viewportHeight);
             }
         }
     }

@@ -6,8 +6,7 @@
 namespace Linp::Core {
 class Layer {
 public:
-    explicit Layer(std::string name = "Layer")
-        : debugName(std::move(name)) { }
+    explicit Layer(std::string name = "Layer") : debugName(std::move(name)) { }
 
     virtual ~Layer() = default;
 

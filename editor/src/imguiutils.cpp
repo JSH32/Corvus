@@ -99,7 +99,13 @@ bool Vector3Editor(const std::string& label, raylib::Vector3& vec, const float l
     return changed;
 }
 
-bool FloatEditor(const std::string& label, float& value, float speed, float min, float max, float resetValue, const float labelWidth) {
+bool FloatEditor(const std::string& label,
+                 float&             value,
+                 float              speed,
+                 float              min,
+                 float              max,
+                 float              resetValue,
+                 const float        labelWidth) {
     bool changed = false;
     ImGui::PushID(label.c_str());
 
@@ -110,7 +116,8 @@ bool FloatEditor(const std::string& label, float& value, float speed, float min,
 
     // Calculate widths - leave space for reset button
     float resetButtonWidth = 20.0f;
-    float availableWidth   = ImGui::GetContentRegionAvail().x - resetButtonWidth - ImGui::GetStyle().ItemSpacing.x;
+    float availableWidth
+        = ImGui::GetContentRegionAvail().x - resetButtonWidth - ImGui::GetStyle().ItemSpacing.x;
 
     ImGui::PushItemWidth(availableWidth);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2 { 2, 5 });
@@ -136,7 +143,13 @@ bool FloatEditor(const std::string& label, float& value, float speed, float min,
     return changed;
 }
 
-bool IntEditor(const std::string& label, int& value, int speed, int min, int max, int resetValue, const float labelWidth) {
+bool IntEditor(const std::string& label,
+               int&               value,
+               int                speed,
+               int                min,
+               int                max,
+               int                resetValue,
+               const float        labelWidth) {
     bool changed = false;
     ImGui::PushID(label.c_str());
 
@@ -147,7 +160,8 @@ bool IntEditor(const std::string& label, int& value, int speed, int min, int max
 
     // Calculate widths - leave space for reset button
     float resetButtonWidth = 20.0f;
-    float availableWidth   = ImGui::GetContentRegionAvail().x - resetButtonWidth - ImGui::GetStyle().ItemSpacing.x;
+    float availableWidth
+        = ImGui::GetContentRegionAvail().x - resetButtonWidth - ImGui::GetStyle().ItemSpacing.x;
 
     ImGui::PushItemWidth(availableWidth);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2 { 2, 5 });

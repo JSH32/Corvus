@@ -7,10 +7,7 @@
 namespace Linp::Editor {
 
 SceneViewPanel::SceneViewPanel(Core::Scene& scene, SceneHierarchyPanel* sceneHierarchy)
-    : viewport(scene),
-      sceneHierarchyPanel(sceneHierarchy),
-      currentViewportSize({ 1.0f, 1.0f }) {
-}
+    : viewport(scene), sceneHierarchyPanel(sceneHierarchy), currentViewportSize({ 1.0f, 1.0f }) { }
 
 void SceneViewPanel::updateMouseState(const ImVec2& imageTopLeft, bool imageHovered) {
     bool leftClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
@@ -22,10 +19,8 @@ void SceneViewPanel::updateMouseState(const ImVec2& imageTopLeft, bool imageHove
 
     if (imageHovered) {
         ImVec2 mousePosAbsolute = ImGui::GetMousePos();
-        currentMousePos         = {
-            mousePosAbsolute.x - imageTopLeft.x,
-            mousePosAbsolute.y - imageTopLeft.y
-        };
+        currentMousePos
+            = { mousePosAbsolute.x - imageTopLeft.x, mousePosAbsolute.y - imageTopLeft.y };
     } else {
         currentMousePos = { 0, 0 };
     }
@@ -60,7 +55,9 @@ void SceneViewPanel::renderGizmoTooltip() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
 
-    constexpr ImGuiWindowFlags overlayFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing;
+    constexpr ImGuiWindowFlags overlayFlags = ImGuiWindowFlags_NoTitleBar
+        | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize
+        | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing;
 
     if (ImGui::Begin("GizmoOverlay", nullptr, overlayFlags)) {
         EditorGizmo::Mode currentMode = viewport.getGizmo().getMode();
@@ -125,17 +122,17 @@ void SceneViewPanel::handleShortcuts() {
     // Focus
     if (ImGui::IsKeyPressed(ImGuiKey_F)) {
         if (sceneHierarchyPanel->selectedEntity) {
-            auto transform = sceneHierarchyPanel->selectedEntity.getComponent<Core::Components::TransformComponent>();
+            auto transform = sceneHierarchyPanel->selectedEntity
+                                 .getComponent<Core::Components::TransformComponent>();
             getCamera().focusOn(transform.position);
         }
     }
 
-    static const std::unordered_map<ImGuiKey, EditorGizmo::Mode> keyMap = {
-        { ImGuiKey_Q, EditorGizmo::Mode::All },
-        { ImGuiKey_W, EditorGizmo::Mode::Translate },
-        { ImGuiKey_E, EditorGizmo::Mode::Rotate },
-        { ImGuiKey_R, EditorGizmo::Mode::Scale }
-    };
+    static const std::unordered_map<ImGuiKey, EditorGizmo::Mode> keyMap
+        = { { ImGuiKey_Q, EditorGizmo::Mode::All },
+            { ImGuiKey_W, EditorGizmo::Mode::Translate },
+            { ImGuiKey_E, EditorGizmo::Mode::Rotate },
+            { ImGuiKey_R, EditorGizmo::Mode::Scale } };
 
     for (const auto& [key, mode] : keyMap) {
         if (ImGui::IsKeyPressed(key)) {
@@ -170,7 +167,8 @@ void SceneViewPanel::onUpdate() {
     }
 
     // Update camera input (only when panel is interactive and gizmo isn't active)
-    bool cameraInputAllowed = !viewport.getGizmo().isActive() && (isWindowFocused || isWindowHovered);
+    bool cameraInputAllowed
+        = !viewport.getGizmo().isActive() && (isWindowFocused || isWindowHovered);
     viewport.updateCamera(ImGui::GetIO(), cameraInputAllowed);
 
     // Render viewport
@@ -183,11 +181,10 @@ void SceneViewPanel::onUpdate() {
         ImVec2 imageTopLeft = ImGui::GetCursorScreenPos();
 
         const RenderTexture& renderTexture = viewport.getRenderTexture();
-        ImGui::Image(
-            (ImTextureID)(intptr_t)renderTexture.texture.id,
-            currentViewportSize,
-            ImVec2(0, 1), // Flip Y coordinate for proper display
-            ImVec2(1, 0));
+        ImGui::Image((ImTextureID)(intptr_t)renderTexture.texture.id,
+                     currentViewportSize,
+                     ImVec2(0, 1), // Flip Y coordinate for proper display
+                     ImVec2(1, 0));
 
         // Update mouse state for viewport interaction
         bool imageHovered = ImGui::IsItemHovered();
@@ -198,14 +195,13 @@ void SceneViewPanel::onUpdate() {
 
         // Update gizmo for selected entity (if any)
         if (sceneHierarchyPanel && sceneHierarchyPanel->selectedEntity) {
-            viewport.updateGizmo(
-                sceneHierarchyPanel->selectedEntity,
-                currentMousePos,
-                mousePressed,
-                mouseDown,
-                mouseInViewport,
-                currentViewportSize.x,
-                currentViewportSize.y);
+            viewport.updateGizmo(sceneHierarchyPanel->selectedEntity,
+                                 currentMousePos,
+                                 mousePressed,
+                                 mouseDown,
+                                 mouseInViewport,
+                                 currentViewportSize.x,
+                                 currentViewportSize.y);
         }
     }
 

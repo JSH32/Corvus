@@ -32,8 +32,9 @@ public:
     /**
      * @brief Constructs an EditorCamera with custom parameters.
      */
-    EditorCamera(const raylib::Vector3& target, float distance = 10.0f,
-        const raylib::Vector2& orbitAngles = { 0.45f, -0.45f });
+    EditorCamera(const raylib::Vector3& target,
+                 float                  distance    = 10.0f,
+                 const raylib::Vector2& orbitAngles = { 0.45f, -0.45f });
 
     /**
      * @brief Updates camera based on input. Call this each frame.

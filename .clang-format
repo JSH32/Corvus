@@ -1,20 +1,42 @@
 BasedOnStyle: WebKit
-Standard: Cpp11
 
-AlignConsecutiveAssignments: Consecutive
-AlignConsecutiveDeclarations: Consecutive
-AlignConsecutiveMacros: Consecutive
-IndentCaseLabels: true
-AlignTrailingComments:
+# Alignment settings - make consecutive declarations line up nicely
+AlignConsecutiveAssignments: Consecutive # Align = signs in variable assignments
+AlignConsecutiveDeclarations: Consecutive # Align variable names in declarations
+AlignConsecutiveMacros: Consecutive # Align macro definitions
+AlignTrailingComments: # Align comments at end of lines
   Kind: Always
   OverEmptyLines: 2
-PointerAlignment: Left
-SortIncludes: true
+
+# Indentation and spacing
+IndentCaseLabels: true # Indent case labels in switch statements
+PointerAlignment: Left # int* ptr (not int *ptr)
+
+# Template formatting
+AlwaysBreakTemplateDeclarations: Yes # Force template<> on separate line
+
+# Import/include management
+SortIncludes: true # Automatically sort #include statements
+
+# Brace placement - custom configuration
 BreakBeforeBraces: Custom
 BraceWrapping:
-  AfterEnum: false
-  SplitEmptyFunction: false
-AllowShortEnumsOnASingleLine: false
-PackConstructorInitializers: BinPack
-BreakConstructorInitializers: BeforeColon
-InsertNewlineAtEOF: true
+  AfterEnum: false # enum Foo {
+  SplitEmptyFunction: false # void foo() {}
+
+# Code compactness settings
+AllowShortEnumsOnASingleLine: false # Force enums to multiple lines
+AllowShortLambdasOnASingleLine: All # Allow short lambdas on one line
+
+# Constructor and initializer formatting
+PackConstructorInitializers: BinPack # Pack initializer lists
+BreakConstructorInitializers: BeforeColon # Break before : in initializers
+
+# Line length and parameter formatting
+ColumnLimit: 100 # Maximum line length
+BinPackArguments: false # Don't pack function call arguments
+BinPackParameters: false # Don't pack function parameters
+AlignAfterOpenBracket: Align # Align parameters with opening parenthesis
+
+# File formatting
+InsertNewlineAtEOF: true # Ensure files end with newline

@@ -7,7 +7,8 @@
 #include "imgui.h"
 
 namespace Linp::Editor {
-EditorLayer::EditorLayer(Core::Application* application) : Core::Layer("Editor"), scene(Core::Scene("Test Scene")), application(application) {
+EditorLayer::EditorLayer(Core::Application* application)
+    : Core::Layer("Editor"), scene(Core::Scene("Test Scene")), application(application) {
     auto sceneHierarchy = std::make_unique<SceneHierarchyPanel>(scene, selectedEntity);
     panels.push_back(std::make_unique<InspectorPanel>(scene, sceneHierarchy.get()));
     panels.push_back(std::make_unique<SceneViewPanel>(scene, sceneHierarchy.get()));
@@ -43,7 +44,8 @@ void EditorLayer::startDockspace() {
     ImGui::SetNextWindowViewport(viewport->ID);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
+        | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
