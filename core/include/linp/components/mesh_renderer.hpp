@@ -53,21 +53,33 @@ struct MeshRendererComponent {
         int primitiveTypeInt = static_cast<int>(primitiveType);
         ar(CEREAL_NVP(primitiveTypeInt));
 
-        // Serialize all union data
-        ar(cereal::make_nvp("cube_size", params.cube.size));
-        ar(cereal::make_nvp("sphere_radius", params.sphere.radius));
-        ar(cereal::make_nvp("sphere_rings", params.sphere.rings));
-        ar(cereal::make_nvp("sphere_slices", params.sphere.slices));
-        ar(cereal::make_nvp("plane_width", params.plane.width));
-        ar(cereal::make_nvp("plane_length", params.plane.length));
-        ar(cereal::make_nvp("cylinder_radius", params.cylinder.radius));
-        ar(cereal::make_nvp("cylinder_height", params.cylinder.height));
-        ar(cereal::make_nvp("cylinder_slices", params.cylinder.slices));
-
-        // After deserialization, regenerate GPU resources
         if constexpr (Archive::is_loading::value) {
             primitiveType = static_cast<PrimitiveType>(primitiveTypeInt);
-            material      = std::make_shared<raylib::Material>(LoadMaterialDefault());
+        }
+
+        // Only serialize the active union member
+        switch (primitiveType) {
+            case PrimitiveType::Cube:
+                ar(cereal::make_nvp("cube_size", params.cube.size));
+                break;
+            case PrimitiveType::Sphere:
+                ar(cereal::make_nvp("sphere_radius", params.sphere.radius));
+                ar(cereal::make_nvp("sphere_rings", params.sphere.rings));
+                ar(cereal::make_nvp("sphere_slices", params.sphere.slices));
+                break;
+            case PrimitiveType::Plane:
+                ar(cereal::make_nvp("plane_width", params.plane.width));
+                ar(cereal::make_nvp("plane_length", params.plane.length));
+                break;
+            case PrimitiveType::Cylinder:
+                ar(cereal::make_nvp("cylinder_radius", params.cylinder.radius));
+                ar(cereal::make_nvp("cylinder_height", params.cylinder.height));
+                ar(cereal::make_nvp("cylinder_slices", params.cylinder.slices));
+                break;
+        }
+
+        if constexpr (Archive::is_loading::value) {
+            material = std::make_shared<raylib::Material>(LoadMaterialDefault());
             generateMesh();
         }
     }
@@ -75,16 +87,20 @@ struct MeshRendererComponent {
     void generateMesh() {
         switch (primitiveType) {
             case PrimitiveType::Cube:
-                mesh = std::make_shared<raylib::Mesh>(GenMeshCube(params.cube.size, params.cube.size, params.cube.size));
+                mesh = std::make_shared<raylib::Mesh>(
+                    GenMeshCube(params.cube.size, params.cube.size, params.cube.size));
                 break;
             case PrimitiveType::Sphere:
-                mesh = std::make_shared<raylib::Mesh>(GenMeshSphere(params.sphere.radius, params.sphere.rings, params.sphere.slices));
+                mesh = std::make_shared<raylib::Mesh>(
+                    GenMeshSphere(params.sphere.radius, params.sphere.rings, params.sphere.slices));
                 break;
             case PrimitiveType::Plane:
-                mesh = std::make_shared<raylib::Mesh>(GenMeshPlane(params.plane.width, params.plane.length, 1, 1));
+                mesh = std::make_shared<raylib::Mesh>(
+                    GenMeshPlane(params.plane.width, params.plane.length, 1, 1));
                 break;
             case PrimitiveType::Cylinder:
-                mesh = std::make_shared<raylib::Mesh>(GenMeshCylinder(params.cylinder.radius, params.cylinder.height, params.cylinder.slices));
+                mesh = std::make_shared<raylib::Mesh>(GenMeshCylinder(
+                    params.cylinder.radius, params.cylinder.height, params.cylinder.slices));
                 break;
             case PrimitiveType::Custom:
                 // Don't regenerate custom meshes
@@ -93,6 +109,6 @@ struct MeshRendererComponent {
     }
 };
 
-REGISTER_COMPONENT(MeshRendererComponent, "EntityInfo");
+REGISTER_COMPONENT(MeshRendererComponent, "MeshRenderer");
 
 }

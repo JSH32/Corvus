@@ -34,7 +34,7 @@ void SceneHierarchyPanel::drawEntity(Core::Entity entity) const {
 
     if (ImGui::BeginPopupContextItem()) {
         if (ImGui::MenuItem("Delete")) {
-            scene.destroyEntity(entity);
+            project.getCurrentScene()->destroyEntity(entity);
             if (selectedEntity == entity)
                 selectedEntity = {};
         }
@@ -49,13 +49,13 @@ void SceneHierarchyPanel::onUpdate() {
     if (ImGui::Begin(ICON_FA_LIST_UL " Hierarchy")) {
         windowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
-        for (auto& entity : scene.getRootOrderedEntities())
+        for (auto& entity : project.getCurrentScene()->getRootOrderedEntities())
             drawEntity(entity);
 
         if (ImGui::BeginPopupContextWindow(
                 nullptr, ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight)) {
             if (ImGui::MenuItem("Create New Entity"))
-                scene.createEntity("New Entity");
+                project.getCurrentScene()->createEntity("New Entity");
 
             ImGui::EndPopup();
         }

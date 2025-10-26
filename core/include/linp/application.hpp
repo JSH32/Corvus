@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 
 #include "linp/layerstack.hpp"
 #include "linp/log.hpp"
 #include <raylib-cpp.hpp>
 #include <string_view>
+#include <vector>
 
 namespace Linp::Core {
 // Interface representing desktop system based window
@@ -22,12 +24,12 @@ public:
     /**
      * @brief Push a render layer.
      */
-    void pushLayer(Layer* layer);
-
+    void pushLayer(std::unique_ptr<Layer> layer);
+    
     /**
      * @brief Push an overlay layer.
      */
-    void pushOverlay(Layer* layer);
+    void pushOverlay(std::unique_ptr<Layer> layer);
 
     /**
      * @brief Stop the application loop.
@@ -43,5 +45,7 @@ private:
     bool isRunning = false;
 
     LayerStack layerStack;
+
+    std::vector<char> fontData;
 };
 }

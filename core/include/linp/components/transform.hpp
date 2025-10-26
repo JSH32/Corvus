@@ -45,7 +45,9 @@ struct TransformComponent {
         transform.scale.z = Vector3Length(scaleZ);
 
         // Handle negative scale (check determinant)
-        float det = matrix.m0 * (matrix.m5 * matrix.m10 - matrix.m6 * matrix.m9) - matrix.m1 * (matrix.m4 * matrix.m10 - matrix.m6 * matrix.m8) + matrix.m2 * (matrix.m4 * matrix.m9 - matrix.m5 * matrix.m8);
+        float det = matrix.m0 * (matrix.m5 * matrix.m10 - matrix.m6 * matrix.m9)
+            - matrix.m1 * (matrix.m4 * matrix.m10 - matrix.m6 * matrix.m8)
+            + matrix.m2 * (matrix.m4 * matrix.m9 - matrix.m5 * matrix.m8);
 
         if (det < 0.0f) {
             transform.scale.x = -transform.scale.x;

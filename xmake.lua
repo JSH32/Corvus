@@ -2,6 +2,19 @@ add_rules("mode.release", "mode.debug")
 add_rules("plugin.compile_commands.autoupdate")
 set_languages("c++20")
 
+-- Global debug symbols configuration
+if is_mode("debug") then
+    set_symbols("debug")
+    set_optimize("none")
+    set_warnings("all")
+end
+
+if is_mode("release") then
+    set_symbols("debug")  -- Keep symbols in release
+    set_strip("none")     -- Don't strip
+    set_optimize("fastest")
+end
+
 task("submodule")
     on_run(function ()
         os.execv("git", {"submodule", "update", "--init", "--recursive"}, { stdout = outfile, stderr = errfile })    
@@ -46,6 +59,27 @@ package_end()
 
 add_requires("physfs")
 
+package("ImGuiFileDialog")
+    add_deps("cmake")
+    add_deps("imgui")
+    set_sourcedir(path.join(os.scriptdir(), "vendor", "ImGuiFileDialog"))
+    on_install(function (package)
+        local configs = {}
+        table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
+        table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))
+        import("package.tools.cmake").install(package, configs)
+    end)
+package_end()
+
+add_requires("ImGuiFileDialog")
+
+target("ImGuiFileDialog")
+    set_kind("static")
+    add_includedirs("vendor/ImGuiFileDialog", { public = true })
+    add_files("vendor/ImGuiFileDialog/*.cpp")
+    -- Deps
+    add_packages("imgui")
+
 target("rlimgui")
     set_kind("static")
     add_includedirs("vendor/rlImGui", { public = true })
@@ -84,6 +118,7 @@ target("linp-core")
     -- Manual packages
     add_packages("physfs", { public = true })
     add_deps("rlimgui", { public = true })
+    add_deps("ImGuiFileDialog", { public = true })
     add_deps("raylib-cpp", { public = true })
 
     add_files("core/src/**.cpp")
@@ -91,13 +126,18 @@ target("linp-core")
     -- Dealing with engine resources for PsysFS to read.
     after_build(function(target)
         local target_dir = path.directory(target:targetfile())
-        os.rm(target_dir .. "/engine.zip")
+        local zip_path = target_dir .. "/engine.zip"
+        
+        os.rm(zip_path)
         
         -- Directly create a zip archive in the target directory
         if is_plat("windows") then
-            os.exec("powershell Compress-Archive -Path 'resources\\*' -DestinationPath '" .. target_dir .. "\\engine.zip'")
+            os.exec("powershell Compress-Archive -Path 'resources\\*' -DestinationPath '" .. zip_path .. "'")
         else
-            os.exec("zip -r " .. target_dir .. "/engine.zip resources")
+            -- os.exec("zip -r " .. target_dir .. "/engine.zip resources")
+            os.cd("resources")
+            os.exec("zip -r ../" .. zip_path .. " .")
+            os.cd("..")
         end
     end)
     after_clean(function(target)

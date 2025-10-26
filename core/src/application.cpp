@@ -11,26 +11,28 @@ Application::Application(unsigned int width, unsigned int height, const std::str
     : raylib::Window(width, height, title, FLAG_WINDOW_RESIZABLE) {
     PHYSFS_init(nullptr);
     // Add engine zip, contains all engine resources required by the engine.
-    PHYSFS_addToSearchPath("engine.zip", 1);
+    PHYSFS_mount("engine.zip", NULL, 1);
     rlImGuiSetup(true);
 
     setupImgui();
 }
 
 Application::~Application() {
+    layerStack.clear();
+
     rlImGuiShutdown();
     PHYSFS_deinit();
     CloseWindow();
 }
 
-void Application::pushLayer(Layer* layer) {
-    layerStack.pushLayer(layer);
+void Application::pushLayer(std::unique_ptr<Layer> layer) {
     layer->onAttach();
+    layerStack.pushLayer(std::move(layer));
 }
 
-void Application::pushOverlay(Layer* layer) {
-    layerStack.pushOverlay(layer);
+void Application::pushOverlay(std::unique_ptr<Layer> layer) {
     layer->onAttach();
+    layerStack.pushOverlay(std::move(layer));
 }
 
 void Application::stop() { this->isRunning = false; }
@@ -39,7 +41,7 @@ void Application::run() {
     SetTargetFPS(60);
     isRunning = true;
 
-    while (this->isRunning && !this->ShouldClose()) {
+    while (this->isRunning) {
         BeginDrawing();
 
         this->ClearBackground(RAYWHITE);
@@ -55,6 +57,9 @@ void Application::run() {
         rlImGuiEnd();
 
         EndDrawing();
+
+        if (this->ShouldClose())
+            this->isRunning = false;
     }
 }
 
@@ -122,11 +127,16 @@ void Application::setupImgui() {
     static constexpr ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
     fontConfig.PixelSnapH                 = true;
 
-    const auto bytes = StaticResourceFile::create("engine/fonts/DroidSans.ttf")->readAllBytes();
-    io.FontDefault
-        = io.Fonts->AddFontFromMemoryTTF((void*)bytes.data(), (int)bytes.size(), 16.f, &fontConfig);
+    // We could technically load this as a stack value and forget it, however, that may break when
+    // font atlas is updated.
+    fontData = StaticResourceFile::create("engine/fonts/DroidSans.ttf")->readAllBytes();
+    fontConfig.FontDataOwnedByAtlas = false;
 
-    fontConfig.MergeMode = true;
+    io.FontDefault = io.Fonts->AddFontFromMemoryTTF(
+        (void*)fontData.data(), (int)fontData.size(), 16.f, &fontConfig);
+
+    fontConfig.MergeMode            = true;
+    fontConfig.FontDataOwnedByAtlas = false;
     io.Fonts->AddFontFromMemoryCompressedTTF((void*)fa_solid_900_compressed_data,
                                              fa_solid_900_compressed_size,
                                              14.f,

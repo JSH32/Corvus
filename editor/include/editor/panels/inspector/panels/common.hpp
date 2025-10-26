@@ -7,7 +7,7 @@
 #include "linp/components/entity_info.hpp"
 #include <cstring>
 #include <imgui.h>
-#include <string>
+#include <string.h>
 
 namespace Linp::Editor {
 
@@ -25,7 +25,8 @@ struct ComponentInfo<Linp::Core::Components::EntityInfoComponent> {
     static void draw(ComponentType& entityInfo) {
         char buffer[256] = {};
         if (!entityInfo.tag.empty()) {
-            strncpy_s(buffer, sizeof(buffer), entityInfo.tag.c_str(), _TRUNCATE);
+            strncpy(buffer, entityInfo.tag.c_str(), sizeof(buffer) - 1);
+            buffer[sizeof(buffer) - 1] = '\0';
         }
 
         ImGui::Checkbox("##Enabled",

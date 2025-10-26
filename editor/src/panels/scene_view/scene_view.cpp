@@ -6,8 +6,9 @@
 
 namespace Linp::Editor {
 
-SceneViewPanel::SceneViewPanel(Core::Scene& scene, SceneHierarchyPanel* sceneHierarchy)
-    : viewport(scene), sceneHierarchyPanel(sceneHierarchy), currentViewportSize({ 1.0f, 1.0f }) { }
+SceneViewPanel::SceneViewPanel(Core::Project& project, SceneHierarchyPanel* sceneHierarchy)
+    : viewport(project), sceneHierarchyPanel(sceneHierarchy), currentViewportSize({ 1.0f, 1.0f }) {
+}
 
 void SceneViewPanel::updateMouseState(const ImVec2& imageTopLeft, bool imageHovered) {
     bool leftClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);

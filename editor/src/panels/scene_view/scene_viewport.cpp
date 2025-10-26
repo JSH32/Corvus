@@ -11,8 +11,8 @@
 
 namespace Linp::Editor {
 
-SceneViewport::SceneViewport(Core::Scene& scene)
-    : scene(scene), editorCamera(), editorGizmo(), sceneTexture({ 0 }),
+SceneViewport::SceneViewport(Core::Project& project)
+    : project(project), editorCamera(), editorGizmo(), sceneTexture({ 0 }),
       currentSize({ 1.0f, 1.0f }) {
 
     // Set up camera with good defaults for scene editing
@@ -80,7 +80,7 @@ void SceneViewport::renderSceneToTexture() {
     renderGrid(editorCamera.getCamera());
 
     // Render entities
-    scene.render(sceneTexture);
+    project.getCurrentScene()->render(sceneTexture);
 
     EndMode3D();
     EndTextureMode();
@@ -118,7 +118,7 @@ Core::Entity SceneViewport::pickEntity(const Vector2& mousePos) {
     float        closestDistance = FLT_MAX;
 
     // Check all entities for collision (render order matters for picking)
-    auto rootOrderedEntities = scene.getRootOrderedEntities();
+    auto rootOrderedEntities = project.getCurrentScene()->getRootOrderedEntities();
     for (auto it = rootOrderedEntities.rbegin(); it != rootOrderedEntities.rend(); ++it) {
         Core::Entity& entity = *it;
 

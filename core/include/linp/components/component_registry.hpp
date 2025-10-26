@@ -80,12 +80,13 @@ public:
         };
 
         // Deserializer reads component from JSON archive and adds to entity
-        deserializers[typeName]
-            = [](entt::entity entity, entt::registry& registry, cereal::JSONInputArchive& ar) {
-                  T component;
-                  ar(component);
-                  registry.emplace<T>(entity, std::move(component));
-              };
+        deserializers[typeName] = [typeName](entt::entity              entity,
+                                             entt::registry&           registry,
+                                             cereal::JSONInputArchive& ar) {
+            T component;
+            ar(cereal::make_nvp(typeName, component));
+            registry.emplace<T>(entity, std::move(component));
+        };
 
         // Checker tests if entity has this component type
         checkers[typeIdx] = [](entt::entity entity, entt::registry& registry) -> bool {

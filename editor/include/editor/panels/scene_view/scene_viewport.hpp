@@ -5,6 +5,7 @@
 #include "editor/gizmo/editor_gizmo.hpp"
 #include "imgui.h"
 #include "linp/entity.hpp"
+#include "linp/project/project.hpp"
 #include "linp/scene.hpp"
 #include "raylib.h"
 
@@ -24,7 +25,7 @@ public:
      * @brief Constructs a SceneViewport.
      * @param scene A reference to the scene to be rendered.
      */
-    explicit SceneViewport(Core::Scene& scene);
+    explicit SceneViewport(Core::Project& project);
 
     /**
      * @brief Destructor. Cleans up the Raylib RenderTexture.
@@ -109,9 +110,9 @@ private:
     void renderSceneToTexture();
 
     // Core components
-    Core::Scene& scene;
-    EditorCamera editorCamera;
-    EditorGizmo  editorGizmo;
+    Core::Project& project;
+    EditorCamera   editorCamera;
+    EditorGizmo    editorGizmo;
 
     // Rendering
     raylib::RenderTexture sceneTexture;

@@ -4,6 +4,7 @@
 #include "entt/core/fwd.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
+#include "linp/log.hpp"
 
 #include <cstdint>
 #include <utility>
@@ -60,11 +61,15 @@ public:
                 }
             }
         } else {
+            LINP_CORE_TRACE("Deserializing entity ({})", (uint32_t)entityHandle);
+
             for (const auto& componentName : registry.getRegisteredTypes()) {
                 try {
                     registry.deserializeComponent(componentName, entityHandle, getRegistry(), ar);
-                } catch (...) {
-                    /* Component doesn't exist on entity */
+                    LINP_CORE_TRACE("Deserialized component ({})", componentName);
+                } catch (const std::exception& e) {
+                    LINP_CORE_TRACE(
+                        "Failed to deserialize component ({}): {}", componentName, e.what());
                 }
             }
         }

@@ -25,7 +25,7 @@ public:
      * @param scene A reference to the main scene object.
      * @param sceneHierarchy A pointer to the SceneHierarchyPanel for selection synchronization.
      */
-    SceneViewPanel(Core::Scene& scene, SceneHierarchyPanel* sceneHierarchy);
+    SceneViewPanel(Core::Project& scene, SceneHierarchyPanel* sceneHierarchy);
 
     /**
      * @brief Updates and renders the panel each frame.

@@ -7,3 +7,6 @@
 [submodule "vendor/physfs"]
 	path = vendor/physfs
 	url = https://github.com/icculus/physfs.git
+[submodule "vendor/ImGuiFileDialog"]
+	path = vendor/ImGuiFileDialog
+	url = https://github.com/aiekick/ImGuiFileDialog.git

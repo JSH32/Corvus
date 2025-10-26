@@ -4,16 +4,17 @@
 #include "editor/panels/inspector/inspector_panel.hpp"
 #include "editor/panels/inspector/panels/panels.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
+#include "linp/project/project.hpp"
 #include <memory>
 
 namespace Linp::Editor {
 class InspectorPanel final : public EditorPanel {
 public:
-    InspectorPanel(Core::Scene& scene, SceneHierarchyPanel* sceneHierarchy)
-        : scene(scene), sceneHierarchy(sceneHierarchy) { }
+    InspectorPanel(Core::Project& project, SceneHierarchyPanel* sceneHierarchy)
+        : project(project), sceneHierarchy(sceneHierarchy) { }
 
-    void         onUpdate() override;
-    Core::Scene& scene;
+    void           onUpdate() override;
+    Core::Project& project;
 
 private:
     template <std::size_t I = 0>
