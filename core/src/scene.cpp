@@ -56,12 +56,19 @@ void Scene::render(raylib::RenderTexture& target) {
         auto& transform    = meshView.get<Components::TransformComponent>(entityHandle);
         auto& meshRenderer = meshView.get<Components::MeshRendererComponent>(entityHandle);
 
-        // Skip if no mesh or material
-        if (!meshRenderer.mesh || !meshRenderer.material)
+        Linp::Core::Material* material = meshRenderer.getMaterial(assetManager);
+        if (!material)
             continue;
 
-        // Render the mesh with transform
-        DrawMesh(*meshRenderer.mesh, *meshRenderer.material, transform.getMatrix());
+        raylib::Material* rlMat = material->getRaylibMaterial(assetManager);
+        if (!rlMat)
+            continue;
+
+        if (auto model = meshRenderer.getModel(assetManager)) {
+            for (int i = 0; i < model->meshCount; ++i) {
+                DrawMesh(model->meshes[i], *rlMat, transform.getMatrix());
+            }
+        }
     }
 }
 

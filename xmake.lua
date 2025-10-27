@@ -59,10 +59,16 @@ package_end()
 
 add_requires("physfs")
 
-package("ImGuiFileDialog")
+target("ImGuiFileDialog")
+    set_kind("static")
+    add_includedirs("vendor/ImGuiFileDialog", { public = true })
+    add_files("vendor/ImGuiFileDialog/*.cpp")
+    -- Deps
+    add_packages("imgui")
+
+package("tinyobjloader")
     add_deps("cmake")
-    add_deps("imgui")
-    set_sourcedir(path.join(os.scriptdir(), "vendor", "ImGuiFileDialog"))
+    set_sourcedir(path.join(os.scriptdir(), "vendor", "tinyobjloader"))
     on_install(function (package)
         local configs = {}
         table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
@@ -71,14 +77,7 @@ package("ImGuiFileDialog")
     end)
 package_end()
 
-add_requires("ImGuiFileDialog")
-
-target("ImGuiFileDialog")
-    set_kind("static")
-    add_includedirs("vendor/ImGuiFileDialog", { public = true })
-    add_files("vendor/ImGuiFileDialog/*.cpp")
-    -- Deps
-    add_packages("imgui")
+add_requires("tinyobjloader")
 
 target("rlimgui")
     set_kind("static")
@@ -117,6 +116,7 @@ target("linp-core")
     add_packages("cereal", { public = true })
     -- Manual packages
     add_packages("physfs", { public = true })
+    add_packages("tinyobjloader", { public = true })
     add_deps("rlimgui", { public = true })
     add_deps("ImGuiFileDialog", { public = true })
     add_deps("raylib-cpp", { public = true })

@@ -10,3 +10,6 @@
 [submodule "vendor/ImGuiFileDialog"]
 	path = vendor/ImGuiFileDialog
 	url = https://github.com/aiekick/ImGuiFileDialog.git
+[submodule "vendor/tinyobjloader"]
+	path = vendor/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git

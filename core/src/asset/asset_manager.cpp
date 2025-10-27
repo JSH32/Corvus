@@ -1,4 +1,5 @@
 #include "linp/asset/asset_manager.hpp"
+#include "linp/asset/asset_handle.hpp"
 #include "linp/asset/loaders.hpp"
 #include "linp/log.hpp"
 
@@ -85,6 +86,7 @@ AssetManager::AssetManager(const std::string& assetRoot, const std::string& alia
         throw std::runtime_error("Failed to set PhysFS write directory: " + assetRoot);
     }
 
+    // setupRaylibBridge();
     registerLoaders(*this);
     LINP_CORE_INFO("AssetManager mounted '{}' at '/{}'", assetRoot, alias);
 }
@@ -92,7 +94,32 @@ AssetManager::AssetManager(const std::string& assetRoot, const std::string& alia
 AssetManager::~AssetManager() {
     LINP_CORE_INFO("AssetManager shutting down...");
     stopFileWatcher();
-    unloadAll();
+
+    shuttingDown.store(true, std::memory_order_relaxed);
+
+    // Make a local copy of the map so the deleters run *outside* the manager lock
+    decltype(assets) localAssets;
+    {
+        std::lock_guard<std::mutex> lock(assetMutex);
+        localAssets.swap(assets);
+    }
+
+    // Temporarily clear internal maps so recursive calls find nothing
+    {
+        std::lock_guard<std::mutex> lock(assetMutex);
+        pathToID.clear();
+        metadata.clear();
+        fileModificationTimes.clear();
+    }
+
+    // Let shared_ptr deleters run now while the manager still exists, but any decrementRef() will
+    // see empty assets
+    localAssets.clear();
+
+    // Now safe to clean tables and unmount
+    pathToID.clear();
+    metadata.clear();
+    fileModificationTimes.clear();
     PHYSFS_unmount(projectPath.c_str());
     LINP_CORE_INFO("AssetManager shutdown complete");
 }
@@ -280,15 +307,21 @@ bool AssetManager::createDirectory(const std::string& userPath) {
 }
 
 bool AssetManager::deleteDirectory(const std::string& userPath) {
-    std::string physfsPath = stripLeadingSlash(normalizePath(userPath));
+    std::lock_guard<std::mutex> lock(assetMutex);
 
-    if (!PHYSFS_delete(physfsPath.c_str())) {
-        LINP_CORE_ERROR("Failed to delete directory: {}", userPath);
-        return false;
+    std::string internalPath = toInternal(userPath);
+
+    LINP_CORE_INFO("Attempting to delete directory: {}", internalPath);
+
+    bool result = deleteDirectoryRecursive(internalPath, true);
+
+    if (result) {
+        LINP_CORE_INFO("Successfully deleted directory: {}", internalPath);
+    } else {
+        LINP_CORE_ERROR("Failed to delete directory: {}", internalPath);
     }
 
-    LINP_CORE_INFO("Deleted directory: {}", userPath);
-    return true;
+    return result;
 }
 
 // ============================================================================
@@ -392,6 +425,324 @@ bool AssetManager::moveAsset(const UUID& id, const std::string& newUserPath) {
     return true;
 }
 
+bool AssetManager::renameDirectory(const std::string& oldUserPath, const std::string& newUserPath) {
+    std::lock_guard<std::mutex> lock(assetMutex);
+
+    std::string oldInternal = toInternal(oldUserPath);
+    std::string newInternal = toInternal(newUserPath);
+
+    LINP_CORE_INFO("Renaming directory: {} -> {}", oldInternal, newInternal);
+
+    // Collect all affected assets BEFORE moving
+    std::vector<std::pair<UUID, std::string>> affectedAssets;
+    for (const auto& [path, id] : pathToID) {
+        if (path.rfind(oldInternal, 0) == 0) {
+            affectedAssets.push_back({ id, path });
+        }
+    }
+
+    // Copy directory to new location using PhysFS
+    if (!copyDirectoryRecursive(oldInternal, newInternal)) {
+        LINP_CORE_ERROR("Failed to copy directory during rename");
+        return false;
+    }
+
+    // Update all metadata and internal mappings
+    for (const auto& [id, oldPath] : affectedAssets) {
+        // Calculate new path
+        std::string newPath = newInternal + oldPath.substr(oldInternal.length());
+
+        LINP_CORE_INFO("  Remapping: {} -> {}", oldPath, newPath);
+
+        // Update metadata
+        auto metaIt = metadata.find(id);
+        if (metaIt != metadata.end()) {
+            metaIt->second.path = newPath;
+            // Save updated meta file (now in new location)
+            saveMetaFile(newPath, metaIt->second);
+        }
+
+        // Update pathToID
+        pathToID.erase(oldPath);
+        pathToID[newPath] = id;
+
+        // Update loaded assets
+        auto assetIt = assets.find(id);
+        if (assetIt != assets.end()) {
+            assetIt->second.path = newPath;
+        }
+
+        // Update file modification times
+        fileModificationTimes.erase(oldPath);
+        fileModificationTimes[newPath] = getFileModTime(newPath);
+    }
+
+    // Delete old directory
+    if (!deleteDirectoryRecursive(oldInternal, false)) {
+        LINP_CORE_WARN("Failed to delete old directory after rename (files copied successfully)");
+    }
+
+    LINP_CORE_INFO("Directory renamed successfully");
+    return true;
+}
+
+bool AssetManager::createAssetByType(AssetType          type,
+                                     const std::string& relativePath,
+                                     const std::string& name) {
+    std::lock_guard<std::mutex> lock(assetMutex);
+
+    // Find a loader that can create this type
+    IAssetLoader*   loader        = nullptr;
+    std::type_index targetTypeIdx = typeid(void);
+
+    for (auto& [typeIdx, loaderPtr] : loaders) {
+        if (loaderPtr->getType() == type && loaderPtr->canCreate()) {
+            loader        = loaderPtr.get();
+            targetTypeIdx = typeIdx;
+            break;
+        }
+    }
+
+    if (!loader) {
+        LINP_CORE_ERROR("No loader found that can create assets of type {}",
+                        static_cast<int>(type));
+        return false;
+    }
+
+    // Ensure path has correct extension
+    std::string finalPath = relativePath;
+    std::string ext       = getFileExtension(relativePath);
+
+    if (ext.empty()) {
+        // Find the first registered extension for this type
+        for (const auto& [extension, typeIdx] : extensionToType) {
+            if (typeIdx == targetTypeIdx) {
+                finalPath = relativePath + extension;
+                break;
+            }
+        }
+    }
+
+    // Create the asset using the loader
+    void* obj = loader->create(name);
+    if (!obj) {
+        LINP_CORE_ERROR("Loader failed to create asset");
+        return false;
+    }
+
+    // Convert to internal path
+    std::string internalPath = toInternal(finalPath);
+
+    // Create metadata
+    AssetMetadata meta;
+    meta.id           = boost::uuids::random_generator()();
+    meta.path         = internalPath;
+    meta.type         = type;
+    meta.lastModified = getFileModTime(internalPath);
+
+    saveMetaFile(internalPath, meta);
+    pathToID[internalPath] = meta.id;
+    metadata[meta.id]      = meta;
+
+    // Save the asset
+    if (!loader->save(obj, toPhysFS(internalPath))) {
+        LINP_CORE_ERROR("Failed to save newly created asset");
+        loader->unload(obj);
+        return false;
+    }
+
+    // Create asset entry
+    auto deleter = [this, id = meta.id, loader](void* ptr) {
+        loader->unload(ptr);
+        decrementRef(id);
+    };
+
+    AssetEntry entry;
+    entry.id           = meta.id;
+    entry.path         = meta.path;
+    entry.type         = meta.type;
+    entry.typeIndex    = targetTypeIdx;
+    entry.data         = std::shared_ptr<void>(obj, deleter);
+    entry.loader       = loader;
+    entry.refCount     = 1;
+    entry.lastModified = meta.lastModified;
+
+    assets.emplace(meta.id, std::move(entry));
+
+    LINP_CORE_INFO("Created new asset: {}", internalPath);
+    return true;
+}
+
+bool AssetManager::copyDirectoryRecursive(const std::string& srcInternal,
+                                          const std::string& dstInternal) {
+    // Convert to PhysFS paths for reading
+    std::string srcPhysFS = toPhysFS(srcInternal);
+
+    // Convert to write paths (strip mount prefix)
+    std::string dstWrite = dstInternal;
+    if (dstWrite[0] == '/') {
+        dstWrite = dstWrite.substr(1);
+    }
+
+    // Create destination directory
+    if (!PHYSFS_mkdir(dstWrite.c_str())) {
+        LINP_CORE_ERROR("Failed to create directory: {}", dstWrite);
+        return false;
+    }
+
+    // List all files in source directory
+    char** files = PHYSFS_enumerateFiles(srcPhysFS.c_str());
+    if (!files) {
+        LINP_CORE_ERROR("Failed to enumerate directory: {}", srcPhysFS);
+        return false;
+    }
+
+    for (char** file = files; *file != nullptr; file++) {
+        std::string filename        = *file;
+        std::string srcPath         = srcPhysFS + "/" + filename;
+        std::string dstPath         = dstWrite + "/" + filename;
+        std::string srcPathInternal = srcInternal + "/" + filename;
+        std::string dstPathInternal = dstInternal + "/" + filename;
+
+        PHYSFS_Stat stat;
+        if (!PHYSFS_stat(srcPath.c_str(), &stat)) {
+            continue;
+        }
+
+        if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY) {
+            // Recursively copy subdirectory
+            if (!copyDirectoryRecursive(srcPathInternal, dstPathInternal)) {
+                PHYSFS_freeList(files);
+                return false;
+            }
+        } else {
+            // Copy file
+            PHYSFS_File* srcFile = PHYSFS_openRead(srcPath.c_str());
+            if (!srcFile) {
+                LINP_CORE_ERROR("Failed to open source file: {}", srcPath);
+                continue;
+            }
+
+            PHYSFS_sint64     fileSize = PHYSFS_fileLength(srcFile);
+            std::vector<char> buffer(fileSize);
+            PHYSFS_sint64     bytesRead = PHYSFS_readBytes(srcFile, buffer.data(), fileSize);
+            PHYSFS_close(srcFile);
+
+            if (bytesRead != fileSize) {
+                LINP_CORE_ERROR("Failed to read file: {}", srcPath);
+                continue;
+            }
+
+            PHYSFS_File* dstFile = PHYSFS_openWrite(dstPath.c_str());
+            if (!dstFile) {
+                LINP_CORE_ERROR("Failed to create destination file: {}", dstPath);
+                continue;
+            }
+
+            PHYSFS_sint64 bytesWritten = PHYSFS_writeBytes(dstFile, buffer.data(), fileSize);
+            PHYSFS_close(dstFile);
+
+            if (bytesWritten != fileSize) {
+                LINP_CORE_ERROR("Failed to write file: {}", dstPath);
+                continue;
+            }
+        }
+    }
+
+    PHYSFS_freeList(files);
+    return true;
+}
+
+bool AssetManager::deleteDirectoryRecursive(const std::string& internalPath, bool untrackAssets) {
+    // Convert to PhysFS path for reading
+    std::string physFSPath = toPhysFS(internalPath);
+
+    // Convert to write path (strip mount prefix)
+    std::string writePath = internalPath;
+    if (writePath[0] == '/') {
+        writePath = writePath.substr(1);
+    }
+
+    // Only untrack assets if we're actually deleting (not renaming)
+    if (untrackAssets) {
+        std::vector<UUID> assetsToDelete;
+        for (const auto& [path, id] : pathToID) {
+            // Check if this asset is in the directory being deleted
+            if (path.rfind(internalPath, 0) == 0) {
+                assetsToDelete.push_back(id);
+            }
+        }
+
+        // Untrack all assets in this directory
+        for (const UUID& id : assetsToDelete) {
+            LINP_CORE_INFO("  Untracking asset: {}", boost::uuids::to_string(id));
+
+            // Remove from metadata
+            auto metaIt = metadata.find(id);
+            if (metaIt != metadata.end()) {
+                // Remove from pathToID
+                pathToID.erase(metaIt->second.path);
+                metadata.erase(metaIt);
+            }
+
+            // Remove from loaded assets
+            assets.erase(id);
+
+            // Remove from file modification times
+            auto timeIt = std::find_if(fileModificationTimes.begin(),
+                                       fileModificationTimes.end(),
+                                       [&internalPath](const auto& pair) {
+                                           return pair.first.rfind(internalPath, 0) == 0;
+                                       });
+            if (timeIt != fileModificationTimes.end()) {
+                fileModificationTimes.erase(timeIt);
+            }
+        }
+    }
+
+    // List all files in directory
+    char** files = PHYSFS_enumerateFiles(physFSPath.c_str());
+    if (!files) {
+        LINP_CORE_ERROR("Failed to enumerate directory for deletion: {}", physFSPath);
+        return false;
+    }
+
+    // Now delete all files and subdirectories
+    for (char** file = files; *file != nullptr; file++) {
+        std::string filename     = *file;
+        std::string fullPhysFS   = physFSPath + "/" + filename;
+        std::string fullWrite    = writePath + "/" + filename;
+        std::string fullInternal = internalPath + "/" + filename;
+
+        PHYSFS_Stat stat;
+        if (!PHYSFS_stat(fullPhysFS.c_str(), &stat)) {
+            continue;
+        }
+
+        if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY) {
+            // Recursively delete subdirectory (pass untrackAssets flag down)
+            if (!deleteDirectoryRecursive(fullInternal, untrackAssets)) {
+                LINP_CORE_WARN("Failed to delete subdirectory: {}", fullInternal);
+            }
+        } else {
+            // Delete file (including .meta files)
+            if (!PHYSFS_delete(fullWrite.c_str())) {
+                LINP_CORE_WARN("Failed to delete file: {}", fullWrite);
+            }
+        }
+    }
+
+    PHYSFS_freeList(files);
+
+    // Delete the directory itself
+    if (!PHYSFS_delete(writePath.c_str())) {
+        LINP_CORE_ERROR("Failed to delete directory: {}", writePath);
+        return false;
+    }
+
+    return true;
+}
+
 // ============================================================================
 // Asset Scanning
 // ============================================================================
@@ -459,6 +810,13 @@ void AssetManager::incrementRef(const UUID& id) {
 }
 
 void AssetManager::decrementRef(const UUID& id) {
+    if (shuttingDown.load(std::memory_order_relaxed))
+        return;
+
+    std::lock_guard<std::mutex> lock(assetMutex);
+    if (assets.empty())
+        return;
+
     auto it = assets.find(id);
     if (it != assets.end() && --it->second.refCount <= 0) {
         LINP_CORE_INFO("Asset ref count reached 0: {}", it->second.path);
@@ -570,6 +928,11 @@ int AssetManager::getRefCount(const UUID& id) const {
     return 0;
 }
 
+bool AssetManager::hasAsset(const UUID& id) const {
+    std::lock_guard<std::mutex> lock(assetMutex);
+    return metadata.find(id) != metadata.end();
+}
+
 std::vector<std::pair<std::string, AssetType>> AssetManager::getCreatableAssetTypes() const {
     std::vector<std::pair<std::string, AssetType>> result;
 
@@ -589,6 +952,9 @@ std::vector<std::pair<std::string, AssetType>> AssetManager::getCreatableAssetTy
                 break;
             case AssetType::Audio:
                 name = "Audio";
+                break;
+            case AssetType::Material:
+                name = "Material";
                 break;
             case AssetType::Shader:
                 name = "Shader";

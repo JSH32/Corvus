@@ -2,6 +2,7 @@
 #include "extras/FA6FreeSolidFontData.h"
 #include "extras/IconsFontAwesome6.h"
 #include "imgui.h"
+#include "linp/asset/material/material.hpp"
 #include "linp/files/static_resource_file.hpp"
 #include "physfs.h"
 #include "rlImGui.h"

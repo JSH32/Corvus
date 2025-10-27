@@ -26,12 +26,12 @@ std::vector<char> StaticResourceFile::readBytes(size_t byteCount) {
 }
 
 std::vector<char> StaticResourceFile::readAllBytes() {
-    std::vector<char> buffer(PHYSFS_fileLength(file));
-    PHYSFS_readBytes(file, buffer.data(), buffer.size());
+    PHYSFS_sint64     fileLength = PHYSFS_fileLength(file);
+    std::vector<char> buffer(fileLength + 1);
+    PHYSFS_readBytes(file, buffer.data(), fileLength);
+    buffer[fileLength] = '\0';
     return buffer;
 }
 
-std::string StaticResourceFile::getFileName() {
-    return fileName;
-}
+std::string StaticResourceFile::getFileName() { return fileName; }
 }

@@ -1,6 +1,6 @@
 #include "editor/editor.hpp"
 #include "ImGuiFileDialog.h"
-#include "editor/panels/asset_browser_panel.hpp"
+#include "editor/panels/asset_browser/asset_browser_panel.hpp"
 #include "editor/panels/inspector/inspector.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
 #include "editor/panels/scene_view/scene_view.hpp"
@@ -33,7 +33,8 @@ void EditorLayer::recreatePanels() {
     }
 
     auto sceneHierarchy = std::make_unique<SceneHierarchyPanel>(*currentProject, selectedEntity);
-    panels.push_back(std::make_unique<InspectorPanel>(*currentProject, sceneHierarchy.get()));
+    panels.push_back(std::make_unique<InspectorPanel>(
+        *currentProject, currentProject->getAssetManager(), sceneHierarchy.get()));
     panels.push_back(std::make_unique<SceneViewPanel>(*currentProject, sceneHierarchy.get()));
     panels.push_back(std::move(sceneHierarchy));
     panels.push_back(std::make_unique<AssetBrowserPanel>(currentProject->getAssetManager(),

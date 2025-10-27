@@ -28,7 +28,7 @@ public:
             std::istringstream       iss(std::string(buffer.begin(), buffer.end()));
             cereal::JSONInputArchive ar(iss);
 
-            Scene* scene = new Scene("Loading...");
+            Scene* scene = new Scene("Loading...", getAssetManager());
             ar(cereal::make_nvp("scene", *scene));
 
             LINP_CORE_INFO("Loaded scene: {}", scene->name);
@@ -91,7 +91,7 @@ public:
     bool canCreate() const override { return true; }
 
     Scene* createTyped(const std::string& name) override {
-        auto* scene = new Scene(name.empty() ? "New Scene" : name);
+        auto* scene = new Scene(name.empty() ? "New Scene" : name, getAssetManager());
         LINP_CORE_INFO("Created new scene asset: {}", scene->name);
         return scene;
     }

@@ -15,6 +15,9 @@
 namespace Linp::Core {
 
 class IAssetLoader {
+private:
+    AssetManager* assetManager = nullptr;
+
 public:
     virtual ~IAssetLoader()                         = default;
     virtual void*     load(const std::string& path) = 0;
@@ -24,6 +27,9 @@ public:
 
     virtual bool  canCreate() const { return false; }
     virtual void* create(const std::string& name) { return nullptr; }
+
+    virtual void  setAssetManager(AssetManager* mgr) { assetManager = mgr; }
+    AssetManager* getAssetManager() const { return assetManager; }
 };
 
 template <typename T>
@@ -105,6 +111,7 @@ private:
     std::unordered_map<std::string, std::type_index>                   extensionToType;
 
     std::atomic<bool>                         watcherRunning;
+    std::atomic<bool>                         shuttingDown;
     std::thread                               watcherThread;
     mutable std::mutex                        assetMutex;
     std::unordered_map<std::string, uint64_t> fileModificationTimes; // Keys are internal format
@@ -129,6 +136,10 @@ private:
     std::string toPhysFS(const std::string& userPath) const;   // user -> PhysFS with prefix
     std::string toInternal(const std::string& userPath) const; // user -> internal (leading slash)
     std::string getFullPath(const std::string& relativePath) const; // alias for toInternal
+    void        setupRaylibBridge();
+
+    bool copyDirectoryRecursive(const std::string& srcInternal, const std::string& dstInternal);
+    bool deleteDirectoryRecursive(const std::string& internalPath, bool untrackAssets = true);
 
 public:
     AssetManager(const std::string& projectPath, const std::string& alias = "project");
@@ -144,6 +155,9 @@ public:
 
     std::vector<std::pair<std::string, AssetType>> getCreatableAssetTypes() const;
 
+    bool
+    createAssetByType(AssetType type, const std::string& relativePath, const std::string& name);
+
     template <typename T>
     AssetHandle<T> createAsset(const std::string& relativePath, const std::string& name) {
         std::type_index idx = typeid(T);
@@ -152,10 +166,35 @@ public:
             LINP_CORE_ERROR("Loader for {} cannot create new assets", typeid(T).name());
             return {};
         }
+
+        // Ensure path has correct extension
+        std::string finalPath  = relativePath;
+        std::string currentExt = getFileExtension(relativePath);
+
+        std::string expectedExt;
+        for (const auto& [extension, typeIdx] : extensionToType) {
+            if (typeIdx == idx) {
+                expectedExt = extension;
+                break;
+            }
+        }
+
+        // Only append if no extension exists OR extension exists but doesn't match expected
+        // extension
+        if (currentExt.empty()) {
+            finalPath = relativePath + expectedExt;
+        } else if (currentExt != expectedExt) {
+            // Wrong extension, replace it
+            size_t lastDot = finalPath.find_last_of('.');
+            if (lastDot != std::string::npos) {
+                finalPath = finalPath.substr(0, lastDot) + expectedExt;
+            }
+        }
+
         T* obj = static_cast<T*>(it->second->create(name));
         if (!obj)
             return {};
-        auto handle = addAsset(relativePath, std::move(*obj));
+        auto handle = addAsset(finalPath, std::move(*obj));
         handle.save();
         return handle;
     }
@@ -165,7 +204,8 @@ public:
         static_assert(std::is_base_of_v<AssetLoader<T>, LoaderT>,
                       "Loader must inherit from AssetLoader<T>");
 
-        auto            loader  = std::make_unique<LoaderT>();
+        auto loader = std::make_unique<LoaderT>();
+        loader->setAssetManager(this);
         std::type_index typeIdx = typeid(T);
 
         for (const auto& ext : extensions) {
@@ -181,6 +221,8 @@ public:
     bool deleteAsset(const UUID& id);
     bool moveAsset(const UUID& id, const std::string& newUserPath);
     bool copyAsset(const UUID& id, const std::string& newUserPath, bool includeMeta = true);
+    bool renameDirectory(const std::string& oldUserPath, const std::string& newUserPath);
+    bool hasAsset(const UUID& id) const;
 
     template <typename T>
     AssetHandle<T> load(const std::string& userPath) {
@@ -403,8 +445,24 @@ std::shared_ptr<T> AssetHandle<T>::get() const {
 }
 
 template <typename T>
+bool AssetHandle<T>::reload() {
+    if (!assetManager || assetID.is_nil())
+        return false;
+
+    assetManager->unload(assetID);
+    cachedPtr = assetManager->loadByID<T>(assetID).get();
+    return cachedPtr != nullptr;
+}
+
+template <typename T>
+bool AssetHandle<T>::isValid() const {
+    if (!assetManager || assetID.is_nil())
+        return false;
+    return assetManager->hasAsset(assetID); // simple lookup in assetManager
+}
+
+template <typename T>
 bool AssetHandle<T>::save() const {
     return assetManager && isValid() && assetManager->template saveAsset<T>(*this);
 }
-
 }

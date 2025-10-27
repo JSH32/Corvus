@@ -2,6 +2,7 @@
 
 #include "IconsFontAwesome6.h"
 #include "editor/editor.hpp"
+#include "editor/panels/asset_browser/asset_viewer.hpp"
 #include "editor/panels/editor_panel.hpp"
 #include "linp/asset/asset_manager.hpp"
 #include "linp/project/project.hpp"
@@ -15,6 +16,7 @@ namespace Linp::Editor {
 class AssetBrowserPanel : public EditorPanel {
 public:
     explicit AssetBrowserPanel(Core::AssetManager* manager, Core::Project* project);
+    ~AssetBrowserPanel();
     void        onUpdate() override;
     std::string title();
 
@@ -34,6 +36,7 @@ private:
     std::string newDirBuffer;
 
     bool openRenamePopup    = false;
+    bool renamingFolder     = false;
     bool openMovePopup      = false;
     bool openCopyPopup      = false;
     bool openDeletePopup    = false;
@@ -62,6 +65,12 @@ private:
 
     // text ellipsis helper
     std::string ellipsizeToWidth(const std::string& text, float maxWidth) const;
+
+    // For asset viewer panels
+    std::vector<std::unique_ptr<AssetViewer>> openViewers;
+
+    void updateViewers();
+    void openAssetViewer(const Core::UUID& assetID, Core::AssetType type);
 };
 
 } // namespace Linp::Editor

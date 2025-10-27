@@ -1,5 +1,6 @@
 #pragma once
 
+#include "linp/asset/asset_manager.hpp"
 #include <IconsFontAwesome6.h>
 #include <concepts>
 #include <imgui.h>
@@ -39,7 +40,7 @@ struct ComponentInfo {
      *
      * @param component A reference to the component instance to be drawn/edited.
      */
-    static void draw(T& component) = delete;
+    static void draw(T& component, Core::AssetManager* assetManager) = delete;
 };
 
 /**
@@ -50,12 +51,12 @@ struct ComponentInfo {
  * present on a selected entity.
  */
 template <typename T>
-concept HasComponentInfo = requires(T component) {
+concept HasComponentInfo = requires(T component, Core::AssetManager* assetManager) {
     typename ComponentInfo<T>::ComponentType;
     { ComponentInfo<T>::name } -> std::convertible_to<std::string_view>;
     { ComponentInfo<T>::removable } -> std::convertible_to<bool>;
     { ComponentInfo<T>::flat } -> std::convertible_to<bool>;
-    { ComponentInfo<T>::draw(component) } -> std::same_as<void>;
+    { ComponentInfo<T>::draw(component, assetManager) } -> std::same_as<void>;
 };
 
 /**

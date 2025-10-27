@@ -134,15 +134,17 @@ Core::Entity SceneViewport::pickEntity(const Vector2& mousePos) {
             continue;
         }
 
-        const auto& meshRenderer  = entity.getComponent<Core::Components::MeshRendererComponent>();
-        const auto& transformComp = entity.getComponent<Core::Components::TransformComponent>();
+        auto& meshRenderer  = entity.getComponent<Core::Components::MeshRendererComponent>();
+        auto& transformComp = entity.getComponent<Core::Components::TransformComponent>();
 
-        if (meshRenderer.mesh) {
-            RayCollision collision
-                = GetRayCollisionMesh(mouseRay, *meshRenderer.mesh, transformComp.getMatrix());
-            if (collision.hit && collision.distance < closestDistance) {
-                closestDistance = collision.distance;
-                closestEntity   = entity;
+        if (auto model = meshRenderer.getModel(nullptr)) {
+            for (int i = 0; i < model->meshCount; ++i) {
+                RayCollision collision
+                    = GetRayCollisionMesh(mouseRay, model->meshes[i], transformComp.getMatrix());
+                if (collision.hit && collision.distance < closestDistance) {
+                    closestDistance = collision.distance;
+                    closestEntity   = entity;
+                }
             }
         }
     }

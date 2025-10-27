@@ -1,4 +1,5 @@
-#include "editor/panels/asset_browser_panel.hpp"
+#include "editor/panels/asset_browser/asset_browser_panel.hpp"
+#include "editor/panels/asset_browser/material_viewer.hpp"
 #include "imgui_internal.h"
 #include "linp/log.hpp"
 #include "linp/scene.hpp"
@@ -10,6 +11,8 @@ namespace Linp::Editor {
 AssetBrowserPanel::AssetBrowserPanel(Core::AssetManager* manager, Core::Project* project)
     : assetManager(manager), project(project), renameBuffer(256, '\0'), moveBuffer(512, '\0'),
       copyBuffer(512, '\0'), newDirBuffer(256, '\0'), currentDir("") { }
+
+AssetBrowserPanel::~AssetBrowserPanel() { openViewers.clear(); }
 
 std::string AssetBrowserPanel::title() {
     return std::format("{} Asset Browser", ICON_FA_FOLDER_OPEN);
@@ -39,6 +42,8 @@ void AssetBrowserPanel::onUpdate() {
 
     handleContextMenus();
     drawPopups();
+    updateViewers();
+
     ImGui::End();
 }
 
@@ -56,7 +61,6 @@ void AssetBrowserPanel::drawToolbar() {
         }
     }
     ImGui::SameLine();
-    // Display current directory (or "root" if empty)
     ImGui::TextUnformatted(currentDir.empty() ? "(root)" : currentDir.c_str());
 
     ImGui::PopStyleVar();
@@ -64,7 +68,6 @@ void AssetBrowserPanel::drawToolbar() {
 }
 
 void AssetBrowserPanel::drawDirectory(const std::string& dir) {
-    // dir is now project-relative, e.g. "scenes" or "textures/ui"
     std::string name      = dir;
     auto        lastSlash = name.find_last_of('/');
     if (lastSlash != std::string::npos) {
@@ -105,19 +108,19 @@ void AssetBrowserPanel::drawDirectory(const std::string& dir) {
                     0,
                     2.0f);
 
-    // Navigate INTO this directory (dir is already the full relative path)
     if (dbl) {
         currentDir = dir;
     }
 
-    // Fixed: Use IsItemClicked for proper right-click detection
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
         ImGui::OpenPopup("DirContextMenu");
 
     if (ImGui::BeginPopup("DirContextMenu")) {
         if (ImGui::MenuItem(ICON_FA_PEN " Rename")) {
-            renameBuffer    = name;
-            moveBuffer      = dir;
+            renameBuffer    = name;         // Just the folder name
+            moveBuffer      = dir;          // Full path for reference
+            renamingFolder  = true;         // Flag to indicate we're renaming a folder
+            selectedAsset   = std::nullopt; // Clear asset selection
             openRenamePopup = true;
             ImGui::CloseCurrentPopup();
         }
@@ -176,12 +179,10 @@ void AssetBrowserPanel::drawAsset(const Core::AssetMetadata& meta) {
     if (clicked)
         selectedAsset = meta.id;
 
-    // Improved: Better double-click handling with type-specific actions
     if (dbl) {
         handleAssetDoubleClick(meta);
     }
 
-    // Fixed: Use IsItemClicked for proper right-click detection
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
         ImGui::OpenPopup("AssetContextMenu");
 
@@ -189,6 +190,7 @@ void AssetBrowserPanel::drawAsset(const Core::AssetMetadata& meta) {
         if (ImGui::MenuItem(ICON_FA_PEN " Rename")) {
             renameBuffer    = filename;
             selectedAsset   = meta.id;
+            renamingFolder  = false; // Clear folder flag
             openRenamePopup = true;
             ImGui::CloseCurrentPopup();
         }
@@ -230,11 +232,13 @@ void AssetBrowserPanel::handleAssetDoubleClick(const Core::AssetMetadata& meta) 
             LINP_CORE_INFO("Opening scene: {}", meta.path);
             project->loadSceneByID(meta.id);
             break;
+        case Core::AssetType::Material:
+            openAssetViewer(meta.id, meta.type);
+            break;
 
         default:
             LINP_CORE_INFO(
                 "Double-clicked asset: {} (type: {})", meta.path, static_cast<int>(meta.type));
-            // For unknown types, just select the asset
             selectedAsset = meta.id;
             break;
     }
@@ -256,11 +260,9 @@ void AssetBrowserPanel::handleContextMenus() {
                 std::string label = std::format("{} New {}", ICON_FA_FILE, name);
                 if (ImGui::MenuItem(label.c_str())) {
                     std::string safe = "New " + name;
-                    // Build project-relative path
-                    std::string rel = currentDir.empty() ? safe : currentDir + "/" + safe;
-                    if (type == Core::AssetType::Scene)
-                        rel += ".scene";
-                    assetManager->createAsset<Core::Scene>(rel, safe);
+                    std::string rel  = currentDir.empty() ? safe : currentDir + "/" + safe;
+
+                    assetManager->createAssetByType(type, rel, safe);
                 }
             }
         }
@@ -275,6 +277,7 @@ void AssetBrowserPanel::drawPopups() {
             ImGui::CloseCurrentPopup();
     };
 
+    // Rename Popup
     if (openRenamePopup) {
         ImGui::OpenPopup("Rename");
         openRenamePopup = false;
@@ -282,12 +285,27 @@ void AssetBrowserPanel::drawPopups() {
     if (ImGui::BeginPopupModal("Rename", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::InputText("New Name", renameBuffer.data(), renameBuffer.capacity() + 1);
         if (ImGui::Button("OK", { 90, 0 })) {
-            if (selectedAsset) {
-                auto        meta   = assetManager->getMetadata(*selectedAsset);
-                std::string parent = meta.path.substr(0, meta.path.find_last_of('/'));
+            std::string newName(renameBuffer.data());
 
-                std::string newName(renameBuffer.data());
-                std::string newPath = parent + "/" + newName;
+            if (renamingFolder) {
+                // Renaming a folder
+                std::string oldPath = moveBuffer;
+                std::string parent  = oldPath.find_last_of('/') != std::string::npos
+                     ? oldPath.substr(0, oldPath.find_last_of('/'))
+                     : "";
+                std::string newPath = parent.empty() ? newName : parent + "/" + newName;
+
+                assetManager->renameDirectory(oldPath, newPath);
+                renamingFolder = false;
+
+            } else if (selectedAsset) {
+                // Renaming a file
+                auto        meta    = assetManager->getMetadata(*selectedAsset);
+                std::string parent  = meta.path.find_last_of('/') != std::string::npos
+                     ? meta.path.substr(0, meta.path.find_last_of('/'))
+                     : "";
+                std::string ext     = meta.path.substr(meta.path.find_last_of('.'));
+                std::string newPath = parent.empty() ? newName + ext : parent + "/" + newName + ext;
 
                 assetManager->moveAsset(*selectedAsset, newPath);
             }
@@ -297,6 +315,7 @@ void AssetBrowserPanel::drawPopups() {
         ImGui::EndPopup();
     }
 
+    // Move Popup
     if (openMovePopup) {
         ImGui::OpenPopup("Move");
         openMovePopup = false;
@@ -312,6 +331,7 @@ void AssetBrowserPanel::drawPopups() {
         ImGui::EndPopup();
     }
 
+    // Copy Popup
     if (openCopyPopup) {
         ImGui::OpenPopup("Copy Asset");
         openCopyPopup = false;
@@ -327,6 +347,7 @@ void AssetBrowserPanel::drawPopups() {
         ImGui::EndPopup();
     }
 
+    // Delete Asset Popup
     if (openDeletePopup) {
         ImGui::OpenPopup("Delete Asset");
         openDeletePopup = false;
@@ -342,6 +363,7 @@ void AssetBrowserPanel::drawPopups() {
         ImGui::EndPopup();
     }
 
+    // New Folder Popup
     if (openNewDirPopup) {
         ImGui::OpenPopup("New Folder");
         openNewDirPopup = false;
@@ -349,7 +371,6 @@ void AssetBrowserPanel::drawPopups() {
     if (ImGui::BeginPopupModal("New Folder", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::InputText("Folder Name", newDirBuffer.data(), newDirBuffer.capacity() + 1);
         if (ImGui::Button("Create", { 90, 0 })) {
-            // Build project-relative path
             std::string full = currentDir.empty()
                 ? std::string(newDirBuffer.data())
                 : currentDir + "/" + std::string(newDirBuffer.data());
@@ -360,6 +381,7 @@ void AssetBrowserPanel::drawPopups() {
         ImGui::EndPopup();
     }
 
+    // Delete Folder Popup
     if (openDeleteDirPopup) {
         ImGui::OpenPopup("Delete Folder");
         openDeleteDirPopup = false;
@@ -396,6 +418,39 @@ std::string AssetBrowserPanel::ellipsizeToWidth(const std::string& text, float m
     if (lo <= 1)
         return dots;
     return out.substr(0, lo - 1) + dots;
+}
+
+void AssetBrowserPanel::updateViewers() {
+    // Render all open viewers
+    for (auto& viewer : openViewers) {
+        viewer->render();
+    }
+
+    // Remove closed viewers
+    openViewers.erase(std::remove_if(openViewers.begin(),
+                                     openViewers.end(),
+                                     [](const auto& viewer) { return viewer->shouldClose(); }),
+                      openViewers.end());
+}
+
+void AssetBrowserPanel::openAssetViewer(const Core::UUID& assetID, Core::AssetType type) {
+    // Check if already open
+    for (const auto& viewer : openViewers) {
+        if (viewer->getAssetID() == assetID) {
+            return; // Already open
+        }
+    }
+
+    // Create appropriate viewer based on type
+    switch (type) {
+        case Core::AssetType::Material:
+            openViewers.push_back(std::make_unique<MaterialViewer>(assetID, assetManager));
+            break;
+        // Add more viewer types here
+        default:
+            LINP_CORE_WARN("No viewer available for asset type: {}", static_cast<int>(type));
+            break;
+    }
 }
 
 }
