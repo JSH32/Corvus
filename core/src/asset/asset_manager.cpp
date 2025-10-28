@@ -349,30 +349,39 @@ bool AssetManager::copyAsset(const UUID& id, const std::string& newUserPath, boo
 }
 
 bool AssetManager::deleteAsset(const UUID& id) {
-    bool wasRunning = watcherRunning.exchange(false);
-    if (wasRunning && watcherThread.joinable())
-        watcherThread.join();
+    std::shared_ptr<void> dataToDestroy; // Will be destroyed after unlock
 
-    std::lock_guard<std::mutex> lock(assetMutex);
+    {
+        std::lock_guard<std::mutex> lock(assetMutex);
 
-    auto it = metadata.find(id);
-    if (it == metadata.end())
-        return false;
+        auto it = metadata.find(id);
+        if (it == metadata.end())
+            return false;
 
-    const std::string& internalPath = it->second.path;
-    std::string        physfsPath   = stripLeadingSlash(internalPath);
+        const std::string& internalPath = it->second.path;
+        std::string        physfsPath   = stripLeadingSlash(internalPath);
 
-    // Delete asset and meta files
-    PHYSFS_delete(physfsPath.c_str());
-    PHYSFS_delete(stripLeadingSlash(getMetaFilePath(internalPath)).c_str());
+        // Delete asset and meta files
+        PHYSFS_delete(physfsPath.c_str());
+        PHYSFS_delete(stripLeadingSlash(getMetaFilePath(internalPath)).c_str());
 
-    // Remove from tracking
-    pathToID.erase(internalPath);
-    assets.erase(id);
-    metadata.erase(id);
-    fileModificationTimes.erase(internalPath);
+        // Remove from tracking
+        pathToID.erase(internalPath);
 
-    CORVUS_CORE_INFO("Deleted asset: {}", internalPath);
+        // Extract the shared_ptr before erasing
+        auto assetIt = assets.find(id);
+        if (assetIt != assets.end()) {
+            dataToDestroy = std::move(assetIt->second.data);
+            assets.erase(assetIt);
+        }
+
+        metadata.erase(id);
+        fileModificationTimes.erase(internalPath);
+
+        CORVUS_CORE_INFO("Deleted asset: {}", internalPath);
+    }
+
+    // dataToDestroy destructor runs here, after mutex is unlocked
     return true;
 }
 
