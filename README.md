@@ -1,11 +1,10 @@
-# Corvus Game Engine
-
 <p align="center">
-  <img src="./.github/assets/banner.png" alt="Corvus Logo" width="500"/>
+  <img src="./.github/assets/banner.png" alt="Corvus Logo" width="550"/>
 </p>
 
 > [!NOTE]
-> **Work in Progress** - This engine is under active development as a fun side project
+> **Work in Progress**
+> This engine is under active development as a fun side project
 
 A full-featured game engine built on top of [raylib](https://www.raylib.com/), designed for creating 3D games with a complete development workflow.
 
