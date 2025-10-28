@@ -1,11 +1,11 @@
 #pragma once
 
+#include "corvus/asset/asset_manager.hpp"
+#include "corvus/project/project.hpp"
 #include "editor/panels/editor_panel.hpp"
 #include "editor/panels/inspector/inspector_panel.hpp"
 #include "editor/panels/inspector/panels/panels.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
-#include "corvus/asset/asset_manager.hpp"
-#include "corvus/project/project.hpp"
 #include <memory>
 
 namespace Corvus::Editor {
@@ -17,6 +17,7 @@ public:
         : project(project), sceneHierarchy(sceneHierarchy), assetManager(assetManager) { }
 
     void           onUpdate() override;
+    std::string    title() { return ICON_FA_CIRCLE_INFO " Inspector"; }
     Core::Project& project;
 
 private:

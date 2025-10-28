@@ -21,7 +21,7 @@ public:
     ~AssetBrowserPanel();
 
     void        onUpdate() override;
-    std::string title();
+    std::string title() { return ICON_FA_FOLDER_OPEN " Asset Browser"; };
 
 private:
     Core::AssetManager* assetManager;

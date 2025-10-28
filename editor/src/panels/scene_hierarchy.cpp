@@ -1,7 +1,7 @@
 #include "editor/panels/scene_hierarchy.hpp"
 
-#include "imgui.h"
 #include "corvus/components/entity_info.hpp"
+#include "imgui.h"
 
 namespace Corvus::Editor {
 void SceneHierarchyPanel::drawEntity(Core::Entity entity) const {
@@ -46,7 +46,7 @@ void SceneHierarchyPanel::drawEntity(Core::Entity entity) const {
 bool SceneHierarchyPanel::isFocused() { return windowFocused; }
 
 void SceneHierarchyPanel::onUpdate() {
-    if (ImGui::Begin(ICON_FA_LIST_UL " Hierarchy")) {
+    if (ImGui::Begin(title().c_str())) {
         windowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
         for (auto& entity : project.getCurrentScene()->getRootOrderedEntities())

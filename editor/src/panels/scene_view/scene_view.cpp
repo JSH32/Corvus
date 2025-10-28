@@ -1,7 +1,7 @@
 #include "editor/panels/scene_view/scene_view.hpp"
 
-#include "imgui.h"
 #include "corvus/components/transform.hpp"
+#include "imgui.h"
 #include <algorithm>
 
 namespace Corvus::Editor {
@@ -145,7 +145,7 @@ void SceneViewPanel::handleShortcuts() {
 
 void SceneViewPanel::onUpdate() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    if (!ImGui::Begin(ICON_FA_CUBES " Scene View")) {
+    if (!ImGui::Begin(title().c_str())) {
         ImGui::PopStyleVar();
         ImGui::End();
         return;

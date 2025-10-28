@@ -4,6 +4,7 @@
 #include "corvus/log.hpp"
 #include "editor/panels/asset_browser/asset_browser_panel.hpp"
 #include "editor/panels/inspector/inspector.hpp"
+#include "editor/panels/project_settings.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
 #include "editor/panels/scene_view/scene_view.hpp"
 #include "editor/project_selector.hpp"
@@ -12,6 +13,37 @@
 #include <memory>
 
 namespace Corvus::Editor {
+
+// Panel Registry, add new panels here!
+const std::vector<EditorLayer::PanelDefinition> EditorLayer::PANEL_REGISTRY
+    = { { "Scene Hierarchy",
+          true,
+          [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
+              return std::make_unique<SceneHierarchyPanel>(*editor->currentProject,
+                                                           editor->selectedEntity);
+          } },
+        { "Inspector",
+          true,
+          [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
+              return std::make_unique<InspectorPanel>(*editor->currentProject,
+                                                      editor->currentProject->getAssetManager(),
+                                                      editor->getPanel<SceneHierarchyPanel>());
+          } },
+        { "Scene View",
+          true,
+          [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
+              return std::make_unique<SceneViewPanel>(*editor->currentProject,
+                                                      editor->getPanel<SceneHierarchyPanel>());
+          } },
+        { "Asset Browser",
+          true,
+          [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
+              return std::make_unique<AssetBrowserPanel>(editor->currentProject->getAssetManager(),
+                                                         editor->currentProject.get());
+          } },
+        { "Project Settings", false, [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
+             return std::make_unique<ProjectSettingsPanel>(editor->currentProject.get());
+         } } };
 
 EditorLayer::EditorLayer(Core::Application* application, std::unique_ptr<Core::Project> project)
     : Core::Layer("Editor"), application(application), currentProject(std::move(project)) {
@@ -41,13 +73,12 @@ void EditorLayer::recreatePanels() {
         return;
     }
 
-    auto sceneHierarchy = std::make_unique<SceneHierarchyPanel>(*currentProject, selectedEntity);
-    panels.push_back(std::make_unique<InspectorPanel>(
-        *currentProject, currentProject->getAssetManager(), sceneHierarchy.get()));
-    panels.push_back(std::make_unique<SceneViewPanel>(*currentProject, sceneHierarchy.get()));
-    panels.push_back(std::move(sceneHierarchy));
-    panels.push_back(std::make_unique<AssetBrowserPanel>(currentProject->getAssetManager(),
-                                                         currentProject.get()));
+    // Create all panels from registry
+    panels.resize(PANEL_REGISTRY.size());
+    for (size_t i = 0; i < PANEL_REGISTRY.size(); ++i) {
+        panels[i].panel   = PANEL_REGISTRY[i].factory(this);
+        panels[i].visible = PANEL_REGISTRY[i].visibleOnBoot;
+    }
 
     CORVUS_CORE_INFO("Recreated editor panels");
 }
@@ -57,38 +88,11 @@ void EditorLayer::onImGuiRender() {
     renderMenuBar();
     ImGui::End();
 
-    handleFileDialogs();
-
-    // Render all panels
-    for (const auto& panel : panels) {
-        if (panel) {
-            panel->onUpdate();
+    // Render panels based on visibility flags
+    for (auto& panelInstance : panels) {
+        if (panelInstance.panel && panelInstance.visible) {
+            panelInstance.panel->onUpdate();
         }
-    }
-}
-
-void EditorLayer::handleFileDialogs() {
-    // Handle New Project Dialog
-    if (ImGuiFileDialog::Instance()->Display("ChooseFolderDlg")) {
-        if (ImGuiFileDialog::Instance()->IsOk()) {
-            std::string folderPath  = ImGuiFileDialog::Instance()->GetCurrentPath();
-            std::string projectName = std::filesystem::path(folderPath).filename().string();
-            if (projectName.empty()) {
-                projectName = "New Project";
-            }
-            createNewProject(folderPath, projectName);
-        }
-        ImGuiFileDialog::Instance()->Close();
-    }
-
-    // Handle Open Project Dialog
-    if (ImGuiFileDialog::Instance()->Display("OpenProjectDlg")) {
-        if (ImGuiFileDialog::Instance()->IsOk()) {
-            std::string filePath    = ImGuiFileDialog::Instance()->GetFilePathName();
-            std::string projectPath = std::filesystem::path(filePath).parent_path().string();
-            openProject(projectPath);
-        }
-        ImGuiFileDialog::Instance()->Close();
     }
 }
 
@@ -111,17 +115,19 @@ void EditorLayer::renderMenuBar() {
                 }
             }
 
-            if (ImGui::MenuItem("Set as Main Scene")) {
-                if (currentProject) {
-                    currentProject->setMainScene(currentProject->getCurrentSceneID());
-                    CORVUS_CORE_INFO("Set current scene as main scene");
-                }
-            }
-
             ImGui::Separator();
 
             if (ImGui::MenuItem("Exit")) {
                 application->stop();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("View")) {
+            // Dynamically generate menu items from registry
+            for (size_t i = 0; i < PANEL_REGISTRY.size(); ++i) {
+                ImGui::MenuItem(PANEL_REGISTRY[i].displayName, nullptr, &panels[i].visible);
             }
 
             ImGui::EndMenu();

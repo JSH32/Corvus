@@ -23,10 +23,6 @@ AssetBrowserPanel::AssetBrowserPanel(Core::AssetManager* manager, Core::Project*
 
 AssetBrowserPanel::~AssetBrowserPanel() { openViewers.clear(); }
 
-std::string AssetBrowserPanel::title() {
-    return std::format("{} Asset Browser", ICON_FA_FOLDER_OPEN);
-}
-
 void AssetBrowserPanel::onUpdate() {
     ImGui::Begin(title().c_str());
 

@@ -1,11 +1,11 @@
 #pragma once
 
 #include "IconsFontAwesome6.h"
+#include "corvus/scene.hpp"
 #include "editor/panels/editor_panel.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
 #include "editor/panels/scene_view/scene_viewport.hpp"
 #include "imgui.h"
-#include "corvus/scene.hpp"
 #include "raylib.h"
 
 namespace Corvus::Editor {
@@ -32,7 +32,8 @@ public:
      *
      * Manages ImGui window, viewport display, mouse interaction, and entity selection.
      */
-    void onUpdate() override;
+    void        onUpdate() override;
+    std::string title() { return ICON_FA_CUBES " Scene View"; }
 
     /**
      * @brief Gets the scene viewport for external access.

@@ -199,6 +199,8 @@ AssetHandle<Scene> Project::createNewScene(const std::string& name) {
     return handle;
 }
 
+void Project::setProjectName(const std::string& name) { settings.projectName = name; }
+
 std::vector<AssetHandle<Scene>> Project::getAllScenes() {
     return assetManager->getAllOfType<Scene>();
 }

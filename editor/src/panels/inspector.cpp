@@ -1,13 +1,13 @@
 #include "editor/panels/inspector/inspector.hpp"
 #include "IconsFontAwesome6.h"
-#include "imgui.h"
-#include "imgui_internal.h"
 #include "corvus/asset/asset_manager.hpp"
 #include "corvus/log.hpp"
+#include "imgui.h"
+#include "imgui_internal.h"
 
 namespace Corvus::Editor {
 void InspectorPanel::onUpdate() {
-    ImGui::Begin(ICON_FA_CIRCLE_INFO " Inspector");
+    ImGui::Begin(title().c_str());
 
     if (sceneHierarchy->selectedEntity) {
         drawAllComponents(sceneHierarchy->selectedEntity, assetManager);

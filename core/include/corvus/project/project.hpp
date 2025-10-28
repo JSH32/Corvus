@@ -24,9 +24,6 @@ private:
     std::unique_ptr<AssetManager> assetManager;
     AssetHandle<Scene>            currentSceneHandle;
 
-    bool saveProjectSettings();
-    bool loadProjectSettings();
-
 public:
     Project()  = default;
     ~Project() = default;
@@ -45,10 +42,14 @@ public:
     bool                            saveCurrentScene();
     bool                            loadSceneByID(const UUID& sceneID);
     void                            setMainScene(const UUID& sceneID);
+    void                            setProjectName(const std::string& name);
     AssetHandle<Scene>              createNewScene(const std::string& name);
     std::vector<AssetHandle<Scene>> getAllScenes();
     AssetHandle<Scene>              getCurrentScene();
     UUID                            getCurrentSceneID() const;
+
+    bool saveProjectSettings();
+    bool loadProjectSettings();
 
     // File watching
     void startFileWatcher(int pollIntervalMs = 1000);
@@ -58,6 +59,7 @@ public:
     // Getters
     const std::string&  getProjectPath() const { return projectPath; }
     const std::string&  getProjectName() const { return settings.projectName; }
+    const UUID&         getMainSceneID() const { return settings.mainSceneID; }
     AssetManager*       getAssetManager() { return assetManager.get(); }
     const AssetManager* getAssetManager() const { return assetManager.get(); }
 };

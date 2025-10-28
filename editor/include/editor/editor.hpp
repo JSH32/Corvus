@@ -17,15 +17,39 @@ public:
     void onImGuiRender() override;
     void recreatePanels();
 
+    template <typename T>
+    T* getPanel() {
+        for (auto& panelInstance : panels) {
+            if (auto* panel = dynamic_cast<T*>(panelInstance.panel.get())) {
+                return panel;
+            }
+        }
+        return nullptr;
+    }
+
 private:
-    std::vector<std::unique_ptr<EditorPanel>> panels;
-    std::unique_ptr<Core::Project>            currentProject;
-    Core::Entity                              selectedEntity;
-    Core::Application*                        application;
+    struct PanelDefinition {
+        const char*                                               displayName;
+        bool                                                      visibleOnBoot;
+        std::function<std::unique_ptr<EditorPanel>(EditorLayer*)> factory;
+    };
+
+    // Runtime panel instance
+    struct PanelInstance {
+        std::unique_ptr<EditorPanel> panel;
+        bool                         visible;
+    };
+
+    // Panel registry, look in editor.cpp to add panels
+    static const std::vector<PanelDefinition> PANEL_REGISTRY;
+
+    std::vector<PanelInstance>     panels;
+    std::unique_ptr<Core::Project> currentProject;
+    Core::Entity                   selectedEntity;
+    Core::Application*             application;
 
     void startDockspace();
     void renderMenuBar();
-    void handleFileDialogs();
 
     void returnToProjectSelector();
 
