@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <array>
+#include <filesystem>
+#include <physfs.h>
 #include <sstream>
 #include <unordered_map>
 
@@ -151,19 +153,17 @@ uint64_t AssetManager::getFileModTime(const std::string& internalPath) {
 }
 
 AssetType AssetManager::getAssetTypeFromExtension(const std::string& ext) {
-    static const std::unordered_map<std::string, AssetType> extensionMap = {
-        { ".scene", AssetType::Scene }, { ".png", AssetType::Texture },
-        { ".jpg", AssetType::Texture }, { ".jpeg", AssetType::Texture },
-        { ".bmp", AssetType::Texture }, { ".obj", AssetType::Model },
-        { ".gltf", AssetType::Model },  { ".glb", AssetType::Model },
-        { ".wav", AssetType::Audio },   { ".ogg", AssetType::Audio },
-        { ".mp3", AssetType::Audio },   { ".vs", AssetType::Shader },
-        { ".fs", AssetType::Shader },   { ".ttf", AssetType::Font },
-        { ".otf", AssetType::Font },
-    };
+    auto extIt = extensionToType.find(ext);
+    if (extIt == extensionToType.end()) {
+        return AssetType::Unknown;
+    }
 
-    auto it = extensionMap.find(ext);
-    return (it != extensionMap.end()) ? it->second : AssetType::Unknown;
+    auto loaderIt = loaders.find(extIt->second);
+    if (loaderIt == loaders.end()) {
+        return AssetType::Unknown;
+    }
+
+    return loaderIt->second->getType();
 }
 
 bool AssetManager::loadMetaFile(const std::string& assetInternalPath, AssetMetadata& outMeta) {
@@ -358,8 +358,8 @@ bool AssetManager::deleteAsset(const UUID& id) {
         if (it == metadata.end())
             return false;
 
-        const std::string& internalPath = it->second.path;
-        std::string        physfsPath   = stripLeadingSlash(internalPath);
+        std::string internalPath = it->second.path;
+        std::string physfsPath   = stripLeadingSlash(internalPath);
 
         // Delete asset and meta files
         PHYSFS_delete(physfsPath.c_str());
@@ -395,6 +395,12 @@ bool AssetManager::moveAsset(const UUID& id, const std::string& newUserPath) {
     const std::string oldInternalPath = it->second.path;
     const std::string newInternalPath = toInternal(newUserPath);
 
+    if (oldInternalPath == newInternalPath) {
+        CORVUS_CORE_INFO("Move skipped: source and destination are identical ({})",
+                         oldInternalPath);
+        return true; // Not an error, just a no-op
+    }
+
     // Copy to new location
     if (!physfsCopyFile(toPhysFS(oldInternalPath), stripLeadingSlash(newInternalPath))) {
         CORVUS_CORE_ERROR("Failed to move asset: {} -> {}", oldInternalPath, newInternalPath);
@@ -411,7 +417,8 @@ bool AssetManager::moveAsset(const UUID& id, const std::string& newUserPath) {
     it->second.lastModified = getFileModTime(newInternalPath);
 
     saveMetaFile(it->second.path, it->second);
-    pathToID[it->second.path]              = id;
+    pathToID[it->second.path] = id;
+    fileModificationTimes.erase(oldInternalPath);
     fileModificationTimes[it->second.path] = it->second.lastModified;
 
     // Update loaded asset if present
@@ -844,27 +851,151 @@ void AssetManager::unloadAll() {
 // ============================================================================
 
 void AssetManager::checkFileChanges() {
-    if (!watcherRunning.load())
-        return;
-
     std::lock_guard<std::mutex> lock(assetMutex);
 
-    for (auto& [internalPath, lastModTime] : fileModificationTimes) {
-        uint64_t currentModTime = getFileModTime(internalPath);
+    std::unordered_set<std::string> seenFiles;
 
-        if (currentModTime > lastModTime) {
-            lastModTime = currentModTime;
-            CORVUS_CORE_INFO("Detected file change: {}", internalPath);
+    std::function<void(const std::string&)> scanForChanges = [&](const std::string& dirPath) {
+        std::string physfsPath = toPhysFS(dirPath);
 
-            auto it = pathToID.find(internalPath);
-            if (it != pathToID.end()) {
-                const UUID& assetId = it->second;
+        char** entries = PHYSFS_enumerateFiles(physfsPath.c_str());
+        if (!entries) {
+            return;
+        }
+
+        for (char** entry = entries; *entry; ++entry) {
+            std::string entryInternalPath = toInternal(dirPath + "/" + *entry);
+
+            PHYSFS_Stat stat;
+            if (!PHYSFS_stat(toPhysFS(entryInternalPath).c_str(), &stat)) {
+                continue;
+            }
+
+            if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY) {
+                scanForChanges(entryInternalPath);
+                continue;
+            }
+
+            if (entryInternalPath.ends_with(".meta")) {
+                continue;
+            }
+
+            seenFiles.insert(entryInternalPath);
+
+            // Check if this is a new file
+            if (fileModificationTimes.find(entryInternalPath) == fileModificationTimes.end()) {
+                CORVUS_CORE_INFO("Detected new file: {}", entryInternalPath);
+
+                // Load or create metadata
+                AssetMetadata meta;
+                if (!loadMetaFile(entryInternalPath, meta)) {
+                    meta.id   = boost::uuids::random_generator()();
+                    meta.path = entryInternalPath;
+                    meta.type = getAssetTypeFromExtension(getFileExtension(entryInternalPath));
+                    meta.lastModified = stat.modtime;
+                    saveMetaFile(meta.path, meta);
+                }
+
+                metadata[meta.id]                = meta;
+                pathToID[meta.path]              = meta.id;
+                fileModificationTimes[meta.path] = meta.lastModified;
+
+                // Trigger callbacks for new asset
                 for (auto& callback : assetReloadedCallbacks) {
                     try {
-                        callback(assetId, internalPath);
+                        callback(meta.id, entryInternalPath);
                     } catch (...) { }
                 }
             }
+            // Check for modifications
+            else {
+                auto&    lastModTime    = fileModificationTimes[entryInternalPath];
+                uint64_t currentModTime = stat.modtime;
+
+                if (currentModTime > lastModTime) {
+                    lastModTime = currentModTime;
+                    CORVUS_CORE_INFO("Detected file modification: {}", entryInternalPath);
+
+                    auto it = pathToID.find(entryInternalPath);
+                    if (it != pathToID.end()) {
+                        const UUID& assetId = it->second;
+
+                        // Check if meta file exists, recreate if missing
+                        AssetMetadata meta;
+                        if (!loadMetaFile(entryInternalPath, meta)) {
+                            CORVUS_CORE_WARN("Meta file missing for {}, recreating",
+                                             entryInternalPath);
+                            meta              = metadata[assetId];
+                            meta.lastModified = currentModTime;
+                            saveMetaFile(meta.path, meta);
+                        }
+
+                        for (auto& callback : assetReloadedCallbacks) {
+                            try {
+                                callback(assetId, entryInternalPath);
+                            } catch (...) { }
+                        }
+                    }
+                }
+            }
+        }
+
+        PHYSFS_freeList(entries);
+    };
+
+    // Recursive scan
+    scanForChanges("/");
+
+    // Check for deleted meta files and recreate them
+    for (const auto& [path, uuid] : pathToID) {
+        if (seenFiles.find(path) != seenFiles.end()) {
+            // File exists, check if meta file exists
+            std::string metaPhysfsPath = toPhysFS(getMetaFilePath(path));
+            PHYSFS_Stat metaStat;
+
+            if (!PHYSFS_stat(metaPhysfsPath.c_str(), &metaStat)) {
+                // Meta file is missing, recreate it
+                CORVUS_CORE_WARN("Meta file missing for existing asset {}, recreating", path);
+
+                auto metaIt = metadata.find(uuid);
+                if (metaIt != metadata.end()) {
+                    saveMetaFile(path, metaIt->second);
+                }
+            }
+        }
+    }
+
+    // Check for deleted files
+    std::vector<std::string> deletedFiles;
+    for (const auto& [path, _] : fileModificationTimes) {
+        if (seenFiles.find(path) == seenFiles.end()) {
+            deletedFiles.push_back(path);
+        }
+    }
+
+    for (const auto& deletedPath : deletedFiles) {
+        CORVUS_CORE_INFO("Detected file deletion: {}", deletedPath);
+
+        auto it = pathToID.find(deletedPath);
+        if (it != pathToID.end()) {
+            UUID deletedId = it->second;
+
+            // Remove metadata
+            metadata.erase(deletedId);
+            pathToID.erase(it);
+            fileModificationTimes.erase(deletedPath);
+
+            // Delete associated .meta file
+            std::string metaPath = stripLeadingSlash(getMetaFilePath(deletedPath));
+            if (PHYSFS_delete(metaPath.c_str())) {
+                CORVUS_CORE_INFO("Deleted orphaned meta file: {}", metaPath);
+            } else {
+                const char* errMsg = PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode());
+                CORVUS_CORE_WARN("Failed to delete meta file: {} - {}", metaPath, errMsg);
+            }
+
+            // Unload the asset if loaded
+            assets.erase(deletedId);
         }
     }
 }

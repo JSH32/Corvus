@@ -1,26 +1,22 @@
 #pragma once
 
 #include "IconsFontAwesome6.h"
+#include "corvus/components/entity_info.hpp"
 #include "editor/imguiutils.hpp"
 #include "editor/panels/inspector/inspector_panel.hpp"
 #include "imgui_internal.h"
-#include "corvus/components/entity_info.hpp"
 #include <cstring>
 #include <imgui.h>
 #include <string.h>
 
 namespace Corvus::Editor {
 
-/**
- * @brief Specialization of ComponentInfo for Corvus::Core::Components::EntityInfoComponent.
- */
 template <>
 struct ComponentInfo<Corvus::Core::Components::EntityInfoComponent> {
-    using ComponentType = Corvus::Core::Components::EntityInfoComponent;
-    static constexpr std::string_view name
-        = ICON_FA_CIRCLE_INFO " Entity Info"; // Using a more fitting icon
-    static constexpr bool removable = false;
-    static constexpr bool flat      = true;
+    using ComponentType                         = Corvus::Core::Components::EntityInfoComponent;
+    static constexpr std::string_view name      = ICON_FA_CIRCLE_INFO " Entity Info";
+    static constexpr bool             removable = false;
+    static constexpr bool             flat      = true;
 
     static void draw(ComponentType& entityInfo, Corvus::Core::AssetManager*) {
         char buffer[256] = {};
@@ -67,8 +63,8 @@ struct ComponentInfo<Corvus::Core::Components::TransformComponent> {
             transform.scale = scale;
         }
 
-        // Rotation - convert quaternion to Euler for editing
-        // ALWAYS update the Euler angles to reflect current quaternion
+        // Rotation, convert quaternion to Euler for editing
+        // Always update the Euler angles to reflect current quaternion
         raylib::Vector3 eulerAngles = QuaternionToEuler(transform.rotation);
         eulerAngles.x *= RAD2DEG;
         eulerAngles.y *= RAD2DEG;
@@ -195,7 +191,7 @@ struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
             }
         }
 
-        // End columns before FloatEditor (which handles its own layout)
+        // End columns before FloatEditor
         ImGui::Columns(1);
 
         if (needsRegen && renderer.primitiveType != PrimitiveType::Model)

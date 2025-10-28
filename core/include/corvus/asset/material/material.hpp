@@ -14,7 +14,7 @@
 
 namespace Corvus::Core {
 
-// Material property types (like Unity's shader properties)
+// Material property types
 enum class MaterialPropertyType {
     Float,
     Color,
@@ -26,7 +26,7 @@ enum class MaterialPropertyType {
     Bool
 };
 
-// Simple discriminated union for material properties
+// Discriminated union for material properties
 struct MaterialPropertyValue {
     MaterialPropertyType type;
 

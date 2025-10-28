@@ -13,49 +13,6 @@
 
 namespace Corvus::Core {
 
-// // PhysFS callback for raylib's file loading
-// // This allows LoadModel() and other functions to read from PhysFS
-// inline unsigned char* LoadFileDataFromPhysFS(const char* fileName, int* bytesRead) {
-//     PHYSFS_File* file = PHYSFS_openRead(fileName);
-//     if (!file) {
-//         *bytesRead = 0;
-//         return nullptr;
-//     }
-
-//     PHYSFS_sint64 fileSize = PHYSFS_fileLength(file);
-//     if (fileSize <= 0) {
-//         PHYSFS_close(file);
-//         *bytesRead = 0;
-//         return nullptr;
-//     }
-
-//     unsigned char* data      = (unsigned char*)RL_MALLOC(fileSize);
-//     PHYSFS_sint64  readBytes = PHYSFS_readBytes(file, data, fileSize);
-//     PHYSFS_close(file);
-
-//     *bytesRead = (int)readBytes;
-//     return data;
-// }
-
-// inline char* LoadFileTextFromPhysFS(const char* fileName) {
-//     PHYSFS_File* file = PHYSFS_openRead(fileName);
-//     if (!file) {
-//         return nullptr;
-//     }
-
-//     PHYSFS_sint64 fileSize = PHYSFS_fileLength(file);
-//     if (fileSize <= 0) {
-//         PHYSFS_close(file);
-//         return nullptr;
-//     }
-
-//     char* text = (char*)RL_CALLOC(fileSize + 1, 1);
-//     PHYSFS_readBytes(file, text, fileSize);
-//     PHYSFS_close(file);
-
-//     return text;
-// }
-
 class TextureLoader : public AssetLoader<raylib::Texture> {
 public:
     raylib::Texture* loadTyped(const std::string& path) override {
