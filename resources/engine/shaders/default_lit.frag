@@ -46,7 +46,7 @@ uniform mat4      u_LightSpaceMatrices[4];
 uniform float     u_ShadowBias[4];
 uniform float     u_ShadowStrength[4];
 
-// Point light shadow uniforms (NEW!)
+// Point light shadow uniforms
 uniform int         u_PointLightShadowCount;
 uniform samplerCube u_PointLightShadowMaps[4];
 uniform vec3        u_PointLightShadowPositions[4];
