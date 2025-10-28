@@ -40,8 +40,13 @@ bool EditorCamera::update(const ImGuiIO& io, bool isInputAllowed) {
 
     raylib::Vector2 mouseDelta(io.MouseDelta.x, io.MouseDelta.y);
 
-    // Process orbit (right mouse button)
+    // Process fly mode (right mouse button)
     if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+        cameraChanged |= processFlyMode(io, mouseDelta);
+    }
+
+    // Process orbit (Alt + left mouse button)
+    if (io.KeyAlt && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
         cameraChanged |= processOrbit(mouseDelta);
     }
 
@@ -141,4 +146,86 @@ bool EditorCamera::processPan(const raylib::Vector2& mouseDelta) {
     return !Vector3Equals(target, oldTarget);
 }
 
+bool EditorCamera::processFlyMode(const ImGuiIO& io, const raylib::Vector2& mouseDelta) {
+    bool changed = false;
+
+    if (io.MouseWheel != 0.0f) {
+        flySpeed += io.MouseWheel * 0.5f;
+        flySpeed = std::max(0.1f, flySpeed);
+    }
+
+    // Mouse look
+    if (mouseDelta.x != 0.0f || mouseDelta.y != 0.0f) {
+        Vector2 oldAngles = orbitAngles;
+        orbitAngles.y -= mouseDelta.x * orbitSpeed;
+        orbitAngles.x -= mouseDelta.y * orbitSpeed;
+        orbitAngles.x = std::clamp(orbitAngles.x, pitchMin, pitchMax);
+        changed |= (orbitAngles.x != oldAngles.x || orbitAngles.y != oldAngles.y);
+    }
+
+    // WASD movement
+    float deltaTime = io.DeltaTime;
+    float moveSpeed = flySpeed;
+
+    if (io.KeyShift) {
+        moveSpeed *= 3.0f;
+    }
+
+    // Get camera direction vectors
+    Vector3 forward = getForward();
+    Vector3 right   = getRight();
+    Vector3 up      = { 0, 1, 0 }; // World up
+
+    Vector3 movement = { 0, 0, 0 };
+
+    // WASD movement
+    if (ImGui::IsKeyDown(ImGuiKey_W)) {
+        movement = Vector3Add(movement, forward);
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_S)) {
+        movement = Vector3Subtract(movement, forward);
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_A)) {
+        movement = Vector3Subtract(movement, right);
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_D)) {
+        movement = Vector3Add(movement, right);
+    }
+
+    // Q/E for up/down (world space)
+    if (ImGui::IsKeyDown(ImGuiKey_E)) {
+        movement = Vector3Add(movement, up);
+    }
+    if (ImGui::IsKeyDown(ImGuiKey_Q)) {
+        movement = Vector3Subtract(movement, up);
+    }
+
+    // Apply movement
+    if (movement.x != 0 || movement.y != 0 || movement.z != 0) {
+        // Normalize movement vector
+        float length = Vector3Length(movement);
+        if (length > 0) {
+            movement = Vector3Scale(movement, 1.0f / length);
+        }
+
+        Vector3 oldPosition  = camera.position;
+        Vector3 displacement = Vector3Scale(movement, moveSpeed * deltaTime);
+        camera.position      = Vector3Add(camera.position, displacement);
+        target               = Vector3Add(target, displacement);
+
+        changed |= !Vector3Equals(oldPosition, camera.position);
+    }
+
+    return changed;
+}
+
+Vector3 EditorCamera::getForward() const {
+    return Vector3Normalize(Vector3Subtract(target, camera.position));
+}
+
+Vector3 EditorCamera::getRight() const {
+    Vector3 forward = getForward();
+    Vector3 worldUp = { 0, 1, 0 };
+    return Vector3Normalize(Vector3CrossProduct(forward, worldUp));
+}
 }

@@ -79,6 +79,16 @@ public:
      */
     void focusOn(const Vector3& focusPoint, float optimalDistance = 10.0f);
 
+    /**
+     * @brief Gets the forward direction vector of the camera.
+     */
+    Vector3 getForward() const;
+
+    /**
+     * @brief Gets the right direction vector of the camera.
+     */
+    Vector3 getRight() const;
+
 private:
     raylib::Camera3D camera;
 
@@ -91,6 +101,9 @@ private:
     float minDistance, maxDistance;
     float pitchMin, pitchMax;
     float zoomSpeed, orbitSpeed, panSpeedFactor;
+    float flySpeed = 5.0f;
+
+    bool isInFlyMode = false;
 
     /**
      * @brief Recalculates camera position based on current orbit state.
@@ -111,6 +124,11 @@ private:
      * @brief Processes middle mouse button pan input.
      */
     bool processPan(const raylib::Vector2& mouseDelta);
+
+    /**
+     * @brief Processes fly mode input (right mouse + WASD).
+     */
+    bool processFlyMode(const ImGuiIO& io, const raylib::Vector2& mouseDelta);
 };
 
 }
