@@ -1,9 +1,10 @@
 #include "corvus/application.hpp"
+#include "corvus/asset/material/material.hpp"
+#include "corvus/files/static_resource_file.hpp"
+#include "corvus/layerstack.hpp"
 #include "extras/FA6FreeSolidFontData.h"
 #include "extras/IconsFontAwesome6.h"
 #include "imgui.h"
-#include "corvus/asset/material/material.hpp"
-#include "corvus/files/static_resource_file.hpp"
 #include "physfs.h"
 #include "rlImGui.h"
 
@@ -26,15 +27,7 @@ Application::~Application() {
     CloseWindow();
 }
 
-void Application::pushLayer(std::unique_ptr<Layer> layer) {
-    layer->onAttach();
-    layerStack.pushLayer(std::move(layer));
-}
-
-void Application::pushOverlay(std::unique_ptr<Layer> layer) {
-    layer->onAttach();
-    layerStack.pushOverlay(std::move(layer));
-}
+LayerStack& Application::getLayerStack() { return layerStack; }
 
 void Application::stop() { this->isRunning = false; }
 
@@ -126,6 +119,8 @@ void Application::setupImgui() {
 
     ImFontConfig             fontConfig;
     static constexpr ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+    fontConfig.OversampleH                = 3;
+    fontConfig.OversampleV                = 3;
     fontConfig.PixelSnapH                 = true;
 
     // We could technically load this as a stack value and forget it, however, that may break when

@@ -24,12 +24,7 @@ public:
     /**
      * @brief Push a render layer.
      */
-    void pushLayer(std::unique_ptr<Layer> layer);
-
-    /**
-     * @brief Push an overlay layer.
-     */
-    void pushOverlay(std::unique_ptr<Layer> layer);
+    LayerStack& getLayerStack();
 
     /**
      * @brief Stop the application loop.

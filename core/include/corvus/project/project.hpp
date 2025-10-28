@@ -53,6 +53,7 @@ public:
     // File watching
     void startFileWatcher(int pollIntervalMs = 1000);
     void stopFileWatcher();
+    bool fileWatcherRunning() const;
 
     // Getters
     const std::string&  getProjectPath() const { return projectPath; }

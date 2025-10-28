@@ -1016,6 +1016,8 @@ void AssetManager::startFileWatcher(int pollIntervalMs) {
     CORVUS_CORE_INFO("File watcher started ({} ms poll interval)", pollIntervalMs);
 }
 
+bool AssetManager::fileWatcherRunning() const { return watcherRunning; }
+
 void AssetManager::stopFileWatcher() {
     if (!watcherRunning.load())
         return;

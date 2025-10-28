@@ -21,8 +21,9 @@ void LayerStack::popLayer(Layer* layer) {
                        [layer](const std::unique_ptr<Layer>& ptr) { return ptr.get() == layer; });
 
     if (it != layers.begin() + layerInsertIndex) {
+        (*it)->onDetach();
         layers.erase(it);
-        --layerInsertIndex; // Move divider back
+        --layerInsertIndex;
     }
 }
 

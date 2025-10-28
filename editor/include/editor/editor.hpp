@@ -1,9 +1,9 @@
 #pragma once
 
-#include "editor/panels/editor_panel.hpp"
 #include "corvus/application.hpp"
 #include "corvus/layer.hpp"
 #include "corvus/project/project.hpp"
+#include "editor/panels/editor_panel.hpp"
 #include <memory>
 #include <vector>
 
@@ -11,7 +11,8 @@ namespace Corvus::Editor {
 
 class EditorLayer : public Core::Layer {
 public:
-    EditorLayer(Core::Application* application);
+    EditorLayer(Core::Application* application, std::unique_ptr<Core::Project> project);
+
     ~EditorLayer();
     void onImGuiRender() override;
     void recreatePanels();
@@ -26,9 +27,7 @@ private:
     void renderMenuBar();
     void handleFileDialogs();
 
-    void showNewProjectDialog();
-    void showOpenProjectDialog();
-    void showLoadSceneDialog();
+    void returnToProjectSelector();
 
     void openProject(const std::string& path);
     void createNewProject(const std::string& path, const std::string& name);

@@ -143,12 +143,12 @@ struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
         ImGui::TextUnformatted("Primitive");
         ImGui::NextColumn();
         {
-            static const char* kPrimitiveNames[]
+            static const char* primitiveNames[]
                 = { "Cube", "Sphere", "Plane", "Cylinder", "Model" };
             int current = static_cast<int>(renderer.primitiveType);
             ImGui::PushItemWidth(-1);
             if (ImGui::Combo(
-                    "##PrimitiveType", &current, kPrimitiveNames, IM_ARRAYSIZE(kPrimitiveNames))) {
+                    "##PrimitiveType", &current, primitiveNames, IM_ARRAYSIZE(primitiveNames))) {
                 renderer.primitiveType = static_cast<PrimitiveType>(current);
                 renderer.generateModel();
             }

@@ -424,6 +424,7 @@ public:
 
     void startFileWatcher(int pollIntervalMs = 1000);
     void stopFileWatcher();
+    bool fileWatcherRunning() const;
 
     void onAssetReloaded(std::function<void(const UUID&, const std::string&)> callback);
 

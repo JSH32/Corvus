@@ -6,21 +6,24 @@
 #include "editor/panels/inspector/inspector.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
 #include "editor/panels/scene_view/scene_view.hpp"
+#include "editor/project_selector.hpp"
 #include "imgui.h"
 #include <filesystem>
 #include <memory>
 
 namespace Corvus::Editor {
 
-EditorLayer::EditorLayer(Core::Application* application)
-    : Core::Layer("Editor"), application(application) {
+EditorLayer::EditorLayer(Core::Application* application, std::unique_ptr<Core::Project> project)
+    : Core::Layer("Editor"), application(application), currentProject(std::move(project)) {
 
-    currentProject = Core::Project::loadOrCreate("./temp_project", "Default Project");
     if (currentProject) {
-        currentProject->startFileWatcher();
+        if (!currentProject->fileWatcherRunning()) {
+            currentProject->startFileWatcher();
+        }
         recreatePanels();
+        CORVUS_CORE_INFO("Loaded project from selector: {}", currentProject->getProjectName());
     } else {
-        CORVUS_CORE_ERROR("Failed to create temporary project");
+        CORVUS_CORE_ERROR("Failed to initialize project");
     }
 }
 
@@ -92,12 +95,8 @@ void EditorLayer::handleFileDialogs() {
 void EditorLayer::renderMenuBar() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Project...")) {
-                showNewProjectDialog();
-            }
-
-            if (ImGui::MenuItem("Open Project...")) {
-                showOpenProjectDialog();
+            if (ImGui::MenuItem("Projects")) {
+                returnToProjectSelector();
             }
 
             ImGui::Separator();
@@ -154,12 +153,17 @@ void EditorLayer::startDockspace() {
     }
 }
 
-void EditorLayer::showNewProjectDialog() {
-    ImGuiFileDialog::Instance()->OpenDialog("ChooseFolderDlg", "Choose Project Folder", nullptr);
-}
+void EditorLayer::returnToProjectSelector() {
+    CORVUS_CORE_INFO("Returning to project selector");
 
-void EditorLayer::showOpenProjectDialog() {
-    ImGuiFileDialog::Instance()->OpenDialog("OpenProjectDlg", "Open Project", ".json");
+    // Stop file watcher and clean up project
+    if (currentProject)
+        currentProject->stopFileWatcher();
+    panels.clear();
+    currentProject.reset();
+
+    application->getLayerStack().pushLayer(std::make_unique<ProjectSelector>(application));
+    application->getLayerStack().popLayer(this);
 }
 
 void EditorLayer::openProject(const std::string& path) {

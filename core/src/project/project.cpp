@@ -108,10 +108,10 @@ std::unique_ptr<Project> Project::load(const std::string& path) {
 
 bool Project::saveProjectSettings() {
     try {
-        std::string   settingsPath = projectPath + "/project.json";
+        std::string   settingsPath = projectPath + "/project.caw";
         std::ofstream file(settingsPath);
         if (!file.is_open()) {
-            CORVUS_CORE_ERROR("Failed to open project.json for writing");
+            CORVUS_CORE_ERROR("Failed to open project.caw for writing");
             return false;
         }
 
@@ -128,15 +128,15 @@ bool Project::saveProjectSettings() {
 
 bool Project::loadProjectSettings() {
     try {
-        std::string settingsPath = projectPath + "/project.json";
+        std::string settingsPath = projectPath + "/project.caw";
         if (!std::filesystem::exists(settingsPath)) {
-            CORVUS_CORE_ERROR("project.json not found at: {}", settingsPath);
+            CORVUS_CORE_ERROR("project.caw not found at: {}", settingsPath);
             return false;
         }
 
         std::ifstream file(settingsPath);
         if (!file.is_open()) {
-            CORVUS_CORE_ERROR("Failed to open project.json for reading");
+            CORVUS_CORE_ERROR("Failed to open project.caw for reading");
             return false;
         }
 
@@ -152,7 +152,7 @@ bool Project::loadProjectSettings() {
 }
 
 bool Project::exists(const std::string& path) {
-    return std::filesystem::exists(path) && std::filesystem::exists(path + "/project.json");
+    return std::filesystem::exists(path) && std::filesystem::exists(path + "/project.caw");
 }
 
 bool Project::saveCurrentScene() {
@@ -208,15 +208,17 @@ AssetHandle<Scene> Project::getCurrentScene() { return currentSceneHandle; }
 UUID Project::getCurrentSceneID() const { return currentSceneHandle.getID(); }
 
 void Project::startFileWatcher(int pollIntervalMs) {
-    if (assetManager) {
+    if (assetManager)
         assetManager->startFileWatcher(pollIntervalMs);
-    }
 }
 
 void Project::stopFileWatcher() {
-    if (assetManager) {
+    if (assetManager)
         assetManager->stopFileWatcher();
-    }
+}
+
+bool Project::fileWatcherRunning() const {
+    return assetManager != nullptr && assetManager->fileWatcherRunning();
 }
 
 }
