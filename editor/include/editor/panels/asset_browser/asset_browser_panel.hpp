@@ -51,9 +51,9 @@ private:
             { Core::AssetType::Unknown, ICON_FA_FILE } };
 
     // layout
-    float tileW   = 112.0f;
-    float tileH   = 128.0f;
-    float iconBox = 88.0f;
+    float tileW   = 110.0f;
+    float tileH   = 120.0f;
+    float iconBox = 80.0f;
     float padding = 12.0f;
 
     // ui helpers
@@ -73,4 +73,4 @@ private:
     void openAssetViewer(const Core::UUID& assetID, Core::AssetType type);
 };
 
-} // namespace Linp::Editor
+}

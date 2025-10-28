@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include "linp/asset/asset_handle.hpp"
 #include "linp/asset/material/material_loader.hpp"
+#include "linp/systems/lighting_system.hpp"
 #include "raylib-cpp.hpp"
 #include "raylib.h"
 #include <array>
@@ -12,6 +13,7 @@ namespace Linp::Editor {
 class MaterialViewer : public AssetViewer {
 private:
     Core::AssetHandle<Core::Material> materialHandle;
+    Core::Systems::LightingSystem     previewLighting;
 
     // Preview rendering
     RenderTexture2D previewTexture     = { 0 };

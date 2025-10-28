@@ -94,32 +94,18 @@ AssetManager::AssetManager(const std::string& assetRoot, const std::string& alia
 AssetManager::~AssetManager() {
     LINP_CORE_INFO("AssetManager shutting down...");
     stopFileWatcher();
-
     shuttingDown.store(true, std::memory_order_relaxed);
 
-    // Make a local copy of the map so the deleters run *outside* the manager lock
     decltype(assets) localAssets;
     {
         std::lock_guard<std::mutex> lock(assetMutex);
         localAssets.swap(assets);
-    }
-
-    // Temporarily clear internal maps so recursive calls find nothing
-    {
-        std::lock_guard<std::mutex> lock(assetMutex);
         pathToID.clear();
         metadata.clear();
         fileModificationTimes.clear();
     }
 
-    // Let shared_ptr deleters run now while the manager still exists, but any decrementRef() will
-    // see empty assets
     localAssets.clear();
-
-    // Now safe to clean tables and unmount
-    pathToID.clear();
-    metadata.clear();
-    fileModificationTimes.clear();
     PHYSFS_unmount(projectPath.c_str());
     LINP_CORE_INFO("AssetManager shutdown complete");
 }
@@ -363,6 +349,10 @@ bool AssetManager::copyAsset(const UUID& id, const std::string& newUserPath, boo
 }
 
 bool AssetManager::deleteAsset(const UUID& id) {
+    bool wasRunning = watcherRunning.exchange(false);
+    if (wasRunning && watcherThread.joinable())
+        watcherThread.join();
+
     std::lock_guard<std::mutex> lock(assetMutex);
 
     auto it = metadata.find(id);
@@ -933,6 +923,42 @@ bool AssetManager::hasAsset(const UUID& id) const {
     return metadata.find(id) != metadata.end();
 }
 
+bool AssetManager::reloadAsset(const UUID& id) {
+    std::lock_guard<std::mutex> lock(assetMutex);
+
+    auto it = assets.find(id);
+    if (it == assets.end())
+        return false;
+
+    auto& entry = it->second;
+    if (!entry.loader) {
+        LINP_CORE_WARN("Asset {} has no loader, cannot reload", entry.path);
+        return false;
+    }
+
+    LINP_CORE_INFO("Reloading asset: {}", entry.path);
+
+    // Load fresh data
+    void* newData = entry.loader->load(toPhysFS(entry.path));
+    if (!newData) {
+        LINP_CORE_ERROR("Failed to reload asset {}", entry.path);
+        return false;
+    }
+
+    if (entry.data) {
+        entry.loader->reloadTyped(entry.data.get(), newData);
+    } else {
+        // No previous data,normal path
+        entry.data.reset(newData, [this, id = entry.id, loader = entry.loader](void* ptr) {
+            loader->unload(ptr);
+            decrementRef(id);
+        });
+    }
+
+    entry.lastModified = getFileModTime(entry.path);
+    return true;
+}
+
 std::vector<std::pair<std::string, AssetType>> AssetManager::getCreatableAssetTypes() const {
     std::vector<std::pair<std::string, AssetType>> result;
 
@@ -970,4 +996,4 @@ std::vector<std::pair<std::string, AssetType>> AssetManager::getCreatableAssetTy
     return result;
 }
 
-} // namespace Linp::Core
+}

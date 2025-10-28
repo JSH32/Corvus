@@ -93,69 +93,72 @@ struct ComponentInfo<Linp::Core::Components::MeshRendererComponent> {
         using namespace Linp::Core;
         using namespace Linp::Core::Components;
 
-        auto labeledField = [](const char* label, auto fn) {
-            ImGui::Columns(2);
-            ImGui::SetColumnWidth(0, 100);
-            ImGui::TextUnformatted(label);
-            ImGui::NextColumn();
-            fn();
-            ImGui::EndColumns();
-        };
+        ImGui::PushID(&renderer);
 
         auto buildAssetDropdown
-            = [&](auto& handle, const char* label, auto assets, auto&& nameFromMeta) {
-                  labeledField(label, [&] {
-                      UUID currentID = handle.isValid() ? handle.getID() : UUID();
-                      int  selected  = -1;
+            = [&](const char* label, auto& handle, auto assets, auto&& nameFromMeta) {
+                  UUID currentID = handle.isValid() ? handle.getID() : UUID();
+                  int  selected  = -1;
 
-                      std::vector<std::string> names;
-                      names.reserve(assets.size());
-                      for (size_t i = 0; i < assets.size(); ++i) {
-                          auto        meta = assetMgr->getMetadata(assets[i].getID());
-                          std::string n    = nameFromMeta(meta);
-                          if (assets[i].getID() == currentID)
-                              selected = static_cast<int>(i);
-                          names.push_back(std::move(n));
-                      }
+                  std::vector<std::string> names;
+                  names.reserve(assets.size());
+                  for (size_t i = 0; i < assets.size(); ++i) {
+                      auto        meta = assetMgr->getMetadata(assets[i].getID());
+                      std::string n    = nameFromMeta(meta);
+                      if (assets[i].getID() == currentID)
+                          selected = static_cast<int>(i);
+                      names.push_back(std::move(n));
+                  }
 
-                      const char* currentLabel = (selected >= 0 && selected < (int)names.size())
-                          ? names[selected].c_str()
-                          : "None";
+                  const char* currentLabel = (selected >= 0 && selected < (int)names.size())
+                      ? names[selected].c_str()
+                      : "None";
 
-                      ImGui::PushItemWidth(-80);
-                      if (ImGui::BeginCombo(fmt::format("##{}", label).c_str(), currentLabel)) {
-                          // None entry
-                          bool noneSel = (selected == -1);
-                          if (ImGui::Selectable("None", noneSel))
-                              handle = {};
-                          if (noneSel)
+                  ImGui::TextUnformatted(label);
+                  ImGui::NextColumn();
+                  ImGui::PushID(label);
+                  ImGui::PushItemWidth(-1);
+                  if (ImGui::BeginCombo("##Combo", currentLabel)) {
+                      bool noneSel = (selected == -1);
+                      if (ImGui::Selectable("None", noneSel))
+                          handle = {};
+                      if (noneSel)
+                          ImGui::SetItemDefaultFocus();
+
+                      for (int i = 0; i < (int)names.size(); ++i) {
+                          bool sel = (i == selected);
+                          if (ImGui::Selectable(names[i].c_str(), sel))
+                              handle = assets[i];
+                          if (sel)
                               ImGui::SetItemDefaultFocus();
-
-                          // Asset entries
-                          for (int i = 0; i < (int)names.size(); ++i) {
-                              bool sel = (i == selected);
-                              if (ImGui::Selectable(names[i].c_str(), sel))
-                                  handle = assets[i];
-                              if (sel)
-                                  ImGui::SetItemDefaultFocus();
-                          }
-                          ImGui::EndCombo();
                       }
-                      ImGui::PopItemWidth();
-                  });
+                      ImGui::EndCombo();
+                  }
+                  ImGui::PopItemWidth();
+                  ImGui::PopID();
+                  ImGui::NextColumn();
               };
 
+        // Start persistent columns
+        ImGui::Columns(2, "##MeshColumns", false);
+        ImGui::SetColumnWidth(0, 100);
+
         // Primitive Type
-        labeledField("Primitive", [&] {
+        ImGui::TextUnformatted("Primitive");
+        ImGui::NextColumn();
+        {
             static const char* kPrimitiveNames[]
                 = { "Cube", "Sphere", "Plane", "Cylinder", "Model" };
             int current = static_cast<int>(renderer.primitiveType);
+            ImGui::PushItemWidth(-1);
             if (ImGui::Combo(
                     "##PrimitiveType", &current, kPrimitiveNames, IM_ARRAYSIZE(kPrimitiveNames))) {
                 renderer.primitiveType = static_cast<PrimitiveType>(current);
                 renderer.generateModel();
             }
-        });
+            ImGui::PopItemWidth();
+        }
+        ImGui::NextColumn();
 
         bool needsRegen = false;
 
@@ -180,8 +183,8 @@ struct ComponentInfo<Linp::Core::Components::MeshRendererComponent> {
                 break;
             case PrimitiveType::Model: {
                 if (assetMgr)
-                    buildAssetDropdown(renderer.modelHandle,
-                                       "Model",
+                    buildAssetDropdown("Model",
+                                       renderer.modelHandle,
                                        assetMgr->getAllOfType<raylib::Model>(),
                                        [](const AssetMetadata& m) {
                                            return m.path.empty()
@@ -192,13 +195,20 @@ struct ComponentInfo<Linp::Core::Components::MeshRendererComponent> {
             }
         }
 
+        // End columns before FloatEditor (which handles its own layout)
+        ImGui::Columns(1);
+
         if (needsRegen && renderer.primitiveType != PrimitiveType::Model)
             renderer.generateModel();
 
+        // Restart columns for Material dropdown
+        ImGui::Columns(2, "##MaterialColumns", false);
+        ImGui::SetColumnWidth(0, 100);
+
         // Material selection
         if (assetMgr)
-            buildAssetDropdown(renderer.materialHandle,
-                               "Material",
+            buildAssetDropdown("Material",
+                               renderer.materialHandle,
                                assetMgr->getAllOfType<Material>(),
                                [](const AssetMetadata& m) {
                                    return m.path.empty()
@@ -208,15 +218,20 @@ struct ComponentInfo<Linp::Core::Components::MeshRendererComponent> {
 
         // Model Info
         if (auto* model = renderer.getModel(assetMgr)) {
-            labeledField("Model Info", [&] {
-                int verts = 0, tris = 0;
-                for (int i = 0; i < model->meshCount; ++i) {
-                    verts += model->meshes[i].vertexCount;
-                    tris += model->meshes[i].triangleCount;
-                }
-                ImGui::Text("%d vertices, %d triangles", verts, tris);
-            });
+            ImGui::TextUnformatted("Model Info");
+            ImGui::NextColumn();
+            int verts = 0, tris = 0;
+            for (int i = 0; i < model->meshCount; ++i) {
+                verts += model->meshes[i].vertexCount;
+                tris += model->meshes[i].triangleCount;
+            }
+            ImGui::Text("%d vertices, %d triangles", verts, tris);
+            ImGui::NextColumn();
         }
+
+        ImGui::Columns(1);
+
+        ImGui::PopID();
     }
 };
 

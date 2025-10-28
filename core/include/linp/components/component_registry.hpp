@@ -186,4 +186,4 @@ public:
         }();                                                                                       \
     }
 
-} // namespace Linp::Core::Components
+}

@@ -24,6 +24,12 @@ EditorLayer::EditorLayer(Core::Application* application)
     }
 }
 
+EditorLayer::~EditorLayer() {
+    // Destroy panels first
+    panels.clear();
+    currentProject.reset();
+}
+
 void EditorLayer::recreatePanels() {
     panels.clear();
 

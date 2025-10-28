@@ -2,6 +2,7 @@
 #include "IconsFontAwesome6.h"
 #include "imgui_internal.h"
 #include "linp/log.hpp"
+#include "linp/systems/lighting_system.hpp"
 #include "rlImGui.h"
 #include <format>
 
@@ -11,10 +12,9 @@ MaterialViewer::MaterialViewer(const Core::UUID& id, Core::AssetManager* manager
     : AssetViewer(id, manager, "Material Viewer") {
     materialHandle = assetManager->loadByID<Core::Material>(id);
     if (materialHandle.isValid()) {
-        // Get material name from file path, not from material's name property
-        auto meta = assetManager->getMetadata(id);
-        windowTitle
-            = std::format("Material: {}", meta.path.substr(meta.path.find_last_of('/') + 1));
+        auto meta   = assetManager->getMetadata(id);
+        windowTitle = std::format(
+            "{} Material: {}", ICON_FA_PALETTE, meta.path.substr(meta.path.find_last_of('/') + 1));
     }
 
     initPreview();
@@ -26,17 +26,14 @@ void MaterialViewer::initPreview() {
     if (previewInitialized)
         return;
 
-    // Create preview render texture
     previewTexture = LoadRenderTexture(512, 512);
 
-    // Setup preview camera
     previewCamera.position   = Vector3 { 0.0f, 1.5f, 3.0f };
     previewCamera.target     = Vector3 { 0.0f, 0.0f, 0.0f };
     previewCamera.up         = Vector3 { 0.0f, 1.0f, 0.0f };
     previewCamera.fovy       = 45.0f;
     previewCamera.projection = CAMERA_PERSPECTIVE;
 
-    // Create preview sphere
     Mesh sphereMesh = GenMeshSphere(1.0f, 32, 32);
     previewSphere   = LoadModelFromMesh(sphereMesh);
 
@@ -50,7 +47,6 @@ void MaterialViewer::cleanupPreview() {
 
     LINP_CORE_INFO("Cleaning up material viewer preview");
 
-    // Unload in reverse order of creation
     if (previewSphere.meshCount > 0) {
         UnloadModel(previewSphere);
         previewSphere = { 0 };
@@ -69,12 +65,9 @@ void MaterialViewer::updatePreview() {
     if (!mat || !previewInitialized)
         return;
 
-    // Get the raylib material from the model
     if (previewSphere.materialCount > 0) {
         raylib::Material& raylibMat
             = *reinterpret_cast<raylib::Material*>(&previewSphere.materials[0]);
-
-        // Apply our material properties
         mat->applyToRaylibMaterial(raylibMat, assetManager);
     }
 
@@ -122,10 +115,46 @@ void MaterialViewer::renderPreview() {
     updatePreview();
 
     BeginTextureMode(previewTexture);
-    ClearBackground(Color { 35, 35, 38, 255 });
+    ClearBackground(Color { 45, 45, 48, 255 });
+
+    previewLighting.clear();
+
+    // Key light from top-front-right (standard 3-point lighting)
+    Core::Systems::LightData keyLight;
+    keyLight.type      = Core::Systems::LightType::Directional;
+    keyLight.direction = Vector3Normalize({ -0.3f, -0.7f, -0.5f });
+    keyLight.color     = WHITE;
+    keyLight.intensity = 1.0f;
+    previewLighting.addLight(keyLight);
+
+    // Fill light from left (softer)
+    Core::Systems::LightData fillLight;
+    fillLight.type      = Core::Systems::LightType::Directional;
+    fillLight.direction = Vector3Normalize({ 0.5f, -0.3f, 0.5f });
+    fillLight.color     = Color { 180, 200, 220, 255 }; // Slightly blue tint
+    fillLight.intensity = 0.4f;
+    previewLighting.addLight(fillLight);
+
+    // Rim light from back (highlights edges)
+    Core::Systems::LightData rimLight;
+    rimLight.type      = Core::Systems::LightType::Directional;
+    rimLight.direction = Vector3Normalize({ 0.0f, 0.3f, 1.0f });
+    rimLight.color     = WHITE;
+    rimLight.intensity = 0.3f;
+    previewLighting.addLight(rimLight);
+
+    if (previewSphere.materialCount > 0) {
+        auto& rayMat = reinterpret_cast<raylib::Material&>(previewSphere.materials[0]);
+        previewLighting.applyToMaterial(&rayMat, Vector3 { 0, 0, 0 }, 1.0f);
+    }
 
     BeginMode3D(previewCamera);
-    DrawGrid(10, 1.0f);
+    // Draw subtle grid lines without the ugly built-in grid
+    for (int i = -5; i <= 5; i++) {
+        Color lineColor = (i == 0) ? Color { 100, 100, 100, 100 } : Color { 60, 60, 60, 60 };
+        DrawLine3D({ (float)i, -0.01f, -5.0f }, { (float)i, -0.01f, 5.0f }, lineColor);
+        DrawLine3D({ -5.0f, -0.01f, (float)i }, { 5.0f, -0.01f, (float)i }, lineColor);
+    }
     DrawModel(previewSphere, Vector3 { 0, 0, 0 }, 1.0f, WHITE);
     EndMode3D();
 
@@ -144,22 +173,15 @@ void MaterialViewer::render() {
         return;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(750, 650), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(800, 700), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin(windowTitle.c_str(), &isOpen, ImGuiWindowFlags_MenuBar)) {
         ImGui::End();
         return;
     }
 
-    // Menu Bar at the Top
+    // Menu Bar
     if (ImGui::BeginMenuBar()) {
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 4));
-
-        // Save button with green tint
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.2f, 0.6f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.6f, 0.3f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f, 0.5f, 0.2f, 1.0f));
-
         if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save")) {
             if (materialHandle.save()) {
                 LINP_CORE_INFO("Saved material: {}", windowTitle);
@@ -168,13 +190,6 @@ void MaterialViewer::render() {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Save material changes");
         }
-
-        ImGui::PopStyleColor(3);
-
-        // Revert button with orange/yellow tint
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.4f, 0.2f, 0.6f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.5f, 0.3f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.5f, 0.4f, 0.2f, 1.0f));
 
         if (ImGui::Button(ICON_FA_ROTATE_LEFT " Revert")) {
             materialHandle.reload();
@@ -185,140 +200,198 @@ void MaterialViewer::render() {
             ImGui::SetTooltip("Revert to saved version");
         }
 
-        ImGui::PopStyleColor(3);
-        ImGui::PopStyleVar();
-
         ImGui::EndMenuBar();
     }
 
-    // Render preview
     renderPreview();
 
-    // Top Section: Preview and Basic Info
-    ImGui::BeginChild("TopSection", ImVec2(0, 350), true);
+    // Two-column layout
+    ImGui::Columns(2, "##MaterialColumns", true);
+    ImGui::SetColumnWidth(0, 380);
+
+    // Left Column: Preview
     {
-        // Preview on left
-        ImGui::BeginChild("PreviewArea", ImVec2(350, 0), false);
-        {
-            ImVec2 previewSize = ImGui::GetContentRegionAvail();
-            float  size        = std::min(previewSize.x, previewSize.y);
+        ImGui::BeginChild("##PreviewSection", ImVec2(0, 0), true, ImGuiWindowFlags_NoScrollbar);
 
-            ImVec2 cursorBefore = ImGui::GetCursorScreenPos();
+        // Section header
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
+        ImGui::SeparatorText(ICON_FA_EYE " Preview");
+        ImGui::PopStyleVar();
 
-            // Display preview texture
-            rlImGuiImageRect(&previewTexture.texture,
-                             (int)size,
-                             (int)size,
-                             Rectangle { 0,
-                                         0,
-                                         (float)previewTexture.texture.width,
-                                         -(float)previewTexture.texture.height });
+        ImGui::Spacing();
 
-            // Check if mouse is over preview for camera controls
-            ImVec2 cursorAfter = ImGui::GetCursorScreenPos();
-            ImRect previewRect(cursorBefore, ImVec2(cursorBefore.x + size, cursorBefore.y + size));
+        // Calculate centered preview size
+        ImVec2 availRegion = ImGui::GetContentRegionAvail();
+        float  previewSize = std::min(availRegion.x - 20, 340.0f);
 
-            if (previewRect.Contains(ImGui::GetMousePos())) {
-                handleCameraControls();
-                ImGui::SetTooltip("Drag to rotate camera");
+        // Center the preview
+        float offsetX = (availRegion.x - previewSize) * 0.5f;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
+
+        ImVec2 cursorBefore = ImGui::GetCursorScreenPos();
+
+        // Preview with border
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.4f, 0.4f, 0.4f, 0.5f));
+        ImGui::BeginChild(
+            "##PreviewFrame", ImVec2(previewSize, previewSize), true, ImGuiWindowFlags_NoScrollbar);
+
+        rlImGuiImageRect(
+            &previewTexture.texture,
+            (int)previewSize - 2,
+            (int)previewSize - 2,
+            Rectangle {
+                0, 0, (float)previewTexture.texture.width, -(float)previewTexture.texture.height });
+
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
+
+        // Camera controls hint
+        ImVec2 cursorAfter = ImGui::GetCursorScreenPos();
+        ImRect previewRect(cursorBefore,
+                           ImVec2(cursorBefore.x + previewSize, cursorBefore.y + previewSize));
+
+        if (previewRect.Contains(ImGui::GetMousePos())) {
+            handleCameraControls();
+        }
+
+        ImGui::Spacing();
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
+        ImGui::TextDisabled(ICON_FA_COMPUTER_MOUSE " Drag to rotate");
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Shader info section
+        ImGui::SeparatorText(ICON_FA_CODE " Shader");
+        ImGui::Spacing();
+
+        std::string shaderText = "Default";
+        if (!mat->shaderAsset.is_nil()) {
+            auto shaderMeta = assetManager->getMetadata(mat->shaderAsset);
+            if (!shaderMeta.path.empty()) {
+                shaderText = shaderMeta.path.substr(shaderMeta.path.find_last_of('/') + 1);
+            } else {
+                shaderText = "Custom";
             }
         }
-        ImGui::EndChild();
 
-        ImGui::SameLine();
+        ImGui::Text("Shader:");
+        ImGui::SameLine(80);
 
-        // Info on right
-        ImGui::BeginChild("InfoArea", ImVec2(0, 0), false);
-        {
-            // Display material file path (read-only)
-            auto meta = assetManager->getMetadata(assetID);
-            ImGui::TextDisabled("File Path");
-            ImGui::TextWrapped("%s", meta.path.c_str());
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            // Shader selection dropdown
-            ImGui::Text("Shader");
-            std::string shaderName = "Default Shader";
-            if (!mat->shaderAsset.is_nil()) {
-                auto shaderMeta = assetManager->getMetadata(mat->shaderAsset);
-                shaderName      = shaderMeta.path.substr(shaderMeta.path.find_last_of('/') + 1);
+        // Shader selector dropdown
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::BeginCombo("##ShaderSelect", shaderText.c_str())) {
+            // "Default" option (clears shader asset)
+            bool isDefault = mat->shaderAsset.is_nil();
+            if (ImGui::Selectable("Default", isDefault)) {
+                mat->shaderAsset        = Core::UUID();
+                mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
+                needsPreviewUpdate      = true;
+            }
+            if (isDefault) {
+                ImGui::SetItemDefaultFocus();
             }
 
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::BeginCombo("##ShaderSelect", shaderName.c_str())) {
-                // "Default Shader" option
-                if (ImGui::Selectable("Default Shader", mat->shaderAsset.is_nil())) {
-                    mat->shaderAsset        = Core::UUID();
+            // List all available shaders
+            auto allShaders = assetManager->getAllOfType<raylib::Shader>();
+            for (auto& shaderHandle : allShaders) {
+                auto        shaderMeta = assetManager->getMetadata(shaderHandle.getID());
+                std::string shaderName = shaderMeta.path.empty()
+                    ? boost::uuids::to_string(shaderMeta.id)
+                    : shaderMeta.path.substr(shaderMeta.path.find_last_of('/') + 1);
+
+                bool isSelected = (shaderHandle.getID() == mat->shaderAsset);
+                if (ImGui::Selectable(shaderName.c_str(), isSelected)) {
+                    mat->shaderAsset        = shaderHandle.getID();
                     mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
                     needsPreviewUpdate      = true;
                 }
 
-                // List all available shaders
-                auto allShaders = assetManager->getAllOfType<raylib::Shader>();
-                for (auto& shaderHandle : allShaders) {
-                    auto        shaderMeta = assetManager->getMetadata(shaderHandle.getID());
-                    std::string shaderDisplayName
-                        = shaderMeta.path.substr(shaderMeta.path.find_last_of('/') + 1);
-
-                    bool isSelected = (shaderHandle.getID() == mat->shaderAsset);
-                    if (ImGui::Selectable(shaderDisplayName.c_str(), isSelected)) {
-                        mat->shaderAsset        = shaderHandle.getID();
-                        mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
-                        needsPreviewUpdate      = true;
-                    }
-
-                    if (isSelected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
                 }
-
-                ImGui::EndCombo();
             }
 
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            // Render Settings
-            ImGui::Text("Render Settings");
-            if (ImGui::Checkbox("Double Sided", &mat->doubleSided)) {
-                needsPreviewUpdate = true;
-            }
-            if (ImGui::Checkbox("Alpha Blend", &mat->alphaBlend)) {
-                needsPreviewUpdate = true;
-            }
+            ImGui::EndCombo();
         }
+
         ImGui::EndChild();
     }
-    ImGui::EndChild();
 
-    // --- Bottom Section: Properties ---
-    ImGui::BeginChild("PropertiesSection", ImVec2(0, 0), true);
+    ImGui::NextColumn();
+
+    // Right Column: Properties
     {
-        ImGui::Text("Properties");
-        ImGui::Separator();
+        ImGui::BeginChild("##PropertiesSection", ImVec2(0, 0), true);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
+        ImGui::SeparatorText(ICON_FA_SLIDERS " Material Properties");
+        ImGui::PopStyleVar();
+
         ImGui::Spacing();
 
+        // Properties list
         std::vector<std::string> toRemove;
-
-        // Calculate the maximum label width for alignment
-        float labelWidth = 120.0f;
+        bool                     hasProperties = false;
 
         for (auto& [name, prop] : mat->properties) {
+            hasProperties = true;
             ImGui::PushID(name.c_str());
 
-            bool changed = false;
+            // Property row with colored type badge
+            ImVec4      typeColor;
+            const char* typeIcon;
 
-            // Left column: property name (aligned)
-            ImGui::AlignTextToFramePadding();
+            switch (prop.value.type) {
+                case Core::MaterialPropertyType::Color:
+                    typeColor = ImVec4(0.8f, 0.4f, 0.4f, 1.0f);
+                    typeIcon  = ICON_FA_PALETTE;
+                    break;
+                case Core::MaterialPropertyType::Float:
+                    typeColor = ImVec4(0.4f, 0.7f, 0.9f, 1.0f);
+                    typeIcon  = ICON_FA_HASHTAG;
+                    break;
+                case Core::MaterialPropertyType::Texture:
+                    typeColor = ImVec4(0.7f, 0.5f, 0.9f, 1.0f);
+                    typeIcon  = ICON_FA_IMAGE;
+                    break;
+                case Core::MaterialPropertyType::Vector2:
+                case Core::MaterialPropertyType::Vector3:
+                case Core::MaterialPropertyType::Vector4:
+                    typeColor = ImVec4(0.5f, 0.8f, 0.5f, 1.0f);
+                    typeIcon  = ICON_FA_VECTOR_SQUARE;
+                    break;
+                case Core::MaterialPropertyType::Int:
+                    typeColor = ImVec4(0.4f, 0.7f, 0.9f, 1.0f);
+                    typeIcon  = ICON_FA_HASHTAG;
+                    break;
+                case Core::MaterialPropertyType::Bool:
+                    typeColor = ImVec4(0.9f, 0.7f, 0.4f, 1.0f);
+                    typeIcon  = ICON_FA_CHECK;
+                    break;
+                default:
+                    typeColor = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+                    typeIcon  = ICON_FA_CIRCLE_QUESTION;
+                    break;
+            }
+
+            // Type badge
+            ImGui::PushStyleColor(ImGuiCol_Button, typeColor);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, typeColor);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, typeColor);
+            ImGui::SmallButton(typeIcon);
+            ImGui::PopStyleColor(3);
+
+            ImGui::SameLine();
             ImGui::Text("%s", name.c_str());
 
-            ImGui::SameLine(labelWidth);
+            ImGui::Spacing();
+            ImGui::Indent(30);
 
-            // Right column: property value
+            bool changed = false;
             switch (prop.value.type) {
                 case Core::MaterialPropertyType::Color:
                     changed = renderColorProperty(name, prop);
@@ -333,20 +406,20 @@ void MaterialViewer::render() {
                     changed = renderVectorProperty(name, prop);
                     break;
                 default:
-                    ImGui::Text("(unsupported type)");
+                    ImGui::TextDisabled("(unsupported type in viewer)");
                     break;
             }
 
-            // Delete button at the end
+            ImGui::Unindent(30);
+
+            // Delete button
             ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 0.6f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.7f, 0.3f, 0.3f, 0.8f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
             if (ImGui::SmallButton(ICON_FA_TRASH)) {
                 toRemove.push_back(name);
                 needsPreviewUpdate = true;
             }
-            ImGui::PopStyleColor(3);
+            ImGui::PopStyleColor();
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Delete property");
             }
@@ -357,22 +430,36 @@ void MaterialViewer::render() {
 
             ImGui::PopID();
             ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
         }
 
+        // Remove deleted properties
         for (const auto& name : toRemove) {
             mat->properties.erase(name);
         }
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
+        // Empty state message
+        if (!hasProperties) {
+            ImGui::Spacing();
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+            ImGui::TextWrapped("No properties yet. Add properties using the button below.");
+            ImGui::PopStyleColor();
+            ImGui::Spacing();
+        }
 
-        if (ImGui::Button(ICON_FA_PLUS " Add Property", ImVec2(-1, 0))) {
+        // Add property button (at bottom)
+        ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 40);
+        if (ImGui::Button(ICON_FA_PLUS " Add Property", ImVec2(-1, 30))) {
             showAddPropertyPopup  = true;
             propertyNameBuffer[0] = '\0';
         }
+
+        ImGui::EndChild();
     }
-    ImGui::EndChild();
+
+    ImGui::Columns(1);
 
     renderAddPropertyPopup();
 
@@ -383,9 +470,10 @@ bool MaterialViewer::renderColorProperty(const std::string& name, Core::Material
     Color color  = prop.value.getColor();
     float col[4] = { color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
 
-    ImGui::SetNextItemWidth(300);
-    if (ImGui::ColorEdit4(
-            std::format("##{}_color", name).c_str(), col, ImGuiColorEditFlags_NoLabel)) {
+    ImGui::SetNextItemWidth(-30);
+    if (ImGui::ColorEdit4(std::format("##{}_color", name).c_str(),
+                          col,
+                          ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaBar)) {
         Color newColor = { static_cast<unsigned char>(col[0] * 255),
                            static_cast<unsigned char>(col[1] * 255),
                            static_cast<unsigned char>(col[2] * 255),
@@ -398,8 +486,8 @@ bool MaterialViewer::renderColorProperty(const std::string& name, Core::Material
 
 bool MaterialViewer::renderFloatProperty(const std::string& name, Core::MaterialProperty& prop) {
     float value = prop.value.getFloat();
-    ImGui::SetNextItemWidth(300);
-    if (ImGui::SliderFloat(std::format("##{}_float", name).c_str(), &value, 0.0f, 1.0f)) {
+    ImGui::SetNextItemWidth(-30);
+    if (ImGui::SliderFloat(std::format("##{}_float", name).c_str(), &value, 0.0f, 1.0f, "%.3f")) {
         prop.value = Core::MaterialPropertyValue(value);
         return true;
     }
@@ -418,19 +506,16 @@ bool MaterialViewer::renderTextureProperty(const std::string& name, Core::Materi
 
     bool changed = false;
 
-    // Dropdown combo for texture selection (wider to prevent cutoff)
-    ImGui::SetNextItemWidth(200);
+    // Texture dropdown
+    ImGui::SetNextItemWidth(-100);
     if (ImGui::BeginCombo(std::format("##{}_texture", name).c_str(), buttonText.c_str())) {
-        // "None" option to clear texture
         if (ImGui::Selectable("None", texID.is_nil())) {
             auto mat = materialHandle.get();
             mat->setTexture(name, Core::UUID(), slot);
-            changed = true;
-            // Force shader to update by clearing cached handle
+            changed                 = true;
             mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
         }
 
-        // List all available textures
         auto allTextures = assetManager->getAllOfType<raylib::Texture>();
         for (auto& texHandle : allTextures) {
             auto        texMeta = assetManager->getMetadata(texHandle.getID());
@@ -440,8 +525,7 @@ bool MaterialViewer::renderTextureProperty(const std::string& name, Core::Materi
             if (ImGui::Selectable(texName.c_str(), isSelected)) {
                 auto mat = materialHandle.get();
                 mat->setTexture(name, texHandle.getID(), slot);
-                changed = true;
-                // Force shader to update by clearing cached handle
+                changed                 = true;
                 mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
             }
 
@@ -453,49 +537,35 @@ bool MaterialViewer::renderTextureProperty(const std::string& name, Core::Materi
         ImGui::EndCombo();
     }
 
-    // Texture slot controls with better spacing
+    // Slot controls
     ImGui::SameLine();
     ImGui::Text("Slot:");
     ImGui::SameLine();
 
-    // Use button repeat for increment/decrement
     ImGui::PushButtonRepeat(true);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 4));
-
-    if (ImGui::SmallButton(std::format("{}##{}_minus", ICON_FA_MINUS, name).c_str())) {
+    if (ImGui::SmallButton(std::format("-##{}", name).c_str())) {
         if (slot > 0) {
             slot--;
             auto mat = materialHandle.get();
             mat->setTexture(name, texID, slot);
-            changed = true;
-            // Force shader to update by clearing cached handle
+            changed                 = true;
             mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
         }
     }
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Decrease slot");
-    }
 
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(30);
     ImGui::Text("%d", slot);
 
     ImGui::SameLine();
-    if (ImGui::SmallButton(std::format("{}##{}_plus", ICON_FA_PLUS, name).c_str())) {
+    if (ImGui::SmallButton(std::format("+##{}", name).c_str())) {
         if (slot < 10) {
             slot++;
             auto mat = materialHandle.get();
             mat->setTexture(name, texID, slot);
-            changed = true;
-            // Force shader to update by clearing cached handle
+            changed                 = true;
             mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
         }
     }
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Increase slot");
-    }
-
-    ImGui::PopStyleVar();
     ImGui::PopButtonRepeat();
 
     return changed;
@@ -505,8 +575,8 @@ bool MaterialViewer::renderVectorProperty(const std::string& name, Core::Materia
     Vector3 vec  = prop.value.getVector3();
     float   v[3] = { vec.x, vec.y, vec.z };
 
-    ImGui::SetNextItemWidth(300);
-    if (ImGui::DragFloat3(std::format("##{}_vec3", name).c_str(), v, 0.01f)) {
+    ImGui::SetNextItemWidth(-30);
+    if (ImGui::DragFloat3(std::format("##{}_vec3", name).c_str(), v, 0.01f, 0.0f, 0.0f, "%.2f")) {
         prop.value = Core::MaterialPropertyValue(Vector3 { v[0], v[1], v[2] });
         return true;
     }
@@ -519,13 +589,22 @@ void MaterialViewer::renderAddPropertyPopup() {
         showAddPropertyPopup = false;
     }
 
+    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_Always);
     if (ImGui::BeginPopupModal("Add Property", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         auto mat = materialHandle.get();
 
-        ImGui::InputText("Property Name", propertyNameBuffer.data(), propertyNameBuffer.size());
+        ImGui::Text("Property Name:");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputText("##PropName", propertyNameBuffer.data(), propertyNameBuffer.size());
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Type");
         ImGui::Spacing();
 
-        if (ImGui::Button("Color", ImVec2(120, 0))) {
+        // Type buttons in grid
+        ImVec2 buttonSize(135, 40);
+
+        if (ImGui::Button(ICON_FA_PALETTE " Color", buttonSize)) {
             std::string propName(propertyNameBuffer.data());
             if (!propName.empty()) {
                 mat->setColor(propName, WHITE);
@@ -534,7 +613,7 @@ void MaterialViewer::renderAddPropertyPopup() {
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Float", ImVec2(120, 0))) {
+        if (ImGui::Button(ICON_FA_HASHTAG " Float", buttonSize)) {
             std::string propName(propertyNameBuffer.data());
             if (!propName.empty()) {
                 mat->setFloat(propName, 0.5f);
@@ -543,7 +622,7 @@ void MaterialViewer::renderAddPropertyPopup() {
             }
         }
 
-        if (ImGui::Button("Vector3", ImVec2(120, 0))) {
+        if (ImGui::Button(ICON_FA_VECTOR_SQUARE " Vector3", buttonSize)) {
             std::string propName(propertyNameBuffer.data());
             if (!propName.empty()) {
                 mat->setVector(propName, Vector3 { 0, 0, 0 });
@@ -552,16 +631,19 @@ void MaterialViewer::renderAddPropertyPopup() {
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Texture", ImVec2(120, 0))) {
+        if (ImGui::Button(ICON_FA_IMAGE " Texture", buttonSize)) {
             std::string propName(propertyNameBuffer.data());
             if (!propName.empty()) {
-                mat->setTexture(propName, Core::UUID(), 0); // Default to slot 0
+                mat->setTexture(propName, Core::UUID(), 0);
                 needsPreviewUpdate = true;
                 ImGui::CloseCurrentPopup();
             }
         }
 
         ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
         if (ImGui::Button("Cancel", ImVec2(-1, 0))) {
             ImGui::CloseCurrentPopup();
         }

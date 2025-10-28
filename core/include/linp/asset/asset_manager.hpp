@@ -24,6 +24,7 @@ public:
     virtual void      unload(void* asset)           = 0;
     virtual AssetType getType() const               = 0;
     virtual bool      save(void* asset, const std::string& path) { return false; }
+    virtual void      reloadTyped(void* existing, void* fresh) = 0;
 
     virtual bool  canCreate() const { return false; }
     virtual void* create(const std::string& name) { return nullptr; }
@@ -39,6 +40,15 @@ public:
     void  unload(void* asset) override { unloadTyped(static_cast<T*>(asset)); }
     bool  save(void* asset, const std::string& path) override {
         return saveTyped(static_cast<T*>(asset), path);
+    }
+
+    virtual void reloadTyped(T* existing, T* fresh) {
+        *existing = std::move(*fresh);
+        unloadTyped(fresh);
+    }
+
+    void reloadTyped(void* existing, void* fresh) override final {
+        reloadTyped(static_cast<T*>(existing), static_cast<T*>(fresh));
     }
 
     virtual T*   createTyped(const std::string& name) { return nullptr; }
@@ -167,10 +177,6 @@ public:
             return {};
         }
 
-        // Ensure path has correct extension
-        std::string finalPath  = relativePath;
-        std::string currentExt = getFileExtension(relativePath);
-
         std::string expectedExt;
         for (const auto& [extension, typeIdx] : extensionToType) {
             if (typeIdx == idx) {
@@ -179,21 +185,25 @@ public:
             }
         }
 
-        // Only append if no extension exists OR extension exists but doesn't match expected
-        // extension
-        if (currentExt.empty()) {
-            finalPath = relativePath + expectedExt;
-        } else if (currentExt != expectedExt) {
-            // Wrong extension, replace it
-            size_t lastDot = finalPath.find_last_of('.');
-            if (lastDot != std::string::npos) {
-                finalPath = finalPath.substr(0, lastDot) + expectedExt;
+        std::string finalPath  = relativePath;
+        std::string currentExt = getFileExtension(relativePath);
+
+        if (currentExt != expectedExt) {
+            // Remove wrong/missing extension and add correct one
+            if (!currentExt.empty()) {
+                size_t lastDot = finalPath.find_last_of('.');
+                if (lastDot != std::string::npos) {
+                    finalPath = finalPath.substr(0, lastDot);
+                }
             }
+            finalPath += expectedExt;
         }
 
         T* obj = static_cast<T*>(it->second->create(name));
         if (!obj)
             return {};
+
+        // Register and save
         auto handle = addAsset(finalPath, std::move(*obj));
         handle.save();
         return handle;
@@ -223,6 +233,7 @@ public:
     bool copyAsset(const UUID& id, const std::string& newUserPath, bool includeMeta = true);
     bool renameDirectory(const std::string& oldUserPath, const std::string& newUserPath);
     bool hasAsset(const UUID& id) const;
+    bool reloadAsset(const UUID& id);
 
     template <typename T>
     AssetHandle<T> load(const std::string& userPath) {
@@ -440,7 +451,11 @@ bool AssetHandle<T>::isLoaded() const {
 
 template <typename T>
 std::shared_ptr<T> AssetHandle<T>::get() const {
-    updateCache();
+    if (!assetManager)
+        return {}; // no manager, can't query
+    if (!cachedPtr) {
+        cachedPtr = assetManager->loadAssetData<T>(assetID);
+    }
     return cachedPtr;
 }
 
@@ -448,17 +463,20 @@ template <typename T>
 bool AssetHandle<T>::reload() {
     if (!assetManager || assetID.is_nil())
         return false;
-
-    assetManager->unload(assetID);
-    cachedPtr = assetManager->loadByID<T>(assetID).get();
-    return cachedPtr != nullptr;
+    const bool ok = assetManager->reloadAsset(assetID);
+    cachedPtr.reset();
+    updateCache();
+    return ok && static_cast<bool>(cachedPtr);
 }
 
 template <typename T>
 bool AssetHandle<T>::isValid() const {
-    if (!assetManager || assetID.is_nil())
+    if (!assetManager)
         return false;
-    return assetManager->hasAsset(assetID); // simple lookup in assetManager
+    if (assetID.is_nil())
+        return false;
+
+    return assetManager->hasAsset(assetID);
 }
 
 template <typename T>

@@ -120,4 +120,4 @@ private:
     bool      gizmoHovered   = false;
 };
 
-} // namespace Linp::Editor
+}

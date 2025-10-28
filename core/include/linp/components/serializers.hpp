@@ -1,3 +1,4 @@
+#pragma once
 #include <cereal/cereal.hpp>
 #include <raylib-cpp.hpp>
 
@@ -13,5 +14,13 @@ void serialize(Archive& ar, raylib::Quaternion& q) {
        cereal::make_nvp("y", q.y),
        cereal::make_nvp("z", q.z),
        cereal::make_nvp("w", q.w));
+}
+
+template <class Archive>
+void serialize(Archive& ar, Color& color) {
+    ar(cereal::make_nvp("r", color.r));
+    ar(cereal::make_nvp("g", color.g));
+    ar(cereal::make_nvp("b", color.b));
+    ar(cereal::make_nvp("a", color.a));
 }
 }

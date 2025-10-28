@@ -76,4 +76,4 @@ private:
     bool    mouseInViewport = false;
 };
 
-} // namespace Linp::Editor
+}

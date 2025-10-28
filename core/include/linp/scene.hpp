@@ -3,7 +3,9 @@
 #include "entt/entt.hpp"
 #include "linp/asset/asset_manager.hpp"
 #include "linp/components/component_registry.hpp"
+#include "linp/components/mesh_renderer.hpp"
 #include "linp/entity.hpp"
+#include "linp/systems/lighting_system.hpp"
 #include "raylib-cpp.hpp"
 #include <fstream>
 #include <string>
@@ -15,7 +17,6 @@ class Scene {
 public:
     explicit Scene(const std::string_view& name, AssetManager* assetManager)
         : name(name), assetManager(assetManager) { }
-
     const std::vector<Entity>& getRootOrderedEntities() { return rootOrderedEntities; }
 
     Entity createEntity(const std::string& entityName = std::string());
@@ -76,5 +77,12 @@ public:
 private:
     std::vector<Entity> rootOrderedEntities;
     AssetManager*       assetManager;
+
+    Systems::LightingSystem lightingSystem;
+
+    // Cache of renderable entities to be passed to systems to avoid redundancy.
+    std::vector<Systems::RenderableEntity> cachedRenderables;
+
+    void collectRenderables();
 };
-} // namespace Linp::Core
+}

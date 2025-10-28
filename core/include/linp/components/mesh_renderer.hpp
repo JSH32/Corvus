@@ -178,7 +178,10 @@ struct MeshRendererComponent {
             materialHandle.setAssetManager(mgr);
 
         if (materialHandle.isValid() && materialHandle.isLoaded()) {
-            return materialHandle.get().get();
+            Material* mat    = nullptr;
+            auto      matPtr = materialHandle.get();
+            if (matPtr)
+                return matPtr.get();
         }
 
         return fallbackMat.get();

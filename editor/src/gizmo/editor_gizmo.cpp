@@ -101,4 +101,4 @@ void EditorGizmo::updateHoverState(const Vector2& mousePos,
         static_cast<int>(currentMode), &gizmoTransform, mousePos, viewportWidth, viewportHeight);
 }
 
-} // namespace Linp::Editor
+}

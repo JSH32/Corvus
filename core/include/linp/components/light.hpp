@@ -1,67 +1,67 @@
-// #pragma once
-// #include <raylib-cpp.hpp>
+#pragma once
+#include "cereal/cereal.hpp"
+#include "component_registry.hpp"
+#include "linp/components/serializers.hpp"
+#include <raylib.h>
 
-// namespace Linp::Core::Components {
+namespace Linp::Core::Components {
 
-// enum class LightType {
-//     Directional,
-//     Point,
-//     Spot
-// };
+enum class LightType {
+    Directional,
+    Point,
+    Spot
+};
 
-// struct LightComponent {
-//     LightType type = LightType::Directional;
+struct LightComponent {
+    LightType type      = LightType::Directional;
+    Color     color     = WHITE;
+    float     intensity = 1.0f;
 
-//     // Light properties
-//     raylib::Color color     = WHITE;
-//     float         intensity = 1.0f;
-//     bool          enabled   = true;
+    // Point/Spot light properties
+    float range       = 10.0f;
+    float attenuation = 1.0f;
 
-//     // Directional light properties
-//     raylib::Vector3 direction = raylib::Vector3(0.0f, -1.0f, 0.0f); // Default pointing down
+    // Spot light properties
+    float innerCutoff = 12.5f; // degrees
+    float outerCutoff = 17.5f; // degrees
 
-//     // Point/Spot light properties
-//     float range       = 10.0f;
-//     float attenuation = 1.0f;
+    bool enabled     = true;
+    bool castShadows = true;
 
-//     // Spot light specific
-//     float innerConeAngle = 45.0f; // degrees
-//     float outerConeAngle = 60.0f; // degrees
+    // Shadow properties
+    int   shadowMapResolution = 1024; // 512, 1024, 2048, 4096
+    float shadowBias          = 0.005f;
+    float shadowStrength      = 1.0f; // 0-1, how dark shadows are
 
-//     // Shadow properties
-//     bool  castShadows = true;
-//     float shadowBias  = 0.001f;
+    // Directional light shadow frustum
+    float shadowDistance  = 50.0f; // How far shadows render
+    float shadowNearPlane = 0.1f;
+    float shadowFarPlane  = 100.0f;
 
-//     // Convert to raylib Light structure
-//     Light toRaylibLight(const raylib::Vector3& position = raylib::Vector3(0, 0, 0)) const {
-//         Light light = {};
+    template <class Archive>
+    void serialize(Archive& ar) {
+        int lightTypeInt = static_cast<int>(type);
+        ar(cereal::make_nvp("type", lightTypeInt));
+        if constexpr (Archive::is_loading::value)
+            type = static_cast<LightType>(lightTypeInt);
 
-//         switch (type) {
-//             case LightType::Directional:
-//                 light.type     = LIGHT_DIRECTIONAL;
-//                 light.position = Vector3Zero(); // Not used for directional
-//                 light.target   = Vector3Add(Vector3Zero(), direction);
-//                 break;
+        ar(cereal::make_nvp("color", color));
+        ar(cereal::make_nvp("intensity", intensity));
+        ar(cereal::make_nvp("range", range));
+        ar(cereal::make_nvp("attenuation", attenuation));
+        ar(cereal::make_nvp("innerCutoff", innerCutoff));
+        ar(cereal::make_nvp("outerCutoff", outerCutoff));
+        ar(cereal::make_nvp("enabled", enabled));
+        ar(cereal::make_nvp("castShadows", castShadows));
+        ar(cereal::make_nvp("shadowMapResolution", shadowMapResolution));
+        ar(cereal::make_nvp("shadowBias", shadowBias));
+        ar(cereal::make_nvp("shadowStrength", shadowStrength));
+        ar(cereal::make_nvp("shadowDistance", shadowDistance));
+        ar(cereal::make_nvp("shadowNearPlane", shadowNearPlane));
+        ar(cereal::make_nvp("shadowFarPlane", shadowFarPlane));
+    }
+};
 
-//             case LightType::Point:
-//                 light.type     = LIGHT_POINT;
-//                 light.position = position;
-//                 light.target   = Vector3Zero(); // Not used for point
-//                 break;
+REGISTER_COMPONENT(LightComponent, "Light");
 
-//             case LightType::Spot:
-//                 light.type     = LIGHT_SPOT;
-//                 light.position = position;
-//                 light.target   = Vector3Add(position, direction);
-//                 break;
-//         }
-
-//         light.color       = color;
-//         light.enabled     = enabled ? 1 : 0;
-//         light.attenuation = attenuation;
-
-//         return light;
-//     }
-// };
-
-// }
+}

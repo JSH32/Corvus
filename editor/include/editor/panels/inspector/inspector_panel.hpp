@@ -1,6 +1,7 @@
 #pragma once
 
 #include "linp/asset/asset_manager.hpp"
+#include "linp/components/light.hpp"
 #include <IconsFontAwesome6.h>
 #include <concepts>
 #include <imgui.h>
@@ -66,6 +67,7 @@ concept HasComponentInfo = requires(T component, Core::AssetManager* assetManage
  */
 using DrawableComponents = std::tuple<Linp::Core::Components::EntityInfoComponent,
                                       Linp::Core::Components::TransformComponent,
-                                      Linp::Core::Components::MeshRendererComponent>;
+                                      Linp::Core::Components::MeshRendererComponent,
+                                      Linp::Core::Components::LightComponent>;
 
 }

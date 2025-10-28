@@ -12,7 +12,7 @@ namespace Linp::Editor {
 class EditorLayer : public Core::Layer {
 public:
     EditorLayer(Core::Application* application);
-    ~EditorLayer() = default;
+    ~EditorLayer();
     void onImGuiRender() override;
     void recreatePanels();
 

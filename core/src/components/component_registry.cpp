@@ -67,4 +67,4 @@ std::vector<std::type_index> ComponentRegistry::getRegisteredTypeIndices() const
     return indices;
 }
 
-} // namespace Linp::Core::Components
+}

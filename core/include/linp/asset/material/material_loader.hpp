@@ -106,8 +106,23 @@ public:
 
     void unloadTyped(Material* material) override {
         if (material) {
+            material->cachedShaderHandle = {};
+            material->cachedTextureHandles.clear();
             delete material;
         }
+    }
+
+    void reloadTyped(Material* existing, Material* fresh) override {
+        existing->properties  = std::move(fresh->properties);
+        existing->shaderAsset = fresh->shaderAsset;
+
+        // Drop caches so they’ll rebuild on next use
+        existing->cachedShaderHandle = {};
+        existing->cachedTextureHandles.clear();
+
+        // Mark the RL material dirty, renderer will rebuild it safely later
+        existing->rlMaterialDirty     = true;
+        existing->defaultShaderLoaded = false;
     }
 
     AssetType getType() const override { return AssetType::Material; }

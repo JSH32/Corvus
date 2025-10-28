@@ -1,6 +1,8 @@
 #include "editor/panels/asset_browser/asset_browser_panel.hpp"
 #include "editor/panels/asset_browser/material_viewer.hpp"
+#include "editor/panels/asset_browser/texture_viewer.hpp"
 #include "imgui_internal.h"
+#include "linp/asset/asset_handle.hpp"
 #include "linp/log.hpp"
 #include "linp/scene.hpp"
 #include <algorithm>
@@ -84,29 +86,40 @@ void AssetBrowserPanel::drawDirectory(const std::string& dir) {
     bool dbl     = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && hovered;
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    ImU32       bg = hovered ? IM_COL32(60, 80, 120, 220) : IM_COL32(38, 48, 62, 220);
-    dl->AddRectFilled(start, { start.x + tileW, start.y + tileH }, bg, 8.0f);
+
+    // Use ImGui theme colors
+    ImVec4 frameCol = hovered ? ImGui::GetStyleColorVec4(ImGuiCol_FrameBgHovered)
+                              : ImGui::GetStyleColorVec4(ImGuiCol_FrameBg);
+    ImU32  bg       = ImGui::ColorConvertFloat4ToU32(frameCol);
+
+    // Reduce rounding from 8.0f to 3.0f
+    dl->AddRectFilled(start, { start.x + tileW, start.y + tileH }, bg, 3.0f);
 
     ImVec2 iconMin { start.x + (tileW - iconBox) * 0.5f, start.y + 8 };
     ImVec2 iconMax { iconMin.x + iconBox, iconMin.y + iconBox };
-    dl->AddRectFilled(iconMin, iconMax, IM_COL32(30, 40, 55, 255), 8.0f);
+
+    // Use ChildBg color for icon background
+    ImU32 iconBg = ImGui::GetColorU32(ImGuiCol_ChildBg);
+    dl->AddRectFilled(iconMin, iconMax, iconBg, 3.0f);
+
     ImVec2 glyphSize = ImGui::CalcTextSize(ICON_FA_FOLDER);
     ImVec2 glyphPos { iconMin.x + (iconBox - glyphSize.x) * 0.5f,
                       iconMin.y + (iconBox - glyphSize.y) * 0.5f };
-    dl->AddText(glyphPos, IM_COL32(255, 230, 120, 255), ICON_FA_FOLDER);
+
+    // Use Text color
+    ImU32 textCol = ImGui::GetColorU32(ImGuiCol_Text);
+    dl->AddText(glyphPos, textCol, ICON_FA_FOLDER);
 
     std::string fit      = ellipsizeToWidth(name, tileW - 10.0f);
     ImVec2      textSize = ImGui::CalcTextSize(fit.c_str());
     ImVec2      textPos { start.x + (tileW - textSize.x) * 0.5f, iconMax.y + 6.0f };
-    dl->AddText(textPos, IM_COL32(220, 230, 240, 255), fit.c_str());
+    dl->AddText(textPos, textCol, fit.c_str());
 
-    if (hovered)
-        dl->AddRect(start,
-                    { start.x + tileW, start.y + tileH },
-                    IM_COL32(100, 160, 255, 200),
-                    8.0f,
-                    0,
-                    2.0f);
+    if (hovered) {
+        // Use ButtonActive color for border
+        ImU32 borderCol = ImGui::GetColorU32(ImGuiCol_ButtonActive);
+        dl->AddRect(start, { start.x + tileW, start.y + tileH }, borderCol, 3.0f, 0, 2.0f);
+    }
 
     if (dbl) {
         currentDir = dir;
@@ -151,30 +164,44 @@ void AssetBrowserPanel::drawAsset(const Core::AssetMetadata& meta) {
 
     ImDrawList* dl       = ImGui::GetWindowDrawList();
     bool        selected = (selectedAsset && *selectedAsset == meta.id);
-    ImU32       bg       = selected ? IM_COL32(60, 85, 125, 230)
-                    : hovered       ? IM_COL32(50, 65, 90, 230)
-                                    : IM_COL32(38, 48, 62, 220);
-    dl->AddRectFilled(start, { start.x + tileW, start.y + tileH }, bg, 8.0f);
+
+    // Use ImGui theme colors
+    ImU32 bg;
+    if (selected) {
+        bg = ImGui::GetColorU32(ImGuiCol_ButtonActive);
+    } else if (hovered) {
+        bg = ImGui::GetColorU32(ImGuiCol_FrameBgHovered);
+    } else {
+        bg = ImGui::GetColorU32(ImGuiCol_FrameBg);
+    }
+
+    // Reduce rounding from 8.0f to 3.0f
+    dl->AddRectFilled(start, { start.x + tileW, start.y + tileH }, bg, 3.0f);
 
     ImVec2 iconMin { start.x + (tileW - iconBox) * 0.5f, start.y + 8 };
     ImVec2 iconMax { iconMin.x + iconBox, iconMin.y + iconBox };
-    dl->AddRectFilled(iconMin, iconMax, IM_COL32(30, 40, 55, 255), 8.0f);
+
+    // Use ChildBg color for icon background
+    ImU32 iconBg = ImGui::GetColorU32(ImGuiCol_ChildBg);
+    dl->AddRectFilled(iconMin, iconMax, iconBg, 3.0f);
+
     ImVec2 gsz = ImGui::CalcTextSize(icon);
     ImVec2 gpos { iconMin.x + (iconBox - gsz.x) * 0.5f, iconMin.y + (iconBox - gsz.y) * 0.5f };
-    dl->AddText(gpos, IM_COL32_WHITE, icon);
+
+    // Use Text color
+    ImU32 textCol = ImGui::GetColorU32(ImGuiCol_Text);
+    dl->AddText(gpos, textCol, icon);
 
     std::string fit = ellipsizeToWidth(filename, tileW - 10.0f);
     ImVec2      ts  = ImGui::CalcTextSize(fit.c_str());
     ImVec2      tpos { start.x + (tileW - ts.x) * 0.5f, iconMax.y + 6.0f };
-    dl->AddText(tpos, IM_COL32(220, 230, 240, 255), fit.c_str());
+    dl->AddText(tpos, textCol, fit.c_str());
 
-    if (hovered)
-        dl->AddRect(start,
-                    { start.x + tileW, start.y + tileH },
-                    IM_COL32(100, 160, 255, 200),
-                    8.0f,
-                    0,
-                    2.0f);
+    if (hovered) {
+        // Use ButtonActive color for border
+        ImU32 borderCol = ImGui::GetColorU32(ImGuiCol_ButtonActive);
+        dl->AddRect(start, { start.x + tileW, start.y + tileH }, borderCol, 3.0f, 0, 2.0f);
+    }
 
     if (clicked)
         selectedAsset = meta.id;
@@ -229,9 +256,9 @@ void AssetBrowserPanel::drawAsset(const Core::AssetMetadata& meta) {
 void AssetBrowserPanel::handleAssetDoubleClick(const Core::AssetMetadata& meta) {
     switch (meta.type) {
         case Core::AssetType::Scene:
-            LINP_CORE_INFO("Opening scene: {}", meta.path);
             project->loadSceneByID(meta.id);
             break;
+        case Core::AssetType::Texture:
         case Core::AssetType::Material:
             openAssetViewer(meta.id, meta.type);
             break;
@@ -445,6 +472,9 @@ void AssetBrowserPanel::openAssetViewer(const Core::UUID& assetID, Core::AssetTy
     switch (type) {
         case Core::AssetType::Material:
             openViewers.push_back(std::make_unique<MaterialViewer>(assetID, assetManager));
+            break;
+        case Core::AssetType::Texture:
+            openViewers.push_back(std::make_unique<TextureViewer>(assetID, assetManager));
             break;
         // Add more viewer types here
         default:

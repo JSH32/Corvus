@@ -280,7 +280,6 @@ struct Material {
                 = GetShaderLocation(defaultShader, "colDiffuse");
         } else {
             LINP_CORE_ERROR("Failed to load default shader! Shader ID: {}", defaultShader.id);
-            LINP_CORE_ERROR("Check Raylib logs above for shader compilation errors");
         }
     }
 
@@ -343,6 +342,11 @@ struct Material {
     void setTexture(const std::string& name, const UUID& textureID, int slot = 0) {
         properties[name] = MaterialProperty(name, MaterialPropertyValue(textureID, slot));
         rlMaterialDirty  = true;
+
+        auto it = cachedTextureHandles.find(name);
+        if (it != cachedTextureHandles.end()) {
+            cachedTextureHandles.erase(it);
+        }
     }
 
     void setVector(const std::string& name, Vector3 value) {
@@ -396,13 +400,14 @@ struct Material {
     }
 
     // Apply material to a raylib material
-    void applyToRaylibMaterial(raylib::Material& rlMat, AssetManager* assetMgr) const {
+    void applyToRaylibMaterial(raylib::Material& rlMat, AssetManager* assetMgr) {
         if (!assetMgr)
             return;
 
         if (!defaultShaderLoaded)
-            const_cast<Material*>(this)->loadDefaultShader();
+            this->loadDefaultShader();
 
+        // Resolve shader
         Shader* activeShader = nullptr;
         if (!shaderAsset.is_nil()) {
             auto& sh = const_cast<AssetHandle<raylib::Shader>&>(cachedShaderHandle);
@@ -434,17 +439,50 @@ struct Material {
                 case MaterialPropertyType::Texture: {
                     UUID id   = prop.value.getTexture();
                     int  slot = prop.value.getTextureSlot();
-                    if (id.is_nil())
-                        continue;
 
-                    auto& texMap = const_cast<std::map<std::string, AssetHandle<raylib::Texture>>&>(
-                        cachedTextureHandles);
-                    if (texMap.find(name) == texMap.end())
-                        texMap[name] = assetMgr->loadByID<raylib::Texture>(id);
+                    if (slot >= 0 && slot < MATERIAL_MAP_BRDF) {
+                        if (id.is_nil()) {
+                            // create a Texture object from the default ID
+                            Texture defaultTex = { 0 };
+                            defaultTex.id      = rlGetTextureIdDefault();
+                            defaultTex.width   = 1;
+                            defaultTex.height  = 1;
+                            defaultTex.mipmaps = 1;
+                            defaultTex.format  = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 
-                    auto& texH = texMap[name];
-                    if (texH.isValid() && slot >= 0 && slot < MATERIAL_MAP_BRDF)
-                        rlMat.maps[slot].texture = *texH.get();
+                            rlMat.maps[slot].texture = defaultTex;
+                            break;
+                        }
+
+                        auto& texMap
+                            = const_cast<std::map<std::string, AssetHandle<raylib::Texture>>&>(
+                                cachedTextureHandles);
+
+                        bool needsReload = false;
+                        if (texMap.find(name) == texMap.end()) {
+                            needsReload = true;
+                        } else {
+                            auto& existingHandle = texMap[name];
+                            if (!existingHandle.isValid() || existingHandle.getID() != id)
+                                needsReload = true;
+                        }
+
+                        if (needsReload)
+                            texMap[name] = assetMgr->loadByID<raylib::Texture>(id);
+
+                        auto& texH = texMap[name];
+                        if (texH.isValid())
+                            rlMat.maps[slot].texture = *texH.get();
+                        else {
+                            Texture defaultTex       = { 0 };
+                            defaultTex.id            = rlGetTextureIdDefault();
+                            defaultTex.width         = 1;
+                            defaultTex.height        = 1;
+                            defaultTex.mipmaps       = 1;
+                            defaultTex.format        = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+                            rlMat.maps[slot].texture = defaultTex;
+                        }
+                    }
                     break;
                 }
                 case MaterialPropertyType::Float: {
@@ -504,6 +542,12 @@ struct Material {
                 default:
                     break;
             }
+        }
+
+        int tex0Loc = GetShaderLocation(rlMat.shader, "texture0");
+        if (tex0Loc != -1) {
+            int unit0 = 0;
+            SetShaderValue(rlMat.shader, tex0Loc, &unit0, SHADER_UNIFORM_INT);
         }
     }
 
