@@ -1,12 +1,12 @@
 #include "editor/panels/asset_browser/material_viewer.hpp"
 #include "IconsFontAwesome6.h"
+#include "corvus/log.hpp"
+#include "corvus/systems/lighting_system.hpp"
 #include "imgui_internal.h"
-#include "linp/log.hpp"
-#include "linp/systems/lighting_system.hpp"
 #include "rlImGui.h"
 #include <format>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 MaterialViewer::MaterialViewer(const Core::UUID& id, Core::AssetManager* manager)
     : AssetViewer(id, manager, "Material Viewer") {
@@ -38,14 +38,14 @@ void MaterialViewer::initPreview() {
     previewSphere   = LoadModelFromMesh(sphereMesh);
 
     previewInitialized = true;
-    LINP_CORE_INFO("Material viewer preview initialized");
+    CORVUS_CORE_INFO("Material viewer preview initialized");
 }
 
 void MaterialViewer::cleanupPreview() {
     if (!previewInitialized)
         return;
 
-    LINP_CORE_INFO("Cleaning up material viewer preview");
+    CORVUS_CORE_INFO("Cleaning up material viewer preview");
 
     if (previewSphere.meshCount > 0) {
         UnloadModel(previewSphere);
@@ -184,7 +184,7 @@ void MaterialViewer::render() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save")) {
             if (materialHandle.save()) {
-                LINP_CORE_INFO("Saved material: {}", windowTitle);
+                CORVUS_CORE_INFO("Saved material: {}", windowTitle);
             }
         }
         if (ImGui::IsItemHovered()) {

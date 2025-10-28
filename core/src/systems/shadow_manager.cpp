@@ -1,10 +1,10 @@
-#include "linp/systems/shadow_manager.hpp"
-#include "linp/asset/asset_manager.hpp"
-#include "linp/components/mesh_renderer.hpp"
-#include "linp/components/transform.hpp"
-#include "linp/log.hpp"
+#include "corvus/systems/shadow_manager.hpp"
+#include "corvus/asset/asset_manager.hpp"
+#include "corvus/components/mesh_renderer.hpp"
+#include "corvus/components/transform.hpp"
+#include "corvus/log.hpp"
 
-namespace Linp::Core::Systems {
+namespace Corvus::Core::Systems {
 
 void ShadowMap::initialize(int res) {
     if (initialized && resolution == res)
@@ -38,17 +38,17 @@ void ShadowMap::initialize(int res) {
                             0);
 
         if (rlFramebufferComplete(depthTexture.id)) {
-            LINP_INFO("Shadow map framebuffer [ID {}] created successfully (resolution: {}x{})",
-                      depthTexture.id,
-                      resolution,
-                      resolution);
+            CORVUS_INFO("Shadow map framebuffer [ID {}] created successfully (resolution: {}x{})",
+                        depthTexture.id,
+                        resolution,
+                        resolution);
         } else {
-            LINP_ERROR("Shadow map framebuffer [ID {}] is incomplete!", depthTexture.id);
+            CORVUS_ERROR("Shadow map framebuffer [ID {}] is incomplete!", depthTexture.id);
         }
 
         rlDisableFramebuffer();
     } else {
-        LINP_ERROR("Failed to create shadow map framebuffer!");
+        CORVUS_ERROR("Failed to create shadow map framebuffer!");
     }
 
     initialized = true;
@@ -101,7 +101,7 @@ void CubemapShadowMap::initialize(int res) {
                                 0);
 
             if (!rlFramebufferComplete(faceFramebuffers[i])) {
-                LINP_ERROR("Cubemap shadow framebuffer face {} incomplete!", i);
+                CORVUS_ERROR("Cubemap shadow framebuffer face {} incomplete!", i);
             }
 
             rlDisableFramebuffer();
@@ -109,7 +109,7 @@ void CubemapShadowMap::initialize(int res) {
     }
 
     initialized = true;
-    LINP_INFO(
+    CORVUS_INFO(
         "Cubemap shadow map created successfully (resolution: {}x{})", resolution, resolution);
 }
 
@@ -187,7 +187,7 @@ void main() {
     shadowDepthShader = LoadShaderFromMemory(vsDepth, fsDepth);
 
     if (shadowDepthShader.id == 0) {
-        LINP_ERROR("Failed to load shadow depth shader!");
+        CORVUS_ERROR("Failed to load shadow depth shader!");
         return;
     }
 
@@ -225,12 +225,13 @@ void main() {
     pointLightShadowShader = LoadShaderFromMemory(vsPointDepth, fsPointDepth);
 
     if (pointLightShadowShader.id == 0) {
-        LINP_ERROR("Failed to load point light shadow shader!");
+        CORVUS_ERROR("Failed to load point light shadow shader!");
         return;
     }
 
-    LINP_INFO("Shadow depth shader loaded successfully (ID: {})", shadowDepthShader.id);
-    LINP_INFO("Point light shadow shader loaded successfully (ID: {})", pointLightShadowShader.id);
+    CORVUS_INFO("Shadow depth shader loaded successfully (ID: {})", shadowDepthShader.id);
+    CORVUS_INFO("Point light shadow shader loaded successfully (ID: {})",
+                pointLightShadowShader.id);
     initialized = true;
 }
 
@@ -341,7 +342,7 @@ std::array<Matrix, 6> ShadowManager::calculatePointLightMatrices(Vector3 lightPo
 void ShadowManager::renderShadowMap(ShadowMap*                           shadowMap,
                                     const Matrix&                        lightSpaceMatrix,
                                     const std::vector<RenderableEntity>& renderables,
-                                    Linp::Core::AssetManager*            assetMgr) {
+                                    Corvus::Core::AssetManager*          assetMgr) {
     if (!shadowMap || !shadowMap->initialized || shadowDepthShader.id == 0) {
         return;
     }
@@ -406,7 +407,7 @@ void ShadowManager::renderCubemapShadowMap(CubemapShadowMap*                    
                                            Vector3                              lightPos,
                                            float                                farPlane,
                                            const std::vector<RenderableEntity>& renderables,
-                                           Linp::Core::AssetManager*            assetMgr) {
+                                           Corvus::Core::AssetManager*          assetMgr) {
     if (!cubemapShadow || !cubemapShadow->initialized || shadowDepthShader.id == 0) {
         return;
     }

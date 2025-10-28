@@ -4,19 +4,19 @@
 #include "editor/imguiutils.hpp"
 #include "editor/panels/inspector/inspector_panel.hpp"
 #include "imgui_internal.h"
-#include "linp/components/light.hpp"
+#include "corvus/components/light.hpp"
 #include <imgui.h>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 template <>
-struct ComponentInfo<Linp::Core::Components::LightComponent> {
-    using ComponentType                         = Linp::Core::Components::LightComponent;
+struct ComponentInfo<Corvus::Core::Components::LightComponent> {
+    using ComponentType                         = Corvus::Core::Components::LightComponent;
     static constexpr std::string_view name      = ICON_FA_LIGHTBULB " Light";
     static constexpr bool             removable = true;
     static constexpr bool             flat      = false;
 
-    static void draw(Linp::Core::Components::LightComponent& light, Linp::Core::AssetManager*) {
+    static void draw(Corvus::Core::Components::LightComponent& light, Corvus::Core::AssetManager*) {
         ImGui::PushID(&light);
 
         // Enabled checkbox
@@ -36,7 +36,7 @@ struct ComponentInfo<Linp::Core::Components::LightComponent> {
             ImGui::PushItemWidth(-1);
             if (ImGui::Combo(
                     "##LightType", &currentType, lightTypeNames, IM_ARRAYSIZE(lightTypeNames))) {
-                light.type = static_cast<Linp::Core::Components::LightType>(currentType);
+                light.type = static_cast<Corvus::Core::Components::LightType>(currentType);
             }
             ImGui::PopItemWidth();
         }
@@ -68,13 +68,13 @@ struct ComponentInfo<Linp::Core::Components::LightComponent> {
 
         // Type-specific properties
         switch (light.type) {
-            case Linp::Core::Components::LightType::Directional: {
+            case Corvus::Core::Components::LightType::Directional: {
                 ImGui::Spacing();
                 ImGui::TextDisabled("Direction is controlled by Transform rotation");
                 break;
             }
 
-            case Linp::Core::Components::LightType::Point: {
+            case Corvus::Core::Components::LightType::Point: {
                 ImGui::Separator();
                 ImGui::Text("Point Light Settings");
 
@@ -87,7 +87,7 @@ struct ComponentInfo<Linp::Core::Components::LightComponent> {
                 break;
             }
 
-            case Linp::Core::Components::LightType::Spot: {
+            case Corvus::Core::Components::LightType::Spot: {
                 ImGui::Separator();
                 ImGui::Text("Spot Light Settings");
 
@@ -165,7 +165,7 @@ struct ComponentInfo<Linp::Core::Components::LightComponent> {
                 ImGui::SetTooltip("How dark the shadows are");
             }
 
-            if (light.type == Linp::Core::Components::LightType::Directional) {
+            if (light.type == Corvus::Core::Components::LightType::Directional) {
                 ImGui::FloatEditor("Shadow Distance", light.shadowDistance, 5.0f, 1.0f, 200.0f);
                 if (ImGui::IsItemHovered()) {
                     ImGui::SetTooltip("How far shadows render from center");
@@ -192,7 +192,7 @@ struct ComponentInfo<Linp::Core::Components::LightComponent> {
         ImU32 lightColorU32 = IM_COL32(r, g, b, 255);
 
         switch (light.type) {
-            case Linp::Core::Components::LightType::Directional:
+            case Corvus::Core::Components::LightType::Directional:
                 // Draw sun icon
                 drawList->AddCircleFilled(center, radius * 0.6f, lightColorU32);
                 for (int i = 0; i < 8; ++i) {
@@ -205,7 +205,7 @@ struct ComponentInfo<Linp::Core::Components::LightComponent> {
                 }
                 break;
 
-            case Linp::Core::Components::LightType::Point:
+            case Corvus::Core::Components::LightType::Point:
                 // Draw point light with falloff
                 drawList->AddCircleFilled(center, radius * 0.4f, lightColorU32);
                 drawList->AddCircle(
@@ -213,7 +213,7 @@ struct ComponentInfo<Linp::Core::Components::LightComponent> {
                 drawList->AddCircle(center, radius, IM_COL32(r / 4, g / 4, b / 4, 64), 0, 1.0f);
                 break;
 
-            case Linp::Core::Components::LightType::Spot:
+            case Corvus::Core::Components::LightType::Spot:
                 // Draw cone shape
                 drawList->AddCircleFilled(center, radius * 0.3f, lightColorU32);
                 ImVec2 p1 = ImVec2(center.x - radius * 0.5f, center.y + radius);

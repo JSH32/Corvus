@@ -3,7 +3,7 @@
 #include "imgui.h"
 #include "raylib-cpp.hpp"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 /**
  * @class EditorCamera

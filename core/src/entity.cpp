@@ -1,7 +1,7 @@
-#include "linp/entity.hpp"
+#include "corvus/entity.hpp"
 #include "entt/entity/fwd.hpp"
-#include "linp/scene.hpp"
+#include "corvus/scene.hpp"
 
-namespace Linp::Core {
+namespace Corvus::Core {
 entt::registry& Entity::getRegistry() const { return scene->registry; }
 }

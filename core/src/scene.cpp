@@ -1,16 +1,16 @@
-#include "linp/scene.hpp"
+#include "corvus/scene.hpp"
 
 #include <entt/entt.hpp>
 
 #include "RenderTexture.hpp"
-#include "linp/components/entity_info.hpp"
-#include "linp/components/mesh_renderer.hpp"
-#include "linp/components/transform.hpp"
-#include "linp/entity.hpp"
-#include "linp/log.hpp"
-#include "linp/scene.hpp"
+#include "corvus/components/entity_info.hpp"
+#include "corvus/components/mesh_renderer.hpp"
+#include "corvus/components/transform.hpp"
+#include "corvus/entity.hpp"
+#include "corvus/log.hpp"
+#include "corvus/scene.hpp"
 
-namespace Linp::Core {
+namespace Corvus::Core {
 void Scene::destroyEntity(const Entity entity) {
     rootOrderedEntities.erase(
         std::remove(rootOrderedEntities.begin(), rootOrderedEntities.end(), entity),
@@ -59,8 +59,9 @@ void Scene::render(raylib::RenderTexture& target) {
         auto& entity = *it;
 
         if (!entity.hasComponent<Components::EntityInfoComponent>()) {
-            LINP_ERROR("An Entity did not have a EntityInfo component, this should not happen. It "
-                       "has been added automatically.");
+            CORVUS_ERROR(
+                "An Entity did not have a EntityInfo component, this should not happen. It "
+                "has been added automatically.");
             entity.addComponent<Components::EntityInfoComponent>();
         }
     }
@@ -123,7 +124,7 @@ void Scene::render(raylib::RenderTexture& target) {
     lightingSystem.renderShadowMaps(cachedRenderables, assetManager);
 
     for (auto& renderable : cachedRenderables) {
-        Linp::Core::Material* material = renderable.meshRenderer->getMaterial(assetManager);
+        Corvus::Core::Material* material = renderable.meshRenderer->getMaterial(assetManager);
         if (!material)
             continue;
 

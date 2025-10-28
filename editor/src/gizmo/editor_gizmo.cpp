@@ -1,6 +1,6 @@
 #include "editor/gizmo/editor_gizmo.hpp"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 void EditorGizmo::update(Core::Components::TransformComponent& transform,
                          const Vector2&                        mousePos,

@@ -1,7 +1,7 @@
-#include "linp/layerstack.hpp"
+#include "corvus/layerstack.hpp"
 #include <algorithm>
 
-namespace Linp::Core {
+namespace Corvus::Core {
 
 void LayerStack::pushLayer(std::unique_ptr<Layer> layer) {
     // Insert before overlays

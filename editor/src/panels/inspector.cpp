@@ -2,10 +2,10 @@
 #include "IconsFontAwesome6.h"
 #include "imgui.h"
 #include "imgui_internal.h"
-#include "linp/asset/asset_manager.hpp"
-#include "linp/log.hpp"
+#include "corvus/asset/asset_manager.hpp"
+#include "corvus/log.hpp"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 void InspectorPanel::onUpdate() {
     ImGui::Begin(ICON_FA_CIRCLE_INFO " Inspector");
 

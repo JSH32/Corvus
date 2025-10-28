@@ -1,11 +1,11 @@
 #pragma once
 
 #include "IconsFontAwesome6.h"
-#include "linp/entity.hpp"
+#include "corvus/entity.hpp"
 #include <format>
 #include <string>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 class EditorPanel {
 public:
     virtual ~EditorPanel() = default;

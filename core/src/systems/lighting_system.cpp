@@ -1,8 +1,8 @@
-#include "linp/systems/lighting_system.hpp"
-#include "linp/scene.hpp"
+#include "corvus/systems/lighting_system.hpp"
+#include "corvus/scene.hpp"
 #include <rlgl.h>
 
-namespace Linp::Core::Systems {
+namespace Corvus::Core::Systems {
 
 void LightingSystem::initialize() { shadowManager.initialize(); }
 
@@ -102,7 +102,7 @@ LightingSystem::CulledLights LightingSystem::cullLightsForObject(const Vector3& 
 }
 
 void LightingSystem::renderShadowMaps(const std::vector<RenderableEntity>& renderables,
-                                      Linp::Core::AssetManager*            assetMgr,
+                                      Corvus::Core::AssetManager*            assetMgr,
                                       Vector3                              sceneCenter) {
     if (!shadowManager.initialized) {
         shadowManager.initialize();

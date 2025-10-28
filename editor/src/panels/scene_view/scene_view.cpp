@@ -1,10 +1,10 @@
 #include "editor/panels/scene_view/scene_view.hpp"
 
 #include "imgui.h"
-#include "linp/components/transform.hpp"
+#include "corvus/components/transform.hpp"
 #include <algorithm>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 SceneViewPanel::SceneViewPanel(Core::Project& project, SceneHierarchyPanel* sceneHierarchy)
     : viewport(project), sceneHierarchyPanel(sceneHierarchy), currentViewportSize({ 1.0f, 1.0f }) {

@@ -1,6 +1,6 @@
-#include "linp/components/component_registry.hpp"
+#include "corvus/components/component_registry.hpp"
 
-namespace Linp::Core::Components {
+namespace Corvus::Core::Components {
 ComponentRegistry* ComponentRegistry::instance = nullptr;
 
 ComponentRegistry& ComponentRegistry::get() {

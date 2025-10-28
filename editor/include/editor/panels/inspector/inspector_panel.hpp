@@ -1,16 +1,16 @@
 #pragma once
 
-#include "linp/asset/asset_manager.hpp"
-#include "linp/components/light.hpp"
+#include "corvus/asset/asset_manager.hpp"
+#include "corvus/components/light.hpp"
 #include <IconsFontAwesome6.h>
 #include <concepts>
 #include <imgui.h>
-#include <linp/components/entity_info.hpp>
-#include <linp/components/mesh_renderer.hpp>
-#include <linp/components/transform.hpp>
-#include <linp/entity.hpp>
+#include <corvus/components/entity_info.hpp>
+#include <corvus/components/mesh_renderer.hpp>
+#include <corvus/components/transform.hpp>
+#include <corvus/entity.hpp>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 /**
  * @brief Base descriptor that components must specialize to provide UI for the inspector.
@@ -65,9 +65,9 @@ concept HasComponentInfo = requires(T component, Core::AssetManager* assetManage
  *
  * The inspector will iterate over this to know what is renderable
  */
-using DrawableComponents = std::tuple<Linp::Core::Components::EntityInfoComponent,
-                                      Linp::Core::Components::TransformComponent,
-                                      Linp::Core::Components::MeshRendererComponent,
-                                      Linp::Core::Components::LightComponent>;
+using DrawableComponents = std::tuple<Corvus::Core::Components::EntityInfoComponent,
+                                      Corvus::Core::Components::TransformComponent,
+                                      Corvus::Core::Components::MeshRendererComponent,
+                                      Corvus::Core::Components::LightComponent>;
 
 }

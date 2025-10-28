@@ -1,14 +1,14 @@
-#include "linp/asset/asset_manager.hpp"
-#include "linp/asset/asset_handle.hpp"
-#include "linp/asset/loaders.hpp"
-#include "linp/log.hpp"
+#include "corvus/asset/asset_manager.hpp"
+#include "corvus/asset/asset_handle.hpp"
+#include "corvus/asset/loaders.hpp"
+#include "corvus/log.hpp"
 
 #include <algorithm>
 #include <array>
 #include <sstream>
 #include <unordered_map>
 
-namespace Linp::Core {
+namespace Corvus::Core {
 
 static std::string normalizePath(std::string path) {
     std::replace(path.begin(), path.end(), '\\', '/');
@@ -88,11 +88,11 @@ AssetManager::AssetManager(const std::string& assetRoot, const std::string& alia
 
     // setupRaylibBridge();
     registerLoaders(*this);
-    LINP_CORE_INFO("AssetManager mounted '{}' at '/{}'", assetRoot, alias);
+    CORVUS_CORE_INFO("AssetManager mounted '{}' at '/{}'", assetRoot, alias);
 }
 
 AssetManager::~AssetManager() {
-    LINP_CORE_INFO("AssetManager shutting down...");
+    CORVUS_CORE_INFO("AssetManager shutting down...");
     stopFileWatcher();
     shuttingDown.store(true, std::memory_order_relaxed);
 
@@ -107,7 +107,7 @@ AssetManager::~AssetManager() {
 
     localAssets.clear();
     PHYSFS_unmount(projectPath.c_str());
-    LINP_CORE_INFO("AssetManager shutdown complete");
+    CORVUS_CORE_INFO("AssetManager shutdown complete");
 }
 
 // Convert user path to PhysFS path (adds mount prefix)
@@ -192,7 +192,7 @@ bool AssetManager::loadMetaFile(const std::string& assetInternalPath, AssetMetad
         outMeta.path = toInternal(outMeta.path);
         return true;
     } catch (const std::exception& e) {
-        LINP_CORE_ERROR("Failed to parse meta file '{}': {}", metaPath, e.what());
+        CORVUS_CORE_ERROR("Failed to parse meta file '{}': {}", metaPath, e.what());
         return false;
     }
 }
@@ -212,7 +212,7 @@ bool AssetManager::saveMetaFile(const std::string& assetInternalPath, const Asse
 
         PHYSFS_File* file = PHYSFS_openWrite(metaPath.c_str());
         if (!file) {
-            LINP_CORE_ERROR("Failed to open meta file for writing: {}", metaPath);
+            CORVUS_CORE_ERROR("Failed to open meta file for writing: {}", metaPath);
             return false;
         }
 
@@ -220,7 +220,7 @@ bool AssetManager::saveMetaFile(const std::string& assetInternalPath, const Asse
         PHYSFS_close(file);
         return true;
     } catch (const std::exception& e) {
-        LINP_CORE_ERROR("Failed to save meta file for '{}': {}", assetInternalPath, e.what());
+        CORVUS_CORE_ERROR("Failed to save meta file for '{}': {}", assetInternalPath, e.what());
         return false;
     }
 }
@@ -284,11 +284,11 @@ bool AssetManager::createDirectory(const std::string& userPath) {
     std::string physfsPath = stripLeadingSlash(normalizePath(userPath));
 
     if (!PHYSFS_mkdir(physfsPath.c_str())) {
-        LINP_CORE_ERROR("Failed to create directory: {}", userPath);
+        CORVUS_CORE_ERROR("Failed to create directory: {}", userPath);
         return false;
     }
 
-    LINP_CORE_INFO("Created directory: {}", userPath);
+    CORVUS_CORE_INFO("Created directory: {}", userPath);
     return true;
 }
 
@@ -297,14 +297,14 @@ bool AssetManager::deleteDirectory(const std::string& userPath) {
 
     std::string internalPath = toInternal(userPath);
 
-    LINP_CORE_INFO("Attempting to delete directory: {}", internalPath);
+    CORVUS_CORE_INFO("Attempting to delete directory: {}", internalPath);
 
     bool result = deleteDirectoryRecursive(internalPath, true);
 
     if (result) {
-        LINP_CORE_INFO("Successfully deleted directory: {}", internalPath);
+        CORVUS_CORE_INFO("Successfully deleted directory: {}", internalPath);
     } else {
-        LINP_CORE_ERROR("Failed to delete directory: {}", internalPath);
+        CORVUS_CORE_ERROR("Failed to delete directory: {}", internalPath);
     }
 
     return result;
@@ -329,7 +329,7 @@ bool AssetManager::copyAsset(const UUID& id, const std::string& newUserPath, boo
     std::string dstPhysfsPath = stripLeadingSlash(dstInternalPath);
 
     if (!physfsCopyFile(srcPhysfsPath, dstPhysfsPath)) {
-        LINP_CORE_ERROR("Failed to copy asset: {} -> {}", srcMeta.path, dstInternalPath);
+        CORVUS_CORE_ERROR("Failed to copy asset: {} -> {}", srcMeta.path, dstInternalPath);
         return false;
     }
 
@@ -344,7 +344,7 @@ bool AssetManager::copyAsset(const UUID& id, const std::string& newUserPath, boo
     pathToID[newMeta.path]              = newMeta.id;
     fileModificationTimes[newMeta.path] = newMeta.lastModified;
 
-    LINP_CORE_INFO("Copied asset: {} -> {}", srcMeta.path, dstInternalPath);
+    CORVUS_CORE_INFO("Copied asset: {} -> {}", srcMeta.path, dstInternalPath);
     return true;
 }
 
@@ -372,7 +372,7 @@ bool AssetManager::deleteAsset(const UUID& id) {
     metadata.erase(id);
     fileModificationTimes.erase(internalPath);
 
-    LINP_CORE_INFO("Deleted asset: {}", internalPath);
+    CORVUS_CORE_INFO("Deleted asset: {}", internalPath);
     return true;
 }
 
@@ -388,7 +388,7 @@ bool AssetManager::moveAsset(const UUID& id, const std::string& newUserPath) {
 
     // Copy to new location
     if (!physfsCopyFile(toPhysFS(oldInternalPath), stripLeadingSlash(newInternalPath))) {
-        LINP_CORE_ERROR("Failed to move asset: {} -> {}", oldInternalPath, newInternalPath);
+        CORVUS_CORE_ERROR("Failed to move asset: {} -> {}", oldInternalPath, newInternalPath);
         return false;
     }
 
@@ -411,7 +411,7 @@ bool AssetManager::moveAsset(const UUID& id, const std::string& newUserPath) {
         assetIt->second.lastModified = it->second.lastModified;
     }
 
-    LINP_CORE_INFO("Moved asset: {} -> {}", oldInternalPath, newInternalPath);
+    CORVUS_CORE_INFO("Moved asset: {} -> {}", oldInternalPath, newInternalPath);
     return true;
 }
 
@@ -421,7 +421,7 @@ bool AssetManager::renameDirectory(const std::string& oldUserPath, const std::st
     std::string oldInternal = toInternal(oldUserPath);
     std::string newInternal = toInternal(newUserPath);
 
-    LINP_CORE_INFO("Renaming directory: {} -> {}", oldInternal, newInternal);
+    CORVUS_CORE_INFO("Renaming directory: {} -> {}", oldInternal, newInternal);
 
     // Collect all affected assets BEFORE moving
     std::vector<std::pair<UUID, std::string>> affectedAssets;
@@ -433,7 +433,7 @@ bool AssetManager::renameDirectory(const std::string& oldUserPath, const std::st
 
     // Copy directory to new location using PhysFS
     if (!copyDirectoryRecursive(oldInternal, newInternal)) {
-        LINP_CORE_ERROR("Failed to copy directory during rename");
+        CORVUS_CORE_ERROR("Failed to copy directory during rename");
         return false;
     }
 
@@ -442,7 +442,7 @@ bool AssetManager::renameDirectory(const std::string& oldUserPath, const std::st
         // Calculate new path
         std::string newPath = newInternal + oldPath.substr(oldInternal.length());
 
-        LINP_CORE_INFO("  Remapping: {} -> {}", oldPath, newPath);
+        CORVUS_CORE_INFO("  Remapping: {} -> {}", oldPath, newPath);
 
         // Update metadata
         auto metaIt = metadata.find(id);
@@ -469,10 +469,10 @@ bool AssetManager::renameDirectory(const std::string& oldUserPath, const std::st
 
     // Delete old directory
     if (!deleteDirectoryRecursive(oldInternal, false)) {
-        LINP_CORE_WARN("Failed to delete old directory after rename (files copied successfully)");
+        CORVUS_CORE_WARN("Failed to delete old directory after rename (files copied successfully)");
     }
 
-    LINP_CORE_INFO("Directory renamed successfully");
+    CORVUS_CORE_INFO("Directory renamed successfully");
     return true;
 }
 
@@ -494,8 +494,8 @@ bool AssetManager::createAssetByType(AssetType          type,
     }
 
     if (!loader) {
-        LINP_CORE_ERROR("No loader found that can create assets of type {}",
-                        static_cast<int>(type));
+        CORVUS_CORE_ERROR("No loader found that can create assets of type {}",
+                          static_cast<int>(type));
         return false;
     }
 
@@ -516,7 +516,7 @@ bool AssetManager::createAssetByType(AssetType          type,
     // Create the asset using the loader
     void* obj = loader->create(name);
     if (!obj) {
-        LINP_CORE_ERROR("Loader failed to create asset");
+        CORVUS_CORE_ERROR("Loader failed to create asset");
         return false;
     }
 
@@ -536,7 +536,7 @@ bool AssetManager::createAssetByType(AssetType          type,
 
     // Save the asset
     if (!loader->save(obj, toPhysFS(internalPath))) {
-        LINP_CORE_ERROR("Failed to save newly created asset");
+        CORVUS_CORE_ERROR("Failed to save newly created asset");
         loader->unload(obj);
         return false;
     }
@@ -559,7 +559,7 @@ bool AssetManager::createAssetByType(AssetType          type,
 
     assets.emplace(meta.id, std::move(entry));
 
-    LINP_CORE_INFO("Created new asset: {}", internalPath);
+    CORVUS_CORE_INFO("Created new asset: {}", internalPath);
     return true;
 }
 
@@ -576,14 +576,14 @@ bool AssetManager::copyDirectoryRecursive(const std::string& srcInternal,
 
     // Create destination directory
     if (!PHYSFS_mkdir(dstWrite.c_str())) {
-        LINP_CORE_ERROR("Failed to create directory: {}", dstWrite);
+        CORVUS_CORE_ERROR("Failed to create directory: {}", dstWrite);
         return false;
     }
 
     // List all files in source directory
     char** files = PHYSFS_enumerateFiles(srcPhysFS.c_str());
     if (!files) {
-        LINP_CORE_ERROR("Failed to enumerate directory: {}", srcPhysFS);
+        CORVUS_CORE_ERROR("Failed to enumerate directory: {}", srcPhysFS);
         return false;
     }
 
@@ -609,7 +609,7 @@ bool AssetManager::copyDirectoryRecursive(const std::string& srcInternal,
             // Copy file
             PHYSFS_File* srcFile = PHYSFS_openRead(srcPath.c_str());
             if (!srcFile) {
-                LINP_CORE_ERROR("Failed to open source file: {}", srcPath);
+                CORVUS_CORE_ERROR("Failed to open source file: {}", srcPath);
                 continue;
             }
 
@@ -619,13 +619,13 @@ bool AssetManager::copyDirectoryRecursive(const std::string& srcInternal,
             PHYSFS_close(srcFile);
 
             if (bytesRead != fileSize) {
-                LINP_CORE_ERROR("Failed to read file: {}", srcPath);
+                CORVUS_CORE_ERROR("Failed to read file: {}", srcPath);
                 continue;
             }
 
             PHYSFS_File* dstFile = PHYSFS_openWrite(dstPath.c_str());
             if (!dstFile) {
-                LINP_CORE_ERROR("Failed to create destination file: {}", dstPath);
+                CORVUS_CORE_ERROR("Failed to create destination file: {}", dstPath);
                 continue;
             }
 
@@ -633,7 +633,7 @@ bool AssetManager::copyDirectoryRecursive(const std::string& srcInternal,
             PHYSFS_close(dstFile);
 
             if (bytesWritten != fileSize) {
-                LINP_CORE_ERROR("Failed to write file: {}", dstPath);
+                CORVUS_CORE_ERROR("Failed to write file: {}", dstPath);
                 continue;
             }
         }
@@ -665,7 +665,7 @@ bool AssetManager::deleteDirectoryRecursive(const std::string& internalPath, boo
 
         // Untrack all assets in this directory
         for (const UUID& id : assetsToDelete) {
-            LINP_CORE_INFO("  Untracking asset: {}", boost::uuids::to_string(id));
+            CORVUS_CORE_INFO("  Untracking asset: {}", boost::uuids::to_string(id));
 
             // Remove from metadata
             auto metaIt = metadata.find(id);
@@ -693,7 +693,7 @@ bool AssetManager::deleteDirectoryRecursive(const std::string& internalPath, boo
     // List all files in directory
     char** files = PHYSFS_enumerateFiles(physFSPath.c_str());
     if (!files) {
-        LINP_CORE_ERROR("Failed to enumerate directory for deletion: {}", physFSPath);
+        CORVUS_CORE_ERROR("Failed to enumerate directory for deletion: {}", physFSPath);
         return false;
     }
 
@@ -712,12 +712,12 @@ bool AssetManager::deleteDirectoryRecursive(const std::string& internalPath, boo
         if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY) {
             // Recursively delete subdirectory (pass untrackAssets flag down)
             if (!deleteDirectoryRecursive(fullInternal, untrackAssets)) {
-                LINP_CORE_WARN("Failed to delete subdirectory: {}", fullInternal);
+                CORVUS_CORE_WARN("Failed to delete subdirectory: {}", fullInternal);
             }
         } else {
             // Delete file (including .meta files)
             if (!PHYSFS_delete(fullWrite.c_str())) {
-                LINP_CORE_WARN("Failed to delete file: {}", fullWrite);
+                CORVUS_CORE_WARN("Failed to delete file: {}", fullWrite);
             }
         }
     }
@@ -726,7 +726,7 @@ bool AssetManager::deleteDirectoryRecursive(const std::string& internalPath, boo
 
     // Delete the directory itself
     if (!PHYSFS_delete(writePath.c_str())) {
-        LINP_CORE_ERROR("Failed to delete directory: {}", writePath);
+        CORVUS_CORE_ERROR("Failed to delete directory: {}", writePath);
         return false;
     }
 
@@ -783,9 +783,9 @@ void AssetManager::scanDirectory(const std::string& internalPath) {
 }
 
 void AssetManager::scanAssets(const std::string& subDirectory, bool /*recursive*/) {
-    LINP_CORE_INFO("Scanning assets in mount '/{}'", physfsAlias);
+    CORVUS_CORE_INFO("Scanning assets in mount '/{}'", physfsAlias);
     scanDirectory(toInternal(subDirectory));
-    LINP_CORE_INFO("Asset scan complete: {} assets indexed", metadata.size());
+    CORVUS_CORE_INFO("Asset scan complete: {} assets indexed", metadata.size());
 }
 
 // ============================================================================
@@ -809,14 +809,14 @@ void AssetManager::decrementRef(const UUID& id) {
 
     auto it = assets.find(id);
     if (it != assets.end() && --it->second.refCount <= 0) {
-        LINP_CORE_INFO("Asset ref count reached 0: {}", it->second.path);
+        CORVUS_CORE_INFO("Asset ref count reached 0: {}", it->second.path);
     }
 }
 
 void AssetManager::unload(const UUID& id) {
     std::lock_guard<std::mutex> lock(assetMutex);
     assets.erase(id);
-    LINP_CORE_INFO("Unloaded asset: {}", boost::uuids::to_string(id));
+    CORVUS_CORE_INFO("Unloaded asset: {}", boost::uuids::to_string(id));
 }
 
 void AssetManager::unloadUnused() {
@@ -827,7 +827,7 @@ void AssetManager::unloadUnused() {
 void AssetManager::unloadAll() {
     std::lock_guard<std::mutex> lock(assetMutex);
     assets.clear();
-    LINP_CORE_INFO("Unloaded all assets");
+    CORVUS_CORE_INFO("Unloaded all assets");
 }
 
 // ============================================================================
@@ -845,7 +845,7 @@ void AssetManager::checkFileChanges() {
 
         if (currentModTime > lastModTime) {
             lastModTime = currentModTime;
-            LINP_CORE_INFO("Detected file change: {}", internalPath);
+            CORVUS_CORE_INFO("Detected file change: {}", internalPath);
 
             auto it = pathToID.find(internalPath);
             if (it != pathToID.end()) {
@@ -873,7 +873,7 @@ void AssetManager::startFileWatcher(int pollIntervalMs) {
 
     watcherRunning = true;
     watcherThread  = std::thread(&AssetManager::fileWatcherLoop, this, pollIntervalMs);
-    LINP_CORE_INFO("File watcher started ({} ms poll interval)", pollIntervalMs);
+    CORVUS_CORE_INFO("File watcher started ({} ms poll interval)", pollIntervalMs);
 }
 
 void AssetManager::stopFileWatcher() {
@@ -884,7 +884,7 @@ void AssetManager::stopFileWatcher() {
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
-    LINP_CORE_INFO("File watcher stopped");
+    CORVUS_CORE_INFO("File watcher stopped");
 }
 
 void AssetManager::onAssetReloaded(std::function<void(const UUID&, const std::string&)> callback) {
@@ -932,16 +932,16 @@ bool AssetManager::reloadAsset(const UUID& id) {
 
     auto& entry = it->second;
     if (!entry.loader) {
-        LINP_CORE_WARN("Asset {} has no loader, cannot reload", entry.path);
+        CORVUS_CORE_WARN("Asset {} has no loader, cannot reload", entry.path);
         return false;
     }
 
-    LINP_CORE_INFO("Reloading asset: {}", entry.path);
+    CORVUS_CORE_INFO("Reloading asset: {}", entry.path);
 
     // Load fresh data
     void* newData = entry.loader->load(toPhysFS(entry.path));
     if (!newData) {
-        LINP_CORE_ERROR("Failed to reload asset {}", entry.path);
+        CORVUS_CORE_ERROR("Failed to reload asset {}", entry.path);
         return false;
     }
 

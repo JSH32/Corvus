@@ -4,12 +4,12 @@
 #include "editor/camera/editor_camera.hpp"
 #include "editor/gizmo/editor_gizmo.hpp"
 #include "imgui.h"
-#include "linp/entity.hpp"
-#include "linp/project/project.hpp"
-#include "linp/scene.hpp"
+#include "corvus/entity.hpp"
+#include "corvus/project/project.hpp"
+#include "corvus/scene.hpp"
 #include "raylib.h"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 /**
  * @class SceneViewport

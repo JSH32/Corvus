@@ -1,11 +1,11 @@
 #include "editor/panels/asset_browser/texture_viewer.hpp"
 #include "IconsFontAwesome6.h"
 #include "imgui_internal.h"
-#include "linp/log.hpp"
+#include "corvus/log.hpp"
 #include "rlImGui.h"
 #include <format>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 TextureViewer::TextureViewer(const Core::UUID& id, Core::AssetManager* manager)
     : AssetViewer(id, manager, "Texture Viewer") {

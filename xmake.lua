@@ -94,7 +94,7 @@ target("raylib-cpp")
     -- Deps
     add_packages("raylib")
 
-target("linp-core")
+target("corvus-core")
     set_kind("static")
     add_includedirs(
         "core/include",
@@ -145,9 +145,9 @@ target("linp-core")
         os.rm(target_dir .. "/engine.zip")
     end)
 
-target("linp-editor")
+target("corvus-editor")
     set_kind("binary")
-    add_deps("linp-core")
+    add_deps("corvus-core")
     add_includedirs(
         "editor/include"
     )

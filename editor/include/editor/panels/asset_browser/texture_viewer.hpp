@@ -1,11 +1,11 @@
 #pragma once
 #include "asset_viewer.hpp"
 #include "imgui.h"
-#include "linp/asset/asset_handle.hpp"
+#include "corvus/asset/asset_handle.hpp"
 #include "raylib-cpp.hpp"
 #include "raylib.h"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 class TextureViewer : public AssetViewer {
 private:

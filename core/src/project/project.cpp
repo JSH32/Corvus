@@ -1,10 +1,10 @@
-#include "linp/project/project.hpp"
-#include "linp/asset/asset_handle.hpp"
-#include "linp/log.hpp"
+#include "corvus/project/project.hpp"
+#include "corvus/asset/asset_handle.hpp"
+#include "corvus/log.hpp"
 #include <filesystem>
 #include <fstream>
 
-namespace Linp::Core {
+namespace Corvus::Core {
 
 template <class Archive>
 void ProjectSettings::serialize(Archive& ar) {
@@ -27,10 +27,10 @@ void ProjectSettings::serialize(Archive& ar) {
 
 std::unique_ptr<Project> Project::loadOrCreate(const std::string& path, const std::string& name) {
     if (exists(path)) {
-        LINP_CORE_INFO("Project exists at {}, loading...", path);
+        CORVUS_CORE_INFO("Project exists at {}, loading...", path);
         return load(path);
     } else {
-        LINP_CORE_INFO("Project does not exist at {}, creating...", path);
+        CORVUS_CORE_INFO("Project does not exist at {}, creating...", path);
         return create(path, name);
     }
 }
@@ -57,7 +57,7 @@ std::unique_ptr<Project> Project::create(const std::string& path, const std::str
     auto sceneHandle
         = project->assetManager->createAsset<Scene>("scenes/Untitled.scene", "Untitled");
     if (!sceneHandle.isValid()) {
-        LINP_CORE_ERROR("Failed to create default scene for new project");
+        CORVUS_CORE_ERROR("Failed to create default scene for new project");
         return nullptr;
     }
 
@@ -66,7 +66,7 @@ std::unique_ptr<Project> Project::create(const std::string& path, const std::str
 
     project->saveProjectSettings();
 
-    LINP_CORE_INFO("Created new project: {} at {}", name, path);
+    CORVUS_CORE_INFO("Created new project: {} at {}", name, path);
     return project;
 }
 
@@ -76,7 +76,7 @@ std::unique_ptr<Project> Project::load(const std::string& path) {
 
     // Load settings
     if (!project->loadProjectSettings()) {
-        LINP_CORE_ERROR("Failed to load project settings from: {}", path);
+        CORVUS_CORE_ERROR("Failed to load project settings from: {}", path);
         return nullptr;
     }
 
@@ -93,7 +93,7 @@ std::unique_ptr<Project> Project::load(const std::string& path) {
             = project->assetManager->loadByID<Scene>(project->settings.mainSceneID);
 
         if (!project->currentSceneHandle.isValid()) {
-            LINP_CORE_WARN("Main scene missing, creating new one");
+            CORVUS_CORE_WARN("Main scene missing, creating new one");
             project->currentSceneHandle   = project->createNewScene("Untitled");
             project->settings.mainSceneID = project->getCurrentSceneID();
             project->saveProjectSettings();
@@ -102,7 +102,7 @@ std::unique_ptr<Project> Project::load(const std::string& path) {
         project->currentSceneHandle = project->createNewScene("Untitled");
     }
 
-    LINP_CORE_INFO("Loaded project: {} from {}", project->settings.projectName, path);
+    CORVUS_CORE_INFO("Loaded project: {} from {}", project->settings.projectName, path);
     return project;
 }
 
@@ -111,17 +111,17 @@ bool Project::saveProjectSettings() {
         std::string   settingsPath = projectPath + "/project.json";
         std::ofstream file(settingsPath);
         if (!file.is_open()) {
-            LINP_CORE_ERROR("Failed to open project.json for writing");
+            CORVUS_CORE_ERROR("Failed to open project.json for writing");
             return false;
         }
 
         cereal::JSONOutputArchive ar(file);
         ar(cereal::make_nvp("project", settings));
 
-        LINP_CORE_INFO("Saved project settings to: {}", settingsPath);
+        CORVUS_CORE_INFO("Saved project settings to: {}", settingsPath);
         return true;
     } catch (const std::exception& e) {
-        LINP_CORE_ERROR("Failed to save project settings: {}", e.what());
+        CORVUS_CORE_ERROR("Failed to save project settings: {}", e.what());
         return false;
     }
 }
@@ -130,23 +130,23 @@ bool Project::loadProjectSettings() {
     try {
         std::string settingsPath = projectPath + "/project.json";
         if (!std::filesystem::exists(settingsPath)) {
-            LINP_CORE_ERROR("project.json not found at: {}", settingsPath);
+            CORVUS_CORE_ERROR("project.json not found at: {}", settingsPath);
             return false;
         }
 
         std::ifstream file(settingsPath);
         if (!file.is_open()) {
-            LINP_CORE_ERROR("Failed to open project.json for reading");
+            CORVUS_CORE_ERROR("Failed to open project.json for reading");
             return false;
         }
 
         cereal::JSONInputArchive ar(file);
         ar(cereal::make_nvp("project", settings));
 
-        LINP_CORE_INFO("Loaded project settings from: {}", settingsPath);
+        CORVUS_CORE_INFO("Loaded project settings from: {}", settingsPath);
         return true;
     } catch (const std::exception& e) {
-        LINP_CORE_ERROR("Failed to load project settings: {}", e.what());
+        CORVUS_CORE_ERROR("Failed to load project settings: {}", e.what());
         return false;
     }
 }
@@ -157,16 +157,16 @@ bool Project::exists(const std::string& path) {
 
 bool Project::saveCurrentScene() {
     if (!currentSceneHandle.isValid()) {
-        LINP_CORE_ERROR("No scene to save");
+        CORVUS_CORE_ERROR("No scene to save");
         return false;
     }
 
     try {
         currentSceneHandle.save();
-        LINP_CORE_INFO("Saved current scene: {}", currentSceneHandle->name);
+        CORVUS_CORE_INFO("Saved current scene: {}", currentSceneHandle->name);
         return true;
     } catch (const std::exception& e) {
-        LINP_CORE_ERROR("Failed to save scene: {}", e.what());
+        CORVUS_CORE_ERROR("Failed to save scene: {}", e.what());
         return false;
     }
 }
@@ -174,12 +174,12 @@ bool Project::saveCurrentScene() {
 bool Project::loadSceneByID(const UUID& sceneID) {
     auto handle = assetManager->loadByID<Scene>(sceneID);
     if (!handle.isValid()) {
-        LINP_CORE_ERROR("Failed to load scene by ID: {}", boost::uuids::to_string(sceneID));
+        CORVUS_CORE_ERROR("Failed to load scene by ID: {}", boost::uuids::to_string(sceneID));
         return false;
     }
 
     currentSceneHandle = handle;
-    LINP_CORE_INFO("Loaded scene: {}", currentSceneHandle.get()->name);
+    CORVUS_CORE_INFO("Loaded scene: {}", currentSceneHandle.get()->name);
     return true;
 }
 

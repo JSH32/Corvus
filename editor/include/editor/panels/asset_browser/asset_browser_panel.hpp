@@ -4,14 +4,14 @@
 #include "editor/editor.hpp"
 #include "editor/panels/asset_browser/asset_viewer.hpp"
 #include "editor/panels/editor_panel.hpp"
-#include "linp/asset/asset_manager.hpp"
-#include "linp/project/project.hpp"
+#include "corvus/asset/asset_manager.hpp"
+#include "corvus/project/project.hpp"
 #include <imgui.h>
 #include <optional>
 #include <string>
 #include <unordered_map>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 class AssetBrowserPanel : public EditorPanel {
 public:

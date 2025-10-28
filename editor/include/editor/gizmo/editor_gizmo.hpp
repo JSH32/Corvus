@@ -1,9 +1,9 @@
 #pragma once
 #include "editor/gizmo/raygizmo.h"
-#include "linp/components/transform.hpp"
+#include "corvus/components/transform.hpp"
 #include "raylib.h"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 /**
  * @class EditorGizmo

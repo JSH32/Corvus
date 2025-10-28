@@ -1,16 +1,16 @@
 #include "editor/editor.hpp"
 #include "ImGuiFileDialog.h"
+#include "corvus/asset/asset_handle.hpp"
+#include "corvus/log.hpp"
 #include "editor/panels/asset_browser/asset_browser_panel.hpp"
 #include "editor/panels/inspector/inspector.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
 #include "editor/panels/scene_view/scene_view.hpp"
 #include "imgui.h"
-#include "linp/asset/asset_handle.hpp"
-#include "linp/log.hpp"
 #include <filesystem>
 #include <memory>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 EditorLayer::EditorLayer(Core::Application* application)
     : Core::Layer("Editor"), application(application) {
@@ -20,7 +20,7 @@ EditorLayer::EditorLayer(Core::Application* application)
         currentProject->startFileWatcher();
         recreatePanels();
     } else {
-        LINP_CORE_ERROR("Failed to create temporary project");
+        CORVUS_CORE_ERROR("Failed to create temporary project");
     }
 }
 
@@ -34,7 +34,7 @@ void EditorLayer::recreatePanels() {
     panels.clear();
 
     if (!currentProject || !currentProject->getCurrentScene()) {
-        LINP_CORE_WARN("No project or scene available for panels");
+        CORVUS_CORE_WARN("No project or scene available for panels");
         return;
     }
 
@@ -46,7 +46,7 @@ void EditorLayer::recreatePanels() {
     panels.push_back(std::make_unique<AssetBrowserPanel>(currentProject->getAssetManager(),
                                                          currentProject.get()));
 
-    LINP_CORE_INFO("Recreated editor panels");
+    CORVUS_CORE_INFO("Recreated editor panels");
 }
 
 void EditorLayer::onImGuiRender() {
@@ -105,9 +105,9 @@ void EditorLayer::renderMenuBar() {
             if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
                 if (currentProject) {
                     if (currentProject->saveCurrentScene()) {
-                        LINP_CORE_INFO("Scene saved successfully");
+                        CORVUS_CORE_INFO("Scene saved successfully");
                     } else {
-                        LINP_CORE_ERROR("Failed to save scene");
+                        CORVUS_CORE_ERROR("Failed to save scene");
                     }
                 }
             }
@@ -115,7 +115,7 @@ void EditorLayer::renderMenuBar() {
             if (ImGui::MenuItem("Set as Main Scene")) {
                 if (currentProject) {
                     currentProject->setMainScene(currentProject->getCurrentSceneID());
-                    LINP_CORE_INFO("Set current scene as main scene");
+                    CORVUS_CORE_INFO("Set current scene as main scene");
                 }
             }
 
@@ -171,9 +171,9 @@ void EditorLayer::openProject(const std::string& path) {
         currentProject = std::move(project);
         currentProject->startFileWatcher();
         recreatePanels();
-        LINP_CORE_INFO("Opened project: {}", currentProject->getProjectName());
+        CORVUS_CORE_INFO("Opened project: {}", currentProject->getProjectName());
     } else {
-        LINP_CORE_ERROR("Failed to open project at: {}", path);
+        CORVUS_CORE_ERROR("Failed to open project at: {}", path);
     }
 }
 
@@ -186,9 +186,9 @@ void EditorLayer::createNewProject(const std::string& path, const std::string& n
         currentProject = std::move(project);
         currentProject->startFileWatcher();
         recreatePanels();
-        LINP_CORE_INFO("Created new project: {}", name);
+        CORVUS_CORE_INFO("Created new project: {}", name);
     } else {
-        LINP_CORE_ERROR("Failed to create project at: {}", path);
+        CORVUS_CORE_ERROR("Failed to create project at: {}", path);
     }
 }
 

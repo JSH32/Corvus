@@ -1,9 +1,9 @@
 #include "editor/panels/scene_hierarchy.hpp"
 
 #include "imgui.h"
-#include "linp/components/entity_info.hpp"
+#include "corvus/components/entity_info.hpp"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 void SceneHierarchyPanel::drawEntity(Core::Entity entity) const {
     const auto& entityInfo = entity.getComponent<Core::Components::EntityInfoComponent>();
 

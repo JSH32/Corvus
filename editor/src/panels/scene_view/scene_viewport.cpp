@@ -1,15 +1,15 @@
 #include "editor/panels/scene_view/scene_viewport.hpp"
 
 #include "ShaderUnmanaged.hpp"
-#include "linp/components/entity_info.hpp"
-#include "linp/components/mesh_renderer.hpp"
-#include "linp/components/transform.hpp"
-#include "linp/files/static_resource_file.hpp"
-#include "linp/log.hpp"
+#include "corvus/components/entity_info.hpp"
+#include "corvus/components/mesh_renderer.hpp"
+#include "corvus/components/transform.hpp"
+#include "corvus/files/static_resource_file.hpp"
+#include "corvus/log.hpp"
 #include "raylib.h"
 #include <algorithm>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 SceneViewport::SceneViewport(Core::Project& project)
     : project(project), editorCamera(), editorGizmo(), sceneTexture({ 0 }),
@@ -60,7 +60,7 @@ void SceneViewport::manageRenderTexture(const ImVec2& size) {
             SetTextureFilter(sceneTexture.texture, TEXTURE_FILTER_BILINEAR);
             currentSize = size;
         } else {
-            LINP_ERROR("SceneViewport: Failed to create render texture.");
+            CORVUS_ERROR("SceneViewport: Failed to create render texture.");
         }
     }
 }

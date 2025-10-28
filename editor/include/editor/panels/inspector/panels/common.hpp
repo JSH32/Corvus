@@ -4,25 +4,25 @@
 #include "editor/imguiutils.hpp"
 #include "editor/panels/inspector/inspector_panel.hpp"
 #include "imgui_internal.h"
-#include "linp/components/entity_info.hpp"
+#include "corvus/components/entity_info.hpp"
 #include <cstring>
 #include <imgui.h>
 #include <string.h>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 /**
- * @brief Specialization of ComponentInfo for Linp::Core::Components::EntityInfoComponent.
+ * @brief Specialization of ComponentInfo for Corvus::Core::Components::EntityInfoComponent.
  */
 template <>
-struct ComponentInfo<Linp::Core::Components::EntityInfoComponent> {
-    using ComponentType = Linp::Core::Components::EntityInfoComponent;
+struct ComponentInfo<Corvus::Core::Components::EntityInfoComponent> {
+    using ComponentType = Corvus::Core::Components::EntityInfoComponent;
     static constexpr std::string_view name
         = ICON_FA_CIRCLE_INFO " Entity Info"; // Using a more fitting icon
     static constexpr bool removable = false;
     static constexpr bool flat      = true;
 
-    static void draw(ComponentType& entityInfo, Linp::Core::AssetManager*) {
+    static void draw(ComponentType& entityInfo, Corvus::Core::AssetManager*) {
         char buffer[256] = {};
         if (!entityInfo.tag.empty()) {
             strncpy(buffer, entityInfo.tag.c_str(), sizeof(buffer) - 1);
@@ -47,14 +47,14 @@ struct ComponentInfo<Linp::Core::Components::EntityInfoComponent> {
 };
 
 template <>
-struct ComponentInfo<Linp::Core::Components::TransformComponent> {
-    using ComponentType                         = Linp::Core::Components::TransformComponent;
+struct ComponentInfo<Corvus::Core::Components::TransformComponent> {
+    using ComponentType                         = Corvus::Core::Components::TransformComponent;
     static constexpr std::string_view name      = ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE " Transform";
     static constexpr bool             removable = false;
     static constexpr bool             flat      = false;
 
-    static void draw(Linp::Core::Components::TransformComponent& transform,
-                     Linp::Core::AssetManager*) {
+    static void draw(Corvus::Core::Components::TransformComponent& transform,
+                     Corvus::Core::AssetManager*) {
         // Position
         raylib::Vector3 position = transform.position;
         if (ImGui::Vector3Editor("Position", position)) {
@@ -82,16 +82,16 @@ struct ComponentInfo<Linp::Core::Components::TransformComponent> {
 };
 
 template <>
-struct ComponentInfo<Linp::Core::Components::MeshRendererComponent> {
-    using ComponentType                         = Linp::Core::Components::MeshRendererComponent;
+struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
+    using ComponentType                         = Corvus::Core::Components::MeshRendererComponent;
     static constexpr std::string_view name      = ICON_FA_CUBE " Mesh Renderer";
     static constexpr bool             removable = true;
     static constexpr bool             flat      = false;
 
-    static void draw(Linp::Core::Components::MeshRendererComponent& renderer,
-                     Linp::Core::AssetManager*                      assetMgr) {
-        using namespace Linp::Core;
-        using namespace Linp::Core::Components;
+    static void draw(Corvus::Core::Components::MeshRendererComponent& renderer,
+                     Corvus::Core::AssetManager*                      assetMgr) {
+        using namespace Corvus::Core;
+        using namespace Corvus::Core::Components;
 
         ImGui::PushID(&renderer);
 

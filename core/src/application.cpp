@@ -1,13 +1,13 @@
-#include "linp/application.hpp"
+#include "corvus/application.hpp"
 #include "extras/FA6FreeSolidFontData.h"
 #include "extras/IconsFontAwesome6.h"
 #include "imgui.h"
-#include "linp/asset/material/material.hpp"
-#include "linp/files/static_resource_file.hpp"
+#include "corvus/asset/material/material.hpp"
+#include "corvus/files/static_resource_file.hpp"
 #include "physfs.h"
 #include "rlImGui.h"
 
-namespace Linp::Core {
+namespace Corvus::Core {
 Application::Application(unsigned int width, unsigned int height, const std::string& title)
     : raylib::Window(width, height, title, FLAG_WINDOW_RESIZABLE) {
     PHYSFS_init(nullptr);

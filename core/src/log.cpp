@@ -1,10 +1,10 @@
-#include "linp/log.hpp"
+#include "corvus/log.hpp"
 #include "raylib.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
 
-namespace Linp {
+namespace Corvus {
 void spdCustomLog(int msgType, const char* text, va_list args) {
     va_list args_copy;
     va_copy(args_copy, args);
@@ -23,16 +23,16 @@ void spdCustomLog(int msgType, const char* text, va_list args) {
 
     switch (msgType) {
         case LOG_INFO:
-            LINP_CORE_INFO(output);
+            CORVUS_CORE_INFO(output);
             break;
         case LOG_ERROR:
-            LINP_CORE_ERROR(output);
+            CORVUS_CORE_ERROR(output);
             break;
         case LOG_WARNING:
-            LINP_CORE_WARN(output);
+            CORVUS_CORE_WARN(output);
             break;
         case LOG_DEBUG:
-            LINP_CORE_TRACE(output);
+            CORVUS_CORE_TRACE(output);
             break;
         default:
             break;
@@ -44,7 +44,7 @@ std::shared_ptr<spdlog::logger> Log::clientLogger;
 void Log::init() {
     std::vector<spdlog::sink_ptr> logSinks;
     logSinks.emplace_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
-    logSinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("linp.log", true));
+    logSinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("corvus.log", true));
 
     logSinks[0]->set_pattern("%^[%T] %n: %v%$");
     logSinks[1]->set_pattern("[%T] [%l] %n: %v");

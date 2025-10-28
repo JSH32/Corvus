@@ -1,14 +1,14 @@
 #pragma once
 #include "asset_viewer.hpp"
 #include "imgui.h"
-#include "linp/asset/asset_handle.hpp"
-#include "linp/asset/material/material_loader.hpp"
-#include "linp/systems/lighting_system.hpp"
+#include "corvus/asset/asset_handle.hpp"
+#include "corvus/asset/material/material_loader.hpp"
+#include "corvus/systems/lighting_system.hpp"
 #include "raylib-cpp.hpp"
 #include "raylib.h"
 #include <array>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 class MaterialViewer : public AssetViewer {
 private:

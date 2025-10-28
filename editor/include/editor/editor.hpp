@@ -1,13 +1,13 @@
 #pragma once
 
 #include "editor/panels/editor_panel.hpp"
-#include "linp/application.hpp"
-#include "linp/layer.hpp"
-#include "linp/project/project.hpp"
+#include "corvus/application.hpp"
+#include "corvus/layer.hpp"
+#include "corvus/project/project.hpp"
 #include <memory>
 #include <vector>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 class EditorLayer : public Core::Layer {
 public:

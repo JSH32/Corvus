@@ -4,11 +4,11 @@
 #include "editor/panels/inspector/inspector_panel.hpp"
 #include "editor/panels/inspector/panels/panels.hpp"
 #include "editor/panels/scene_hierarchy.hpp"
-#include "linp/asset/asset_manager.hpp"
-#include "linp/project/project.hpp"
+#include "corvus/asset/asset_manager.hpp"
+#include "corvus/project/project.hpp"
 #include <memory>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 class InspectorPanel final : public EditorPanel {
 public:
     InspectorPanel(Core::Project&       project,

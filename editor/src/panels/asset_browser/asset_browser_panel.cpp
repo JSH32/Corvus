@@ -1,14 +1,14 @@
 #include "editor/panels/asset_browser/asset_browser_panel.hpp"
+#include "corvus/asset/asset_handle.hpp"
+#include "corvus/log.hpp"
+#include "corvus/scene.hpp"
 #include "editor/panels/asset_browser/material_viewer.hpp"
 #include "editor/panels/asset_browser/texture_viewer.hpp"
 #include "imgui_internal.h"
-#include "linp/asset/asset_handle.hpp"
-#include "linp/log.hpp"
-#include "linp/scene.hpp"
 #include <algorithm>
 #include <format>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 AssetBrowserPanel::AssetBrowserPanel(Core::AssetManager* manager, Core::Project* project)
     : assetManager(manager), project(project), renameBuffer(256, '\0'), moveBuffer(512, '\0'),
@@ -264,7 +264,7 @@ void AssetBrowserPanel::handleAssetDoubleClick(const Core::AssetMetadata& meta) 
             break;
 
         default:
-            LINP_CORE_INFO(
+            CORVUS_CORE_INFO(
                 "Double-clicked asset: {} (type: {})", meta.path, static_cast<int>(meta.type));
             selectedAsset = meta.id;
             break;
@@ -478,7 +478,7 @@ void AssetBrowserPanel::openAssetViewer(const Core::UUID& assetID, Core::AssetTy
             break;
         // Add more viewer types here
         default:
-            LINP_CORE_WARN("No viewer available for asset type: {}", static_cast<int>(type));
+            CORVUS_CORE_WARN("No viewer available for asset type: {}", static_cast<int>(type));
             break;
     }
 }

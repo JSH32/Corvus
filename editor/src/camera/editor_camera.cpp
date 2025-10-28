@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 EditorCamera::EditorCamera() : EditorCamera({ 0.0f, 0.0f, 0.0f }, 10.0f, { 0.45f, -0.45f }) { }
 

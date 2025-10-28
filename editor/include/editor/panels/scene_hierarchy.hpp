@@ -1,10 +1,10 @@
 #pragma once
 
 #include "editor/panels/editor_panel.hpp"
-#include "linp/project/project.hpp"
-#include "linp/scene.hpp"
+#include "corvus/project/project.hpp"
+#include "corvus/scene.hpp"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 class SceneHierarchyPanel final : public EditorPanel {
 public:
     SceneHierarchyPanel(Core::Project& project, Core::Entity& selectedEntity)

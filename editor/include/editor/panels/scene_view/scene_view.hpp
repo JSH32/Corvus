@@ -5,10 +5,10 @@
 #include "editor/panels/scene_hierarchy.hpp"
 #include "editor/panels/scene_view/scene_viewport.hpp"
 #include "imgui.h"
-#include "linp/scene.hpp"
+#include "corvus/scene.hpp"
 #include "raylib.h"
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 /**
  * @class SceneViewPanel

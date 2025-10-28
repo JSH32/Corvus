@@ -1,8 +1,8 @@
 #pragma once
-#include "linp/asset/asset_manager.hpp"
+#include "corvus/asset/asset_manager.hpp"
 #include <string>
 
-namespace Linp::Editor {
+namespace Corvus::Editor {
 
 class AssetViewer {
 protected:
