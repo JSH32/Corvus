@@ -7,7 +7,7 @@ in vec3 fragPosition;
 in vec3 fragNormal;
 
 // Material properties
-uniform sampler2D texture0; // _MainTex
+uniform sampler2D texture0;
 uniform vec4      _MainColor;
 uniform float     _Metallic;
 uniform float     _Smoothness;
@@ -32,18 +32,25 @@ struct SpotLight {
     vec3  direction;
     vec3  color;
     float range;
-    float innerCutoff; // cos(angle)
-    float outerCutoff; // cos(angle)
+    float innerCutoff;
+    float outerCutoff;
 };
 uniform int       u_SpotLightCount;
 uniform SpotLight u_SpotLights[16];
 
-// Shadow uniforms
+// Standard shadow uniforms (directional/spot)
 uniform int       u_ShadowMapCount;
 uniform sampler2D u_ShadowMaps[4];
 uniform mat4      u_LightSpaceMatrices[4];
 uniform float     u_ShadowBias[4];
 uniform float     u_ShadowStrength[4];
+
+// Point light shadow uniforms (NEW!)
+uniform int         u_PointLightShadowCount;
+uniform samplerCube u_PointLightShadowMaps[4];
+uniform vec3        u_PointLightShadowPositions[4];
+uniform float       u_PointLightShadowFarPlanes[4];
+uniform int         u_PointLightShadowIndices[4]; // Maps shadow index to point light index
 
 // Output
 out vec4 finalColor;
@@ -52,7 +59,6 @@ out vec4 finalColor;
 vec3 calculateDirectionalLight(
     vec3 normal, vec3 viewDir, vec3 albedo, float metallic, float smoothness) {
     vec3 N = normalize(normal);
-    // CRITICAL: Use negative light direction (light points FROM direction)
     vec3 L = normalize(-u_DirLightDir);
     vec3 V = normalize(viewDir);
     vec3 H = normalize(L + V);
@@ -71,7 +77,7 @@ vec3 calculateDirectionalLight(
     return (kD * diffuse) + specular;
 }
 
-// Point light calculation
+// Point light calculation (without shadows, applied seperately)
 vec3 calculatePointLight(PointLight light,
                          vec3       normal,
                          vec3       fragPos,
@@ -82,13 +88,11 @@ vec3 calculatePointLight(PointLight light,
     vec3  L        = light.position - fragPos;
     float distance = length(L);
 
-    // Early out if beyond range
     if (distance > light.range)
         return vec3(0.0);
 
     L = normalize(L);
 
-    // Attenuation
     float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);
     attenuation *= smoothstep(light.range, 0.0, distance);
 
@@ -121,22 +125,18 @@ vec3 calculateSpotLight(SpotLight light,
     vec3  L        = light.position - fragPos;
     float distance = length(L);
 
-    // Early out if beyond range
     if (distance > light.range)
         return vec3(0.0);
 
     L = normalize(L);
 
-    // Spot cone attenuation
     float theta         = dot(L, normalize(-light.direction));
     float epsilon       = light.innerCutoff - light.outerCutoff;
     float spotIntensity = clamp((theta - light.outerCutoff) / epsilon, 0.0, 1.0);
 
-    // Early out if outside cone
     if (spotIntensity <= 0.0)
         return vec3(0.0);
 
-    // Distance attenuation
     float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);
     attenuation *= smoothstep(light.range, 0.0, distance);
 
@@ -158,47 +158,33 @@ vec3 calculateSpotLight(SpotLight light,
     return ((kD * diffuse) + specular) * attenuation * spotIntensity;
 }
 
-// Shadow calculation with PCF
+// Standard shadow calculation (directional/spot) with PCF
 float calculateShadow(vec3 fragPos, int shadowIndex) {
-    // Return 0 (no shadow) if no shadow maps or invalid index
     if (u_ShadowMapCount == 0 || shadowIndex >= u_ShadowMapCount || shadowIndex < 0)
         return 0.0;
 
-    // Transform fragment position to light space
     vec4 fragPosLightSpace = u_LightSpaceMatrices[shadowIndex] * vec4(fragPos, 1.0);
+    vec3 projCoords        = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords             = projCoords * 0.5 + 0.5;
 
-    // Perspective divide
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-
-    // Transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
-
-    // Outside shadow map bounds = no shadow
     if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0
         || projCoords.y > 1.0) {
         return 0.0;
     }
 
-    // Get depth of current fragment
     float currentDepth = projCoords.z;
-
-    // Clamp depth to valid range
     if (currentDepth > 1.0) {
         return 0.0;
     }
 
-    // Use per-light shadow bias
-    float bias = u_ShadowBias[shadowIndex];
-
-    // PCF (Percentage Closer Filtering) for soft shadows
+    float bias      = u_ShadowBias[shadowIndex];
     float shadow    = 0.0;
     vec2  texelSize = 1.0 / textureSize(u_ShadowMaps[shadowIndex], 0);
 
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
             vec2 sampleCoord = projCoords.xy + vec2(x, y) * texelSize;
-            // Clamp sample coordinates to valid range
-            sampleCoord = clamp(sampleCoord, 0.0, 1.0);
+            sampleCoord      = clamp(sampleCoord, 0.0, 1.0);
 
             float pcfDepth = texture(u_ShadowMaps[shadowIndex], sampleCoord).r;
             shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
@@ -206,19 +192,41 @@ float calculateShadow(vec3 fragPos, int shadowIndex) {
     }
     shadow /= 9.0;
 
-    // Use per-light shadow strength
     return shadow * u_ShadowStrength[shadowIndex];
 }
 
+// Point light cubemap shadow calculation
+float calculatePointLightShadow(vec3 fragPos, int shadowIndex) {
+    if (u_PointLightShadowCount == 0 || shadowIndex >= u_PointLightShadowCount || shadowIndex < 0)
+        return 0.0;
+
+    // Get direction from light to fragment
+    vec3 fragToLight = fragPos - u_PointLightShadowPositions[shadowIndex];
+
+    // Sample the cubemap
+    float closestDepth = texture(u_PointLightShadowMaps[shadowIndex], fragToLight).r;
+
+    // Convert back to original depth value
+    closestDepth *= u_PointLightShadowFarPlanes[shadowIndex];
+
+    // Get current distance
+    float currentDepth = length(fragToLight);
+
+    // Shadow bias
+    float bias   = 0.05;
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+
+    // Add PCF for softer shadows here?
+
+    return shadow * 0.8; // Shadow strength
+}
+
 void main() {
-    // Sample base texture
     vec4 texelColor = texture(texture0, fragTexCoord);
 
-    // Apply main color tint
     vec3  albedo = texelColor.rgb * _MainColor.rgb;
     float alpha  = texelColor.a * _MainColor.a;
 
-    // Calculate view direction
     vec3 viewDir = -normalize(fragPosition);
 
     // Ambient
@@ -228,32 +236,42 @@ void main() {
     vec3 directionalLighting
         = calculateDirectionalLight(fragNormal, viewDir, albedo, _Metallic, _Smoothness);
 
-    // Point lights (culled to nearest 16)
+    // Directional shadow
+    float dirShadow = 0.0;
+    if (u_ShadowMapCount > 0) {
+        dirShadow = calculateShadow(fragPosition, 0);
+    }
+    vec3 shadedDirectional = (1.0 - dirShadow) * directionalLighting;
+
+    // Point lights WITH shadows
     vec3 pointLighting = vec3(0.0);
     for (int i = 0; i < u_PointLightCount && i < 16; ++i) {
-        pointLighting += calculatePointLight(
+        vec3 lightContribution = calculatePointLight(
             u_PointLights[i], fragNormal, fragPosition, viewDir, albedo, _Metallic, _Smoothness);
+
+        // Check if this point light casts shadows
+        float pointShadow = 0.0;
+        for (int s = 0; s < u_PointLightShadowCount; ++s) {
+            if (u_PointLightShadowIndices[s] == i) {
+                pointShadow = calculatePointLightShadow(fragPosition, s);
+                break;
+            }
+        }
+
+        // Apply shadow to this light
+        lightContribution *= (1.0 - pointShadow);
+        pointLighting += lightContribution;
     }
 
-    // Spot lights (culled to nearest lights)
+    // Spot lights
     vec3 spotLighting = vec3(0.0);
     for (int i = 0; i < u_SpotLightCount && i < 16; ++i) {
         spotLighting += calculateSpotLight(
             u_SpotLights[i], fragNormal, fragPosition, viewDir, albedo, _Metallic, _Smoothness);
     }
 
-    // Calculate shadow (only for primary directional light at index 0)
-    float shadow = 0.0;
-    if (u_ShadowMapCount > 0) {
-        shadow = calculateShadow(fragPosition, 0);
-    }
-
-    // Apply shadow ONLY to directional light, not point/spot lights
-    vec3 shadedDirectional = (1.0 - shadow) * directionalLighting;
-
     // Combine all lighting
     vec3 finalLighting = ambient + shadedDirectional + pointLighting + spotLighting;
 
-    // Output final color
     finalColor = vec4(finalLighting, alpha);
 }

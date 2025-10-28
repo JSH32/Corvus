@@ -14,36 +14,29 @@ void ShadowMap::initialize(int res) {
         cleanup();
     }
 
-    resolution = res;
-
-    // Initialize the RenderTexture2D structure properly
+    resolution   = res;
     depthTexture = { 0 };
 
-    // Load framebuffer
     depthTexture.id = rlLoadFramebuffer();
 
     if (depthTexture.id > 0) {
         rlEnableFramebuffer(depthTexture.id);
 
-        // We need to set texture width/height even though we're depth-only
         depthTexture.texture.width  = resolution;
         depthTexture.texture.height = resolution;
 
-        // Create depth texture (NOT a renderbuffer - we need to sample it)
         depthTexture.depth.id      = rlLoadTextureDepth(resolution, resolution, false);
         depthTexture.depth.width   = resolution;
         depthTexture.depth.height  = resolution;
-        depthTexture.depth.format  = 19; // DEPTH_COMPONENT_24BIT
+        depthTexture.depth.format  = 19;
         depthTexture.depth.mipmaps = 1;
 
-        // Attach depth texture to framebuffer
         rlFramebufferAttach(depthTexture.id,
                             depthTexture.depth.id,
                             RL_ATTACHMENT_DEPTH,
                             RL_ATTACHMENT_TEXTURE2D,
                             0);
 
-        // Check if framebuffer is complete
         if (rlFramebufferComplete(depthTexture.id)) {
             LINP_INFO("Shadow map framebuffer [ID {}] created successfully (resolution: {}x{})",
                       depthTexture.id,
@@ -78,22 +71,91 @@ void ShadowMap::cleanup() {
 
 ShadowMap::~ShadowMap() { cleanup(); }
 
-ShadowManager::ShadowManager(ShadowManager&& other) noexcept
-    : shadowMaps(std::move(other.shadowMaps)), shadowDepthShader(other.shadowDepthShader),
-      initialized(other.initialized) {
+// Cubemap shadow map for point lights
+void CubemapShadowMap::initialize(int res) {
+    if (initialized && resolution == res)
+        return;
 
-    other.initialized          = false;
-    other.shadowDepthShader.id = 0;
+    if (initialized) {
+        cleanup();
+    }
+
+    resolution = res;
+
+    // Create cubemap depth texture
+    cubemapDepthTexture
+        = rlLoadTextureCubemap(nullptr, resolution, RL_PIXELFORMAT_UNCOMPRESSED_R32, 1);
+
+    // Create 6 framebuffers (one for each cubemap face)
+    for (int i = 0; i < 6; ++i) {
+        faceFramebuffers[i] = rlLoadFramebuffer();
+
+        if (faceFramebuffers[i] > 0) {
+            rlEnableFramebuffer(faceFramebuffers[i]);
+
+            // Attach this face of the cubemap as depth attachment
+            rlFramebufferAttach(faceFramebuffers[i],
+                                cubemapDepthTexture,
+                                RL_ATTACHMENT_DEPTH,
+                                RL_ATTACHMENT_CUBEMAP_POSITIVE_X + i,
+                                0);
+
+            if (!rlFramebufferComplete(faceFramebuffers[i])) {
+                LINP_ERROR("Cubemap shadow framebuffer face {} incomplete!", i);
+            }
+
+            rlDisableFramebuffer();
+        }
+    }
+
+    initialized = true;
+    LINP_INFO(
+        "Cubemap shadow map created successfully (resolution: {}x{})", resolution, resolution);
+}
+
+void CubemapShadowMap::cleanup() {
+    if (initialized) {
+        if (cubemapDepthTexture > 0) {
+            rlUnloadTexture(cubemapDepthTexture);
+            cubemapDepthTexture = 0;
+        }
+        for (int i = 0; i < 6; ++i) {
+            if (faceFramebuffers[i] > 0) {
+                rlUnloadFramebuffer(faceFramebuffers[i]);
+                faceFramebuffers[i] = 0;
+            }
+        }
+        initialized = false;
+        resolution  = 0;
+    }
+}
+
+CubemapShadowMap::~CubemapShadowMap() { cleanup(); }
+
+// ShadowManager implementation
+
+ShadowManager::ShadowManager(ShadowManager&& other) noexcept
+    : shadowMaps(std::move(other.shadowMaps)),
+      cubemapShadowMaps(std::move(other.cubemapShadowMaps)),
+      shadowDepthShader(other.shadowDepthShader),
+      pointLightShadowShader(other.pointLightShadowShader), initialized(other.initialized) {
+
+    other.initialized               = false;
+    other.shadowDepthShader.id      = 0;
+    other.pointLightShadowShader.id = 0;
 }
 
 ShadowManager& ShadowManager::operator=(ShadowManager&& other) noexcept {
     if (this != &other) {
         cleanup();
-        shadowMaps                 = std::move(other.shadowMaps);
-        shadowDepthShader          = other.shadowDepthShader;
-        initialized                = other.initialized;
-        other.initialized          = false;
-        other.shadowDepthShader.id = 0;
+        shadowMaps                      = std::move(other.shadowMaps);
+        cubemapShadowMaps               = std::move(other.cubemapShadowMaps);
+        shadowDepthShader               = other.shadowDepthShader;
+        pointLightShadowShader          = other.pointLightShadowShader;
+        initialized                     = other.initialized;
+        other.initialized               = false;
+        other.shadowDepthShader.id      = 0;
+        other.pointLightShadowShader.id = 0;
     }
     return *this;
 }
@@ -102,7 +164,7 @@ void ShadowManager::initialize() {
     if (initialized)
         return;
 
-    // Load shadow depth shader
+    // Directional/Spot light shadow shader
     const char* vsDepth = R"(
 #version 330
 in vec3 vertexPosition;
@@ -118,7 +180,7 @@ void main() {
 #version 330
 
 void main() {
-    // Depth written automatically to depth buffer
+    // Depth written automatically
 }
 )";
 
@@ -129,7 +191,46 @@ void main() {
         return;
     }
 
+    // Point light cubemap shadow shader (without geometry shader)
+    // We'll render each face separately in a loop instead
+    const char* vsPointDepth = R"(
+#version 330
+in vec3 vertexPosition;
+uniform mat4 lightSpaceMatrix;
+uniform mat4 matModel;
+
+out vec3 fragWorldPos;
+
+void main() {
+    vec4 worldPos = matModel * vec4(vertexPosition, 1.0);
+    fragWorldPos = worldPos.xyz;
+    gl_Position = lightSpaceMatrix * worldPos;
+}
+)";
+
+    const char* fsPointDepth = R"(
+#version 330
+in vec3 fragWorldPos;
+
+uniform vec3 u_LightPos;
+uniform float u_FarPlane;
+
+void main() {
+    float lightDistance = length(fragWorldPos - u_LightPos);
+    lightDistance = lightDistance / u_FarPlane;
+    gl_FragDepth = lightDistance;
+}
+)";
+
+    pointLightShadowShader = LoadShaderFromMemory(vsPointDepth, fsPointDepth);
+
+    if (pointLightShadowShader.id == 0) {
+        LINP_ERROR("Failed to load point light shadow shader!");
+        return;
+    }
+
     LINP_INFO("Shadow depth shader loaded successfully (ID: {})", shadowDepthShader.id);
+    LINP_INFO("Point light shadow shader loaded successfully (ID: {})", pointLightShadowShader.id);
     initialized = true;
 }
 
@@ -138,9 +239,15 @@ void ShadowManager::cleanup() {
         return;
 
     shadowMaps.clear();
+    cubemapShadowMaps.clear();
+
     if (shadowDepthShader.id != 0) {
         UnloadShader(shadowDepthShader);
         shadowDepthShader.id = 0;
+    }
+    if (pointLightShadowShader.id != 0) {
+        UnloadShader(pointLightShadowShader);
+        pointLightShadowShader.id = 0;
     }
     initialized = false;
 }
@@ -152,17 +259,20 @@ ShadowMap* ShadowManager::getShadowMap(int index) {
     return shadowMaps[index].get();
 }
 
+CubemapShadowMap* ShadowManager::getCubemapShadowMap(int index) {
+    while (index >= cubemapShadowMaps.size()) {
+        cubemapShadowMaps.push_back(std::make_unique<CubemapShadowMap>());
+    }
+    return cubemapShadowMaps[index].get();
+}
+
 Matrix ShadowManager::calculateDirectionalLightMatrix(
     Vector3 lightDir, Vector3 sceneCenter, float shadowDistance, float nearPlane, float farPlane) {
 
-    // Normalize light direction
     lightDir = Vector3Normalize(lightDir);
-
-    // Light position: opposite direction from scene center
     Vector3 lightPos
         = Vector3Add(sceneCenter, Vector3Scale(Vector3Negate(lightDir), shadowDistance * 0.5f));
 
-    // Choose appropriate up vector (avoid parallel to light direction)
     Vector3 up    = { 0, 1, 0 };
     float   upDot = fabsf(Vector3DotProduct(lightDir, up));
     if (upDot > 0.99f) {
@@ -170,8 +280,6 @@ Matrix ShadowManager::calculateDirectionalLightMatrix(
     }
 
     Matrix lightView = MatrixLookAt(lightPos, sceneCenter, up);
-
-    // Orthographic projection for directional light
     float  orthoSize = shadowDistance * 0.5f;
     Matrix lightProjection
         = MatrixOrtho(-orthoSize, orthoSize, -orthoSize, orthoSize, nearPlane, farPlane);
@@ -185,77 +293,91 @@ Matrix ShadowManager::calculateSpotLightMatrix(
     lightDir       = Vector3Normalize(lightDir);
     Vector3 target = Vector3Add(lightPos, lightDir);
 
-    // Choose appropriate up vector
     Vector3 up    = { 0, 1, 0 };
     float   upDot = fabsf(Vector3DotProduct(lightDir, up));
     if (upDot > 0.99f) {
         up = { 1, 0, 0 };
     }
 
-    Matrix lightView = MatrixLookAt(lightPos, target, up);
-
-    // Perspective projection for spot light
+    Matrix lightView       = MatrixLookAt(lightPos, target, up);
     float  fov             = outerCutoff * 2.0f * DEG2RAD;
     Matrix lightProjection = MatrixPerspective(fov, 1.0f, nearPlane, farPlane);
 
     return MatrixMultiply(lightView, lightProjection);
 }
 
+std::array<Matrix, 6> ShadowManager::calculatePointLightMatrices(Vector3 lightPos, float farPlane) {
+    std::array<Matrix, 6> matrices;
+
+    Matrix projection = MatrixPerspective(90.0f * DEG2RAD, 1.0f, 0.1f, farPlane);
+
+    // +X, -X, +Y, -Y, +Z, -Z
+    std::array<Vector3, 6> targets = {
+        Vector3 { lightPos.x + 1.0f, lightPos.y, lightPos.z }, // +X
+        Vector3 { lightPos.x - 1.0f, lightPos.y, lightPos.z }, // -X
+        Vector3 { lightPos.x, lightPos.y + 1.0f, lightPos.z }, // +Y
+        Vector3 { lightPos.x, lightPos.y - 1.0f, lightPos.z }, // -Y
+        Vector3 { lightPos.x, lightPos.y, lightPos.z + 1.0f }, // +Z
+        Vector3 { lightPos.x, lightPos.y, lightPos.z - 1.0f }  // -Z
+    };
+
+    std::array<Vector3, 6> ups = {
+        Vector3 { 0, -1, 0 }, // +X
+        Vector3 { 0, -1, 0 }, // -X
+        Vector3 { 0, 0, 1 },  // +Y
+        Vector3 { 0, 0, -1 }, // -Y
+        Vector3 { 0, -1, 0 }, // +Z
+        Vector3 { 0, -1, 0 }  // -Z
+    };
+
+    for (int i = 0; i < 6; ++i) {
+        Matrix view = MatrixLookAt(lightPos, targets[i], ups[i]);
+        matrices[i] = MatrixMultiply(view, projection);
+    }
+
+    return matrices;
+}
+
 void ShadowManager::renderShadowMap(ShadowMap*                           shadowMap,
                                     const Matrix&                        lightSpaceMatrix,
                                     const std::vector<RenderableEntity>& renderables,
                                     Linp::Core::AssetManager*            assetMgr) {
-    if (!shadowMap || !shadowMap->initialized) {
-        LINP_ERROR("Shadow map not initialized!");
-        return;
-    }
-
-    if (shadowDepthShader.id == 0) {
-        LINP_ERROR("Shadow depth shader not initialized!");
+    if (!shadowMap || !shadowMap->initialized || shadowDepthShader.id == 0) {
         return;
     }
 
     shadowMap->lightSpaceMatrix = lightSpaceMatrix;
 
-    // Flush any pending batched draw calls before changing state
     rlDrawRenderBatchActive();
 
-    // Save current state
     unsigned int prevFBO            = rlGetActiveFramebuffer();
     int          prevViewportWidth  = rlGetFramebufferWidth();
     int          prevViewportHeight = rlGetFramebufferHeight();
 
-    // Enable shadow framebuffer
     rlEnableFramebuffer(shadowMap->depthTexture.id);
     rlViewport(0, 0, shadowMap->resolution, shadowMap->resolution);
     rlClearScreenBuffers();
     rlEnableDepthTest();
     rlEnableShader(shadowDepthShader.id);
 
-    // Set light space matrix uniform
     int lightSpaceLoc = GetShaderLocation(shadowDepthShader, "lightSpaceMatrix");
     SetShaderValueMatrix(shadowDepthShader, lightSpaceLoc, lightSpaceMatrix);
 
-    // Render all objects with shadow shader
-    int meshCount = 0;
     for (const auto& renderable : renderables) {
         if (!renderable.meshRenderer || !renderable.transform)
             continue;
 
         if (auto model = renderable.meshRenderer->getModel(assetMgr)) {
-            // Set model matrix for this object
             int    modelLoc    = GetShaderLocation(shadowDepthShader, "matModel");
             Matrix modelMatrix = renderable.transform->getMatrix();
             SetShaderValueMatrix(shadowDepthShader, modelLoc, modelMatrix);
 
-            // Render each mesh
             for (int i = 0; i < model->meshCount; ++i) {
                 Mesh& mesh = model->meshes[i];
 
                 if (mesh.vaoId > 0) {
                     rlEnableVertexArray(mesh.vaoId);
 
-                    // Draw mesh
                     if (mesh.indices != nullptr) {
                         rlDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
                     } else {
@@ -263,26 +385,88 @@ void ShadowManager::renderShadowMap(ShadowMap*                           shadowM
                     }
 
                     rlDisableVertexArray();
-                    meshCount++;
                 }
             }
         }
     }
 
-    // Flush shadow rendering
     rlDrawRenderBatchActive();
-
-    // Disable shadow shader
     rlDisableShader();
 
-    // Restore previous framebuffer
     if (prevFBO > 0) {
         rlEnableFramebuffer(prevFBO);
     } else {
         rlDisableFramebuffer();
     }
 
-    // Restore viewport
+    rlViewport(0, 0, prevViewportWidth, prevViewportHeight);
+}
+
+void ShadowManager::renderCubemapShadowMap(CubemapShadowMap*                    cubemapShadow,
+                                           Vector3                              lightPos,
+                                           float                                farPlane,
+                                           const std::vector<RenderableEntity>& renderables,
+                                           Linp::Core::AssetManager*            assetMgr) {
+    if (!cubemapShadow || !cubemapShadow->initialized || shadowDepthShader.id == 0) {
+        return;
+    }
+
+    auto matrices = calculatePointLightMatrices(lightPos, farPlane);
+
+    rlDrawRenderBatchActive();
+
+    unsigned int prevFBO            = rlGetActiveFramebuffer();
+    int          prevViewportWidth  = rlGetFramebufferWidth();
+    int          prevViewportHeight = rlGetFramebufferHeight();
+
+    // Render to each face of the cubemap
+    for (int face = 0; face < 6; ++face) {
+        rlEnableFramebuffer(cubemapShadow->faceFramebuffers[face]);
+        rlViewport(0, 0, cubemapShadow->resolution, cubemapShadow->resolution);
+        rlClearScreenBuffers();
+        rlEnableDepthTest();
+        rlEnableShader(shadowDepthShader.id);
+
+        int lightSpaceLoc = GetShaderLocation(shadowDepthShader, "lightSpaceMatrix");
+        SetShaderValueMatrix(shadowDepthShader, lightSpaceLoc, matrices[face]);
+
+        for (const auto& renderable : renderables) {
+            if (!renderable.meshRenderer || !renderable.transform)
+                continue;
+
+            if (auto model = renderable.meshRenderer->getModel(assetMgr)) {
+                int    modelLoc    = GetShaderLocation(shadowDepthShader, "matModel");
+                Matrix modelMatrix = renderable.transform->getMatrix();
+                SetShaderValueMatrix(shadowDepthShader, modelLoc, modelMatrix);
+
+                for (int i = 0; i < model->meshCount; ++i) {
+                    Mesh& mesh = model->meshes[i];
+
+                    if (mesh.vaoId > 0) {
+                        rlEnableVertexArray(mesh.vaoId);
+
+                        if (mesh.indices != nullptr) {
+                            rlDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
+                        } else {
+                            rlDrawVertexArray(0, mesh.vertexCount);
+                        }
+
+                        rlDisableVertexArray();
+                    }
+                }
+            }
+        }
+
+        rlDrawRenderBatchActive();
+        rlDisableShader();
+    }
+
+    if (prevFBO > 0) {
+        rlEnableFramebuffer(prevFBO);
+    } else {
+        rlDisableFramebuffer();
+    }
+
     rlViewport(0, 0, prevViewportWidth, prevViewportHeight);
 }
 

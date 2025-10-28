@@ -27,6 +27,19 @@ struct ShadowMap {
     ShadowMap& operator=(const ShadowMap&) = delete;
 };
 
+struct CubemapShadowMap {
+    unsigned int cubemapDepthTexture = 0;     // Cubemap depth texture
+    unsigned int faceFramebuffers[6] = { 0 }; // One FBO per cubemap face
+    int          resolution          = 1024;
+    bool         initialized         = false;
+    Vector3      lightPosition       = { 0, 0, 0 };
+    float        farPlane            = 25.0f;
+
+    void initialize(int res);
+    void cleanup();
+    ~CubemapShadowMap();
+};
+
 class ShadowManager {
 public:
     ~ShadowManager();
@@ -41,6 +54,9 @@ public:
     std::vector<std::unique_ptr<ShadowMap>> shadowMaps;
     Shader                                  shadowDepthShader;
     bool                                    initialized = false;
+
+    std::vector<std::unique_ptr<CubemapShadowMap>> cubemapShadowMaps;
+    Shader                                         pointLightShadowShader = { 0 };
 
     void initialize();
     void cleanup();
@@ -60,6 +76,15 @@ public:
                          const Matrix&                        lightSpaceMatrix,
                          const std::vector<RenderableEntity>& renderables,
                          Linp::Core::AssetManager*            assetMgr);
+
+    CubemapShadowMap*     getCubemapShadowMap(int index);
+    std::array<Matrix, 6> calculatePointLightMatrices(Vector3 lightPos, float farPlane);
+
+    void renderCubemapShadowMap(CubemapShadowMap*                    cubemapShadow,
+                                Vector3                              lightPos,
+                                float                                farPlane,
+                                const std::vector<RenderableEntity>& renderables,
+                                Linp::Core::AssetManager*            assetMgr);
 };
 
 }

@@ -39,6 +39,8 @@ struct LightData {
 class LightingSystem {
 public:
     static constexpr int MAX_LIGHTS_PER_OBJECT = 16;
+    std::vector<int>     pointLightShadowIndices;
+    static constexpr int MAX_POINT_LIGHT_SHADOWS = 4;
 
     // Collected light data for this frame
     std::vector<LightData> directionalLights;

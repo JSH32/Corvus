@@ -111,6 +111,7 @@ void LightingSystem::renderShadowMaps(const std::vector<RenderableEntity>& rende
     shadowCastingLightCount = 0;
     shadowBiases.clear();
     shadowStrengths.clear();
+    pointLightShadowIndices.clear();
 
     // Process directional lights
     for (const auto& lightData : directionalLights) {
@@ -154,6 +155,28 @@ void LightingSystem::renderShadowMaps(const std::vector<RenderableEntity>& rende
         shadowBiases.push_back(lightData.shadowBias);
         shadowStrengths.push_back(lightData.shadowStrength);
         shadowCastingLightCount++;
+    }
+
+    int pointLightCubemapIndex = 0;
+    for (size_t i = 0; i < pointLights.size(); ++i) {
+        const auto& lightData = pointLights[i];
+
+        if (!lightData.castShadows)
+            continue;
+        if (pointLightCubemapIndex >= MAX_POINT_LIGHT_SHADOWS)
+            break;
+
+        CubemapShadowMap* cubemapShadow = shadowManager.getCubemapShadowMap(pointLightCubemapIndex);
+        cubemapShadow->initialize(lightData.shadowMapResolution);
+        cubemapShadow->lightPosition = lightData.position;
+        cubemapShadow->farPlane      = lightData.range;
+
+        shadowManager.renderCubemapShadowMap(
+            cubemapShadow, lightData.position, lightData.range, renderables, assetMgr);
+
+        pointLightShadowIndices.push_back(
+            static_cast<int>(i)); // Map cubemap index to point light index
+        pointLightCubemapIndex++;
     }
 }
 
@@ -348,6 +371,77 @@ void LightingSystem::applyToShaderForObject(Shader&        shader,
             }
 
             // Reset to default texture slot
+            rlActiveTextureSlot(0);
+        }
+    }
+
+    int pointShadowCountLoc = GetShaderLocation(shader, "u_PointLightShadowCount");
+    if (pointShadowCountLoc != -1) {
+        int validPointShadowCount = 0;
+
+        // Count valid cubemap shadows
+        for (size_t i = 0;
+             i < shadowManager.cubemapShadowMaps.size() && i < pointLightShadowIndices.size();
+             ++i) {
+            if (shadowManager.cubemapShadowMaps[i]
+                && shadowManager.cubemapShadowMaps[i]->initialized) {
+                validPointShadowCount++;
+            }
+        }
+
+        SetShaderValue(shader, pointShadowCountLoc, &validPointShadowCount, SHADER_UNIFORM_INT);
+
+        if (validPointShadowCount > 0) {
+            int cubemapIndex = 0;
+            for (size_t i = 0;
+                 i < shadowManager.cubemapShadowMaps.size() && i < pointLightShadowIndices.size();
+                 ++i) {
+                if (!shadowManager.cubemapShadowMaps[i]
+                    || !shadowManager.cubemapShadowMaps[i]->initialized)
+                    continue;
+
+                auto* cubemapShadow = shadowManager.cubemapShadowMaps[i].get();
+
+                char locName[64];
+
+                // Bind cubemap texture
+                snprintf(locName, sizeof(locName), "u_PointLightShadowMaps[%d]", cubemapIndex);
+                int texLoc = GetShaderLocation(shader, locName);
+                if (texLoc != -1) {
+                    rlActiveTextureSlot(7 + cubemapIndex); // Use different texture slots
+                    rlEnableTexture(cubemapShadow->cubemapDepthTexture);
+                    int textureUnit = 7 + cubemapIndex;
+                    SetShaderValue(shader, texLoc, &textureUnit, SHADER_UNIFORM_INT);
+                }
+
+                // Light position
+                snprintf(locName, sizeof(locName), "u_PointLightShadowPositions[%d]", cubemapIndex);
+                int posLoc = GetShaderLocation(shader, locName);
+                if (posLoc != -1) {
+                    float pos[3] = { cubemapShadow->lightPosition.x,
+                                     cubemapShadow->lightPosition.y,
+                                     cubemapShadow->lightPosition.z };
+                    SetShaderValue(shader, posLoc, pos, SHADER_UNIFORM_VEC3);
+                }
+
+                // Far plane
+                snprintf(locName, sizeof(locName), "u_PointLightShadowFarPlanes[%d]", cubemapIndex);
+                int farLoc = GetShaderLocation(shader, locName);
+                if (farLoc != -1) {
+                    SetShaderValue(shader, farLoc, &cubemapShadow->farPlane, SHADER_UNIFORM_FLOAT);
+                }
+
+                // Index mapping
+                snprintf(locName, sizeof(locName), "u_PointLightShadowIndices[%d]", cubemapIndex);
+                int idxLoc = GetShaderLocation(shader, locName);
+                if (idxLoc != -1) {
+                    int pointLightIdx = pointLightShadowIndices[i];
+                    SetShaderValue(shader, idxLoc, &pointLightIdx, SHADER_UNIFORM_INT);
+                }
+
+                cubemapIndex++;
+            }
+
             rlActiveTextureSlot(0);
         }
     }

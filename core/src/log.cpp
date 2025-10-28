@@ -6,10 +6,20 @@
 
 namespace Linp {
 void spdCustomLog(int msgType, const char* text, va_list args) {
-    std::vector<char> buf(1 + std::vsnprintf(nullptr, 0, text, args));
+    va_list args_copy;
+    va_copy(args_copy, args);
+
+    int size = std::vsnprintf(nullptr, 0, text, args_copy);
+    va_end(args_copy);
+
+    if (size <= 0) {
+        return;
+    }
+
+    std::vector<char> buf(size + 1);
     std::vsnprintf(buf.data(), buf.size(), text, args);
 
-    std::string output(buf.data(), buf.size());
+    std::string output(buf.data());
 
     switch (msgType) {
         case LOG_INFO:
@@ -28,7 +38,6 @@ void spdCustomLog(int msgType, const char* text, va_list args) {
             break;
     }
 }
-
 std::shared_ptr<spdlog::logger> Log::coreLogger;
 std::shared_ptr<spdlog::logger> Log::clientLogger;
 
