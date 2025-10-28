@@ -1,7 +1,7 @@
 # Corvus Game Engine
 
 <p align="center">
-  <img src="./.github/assets/banner.png" alt="Corvus Logo" width="200"/>
+  <img src="./.github/assets/banner.png" alt="Corvus Logo" width="500"/>
 </p>
 
 > [!NOTE]
