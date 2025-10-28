@@ -25,7 +25,7 @@ public:
      * @brief Push a render layer.
      */
     void pushLayer(std::unique_ptr<Layer> layer);
-    
+
     /**
      * @brief Push an overlay layer.
      */
