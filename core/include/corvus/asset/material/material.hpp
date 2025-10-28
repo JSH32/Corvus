@@ -401,9 +401,6 @@ struct Material {
 
     // Apply material to a raylib material
     void applyToRaylibMaterial(raylib::Material& rlMat, AssetManager* assetMgr) {
-        if (!assetMgr)
-            return;
-
         if (!defaultShaderLoaded)
             this->loadDefaultShader();
 
@@ -437,6 +434,8 @@ struct Material {
                     break;
                 }
                 case MaterialPropertyType::Texture: {
+                    if (!assetMgr)
+                        break;
                     UUID id   = prop.value.getTexture();
                     int  slot = prop.value.getTextureSlot();
 
@@ -555,16 +554,10 @@ struct Material {
         if (rlMaterialCache.shader.id == 0)
             rlMaterialCache = LoadMaterialDefault();
 
-        if (!assetMgr) {
-            if (!defaultShaderLoaded)
-                loadDefaultShader();
-            rlMaterialCache.shader = defaultShader;
-            return &rlMaterialCache;
-        }
-
-        if (rlMaterialDirty) {
+        if (rlMaterialDirty || !assetMgr) {
             applyToRaylibMaterial(rlMaterialCache, assetMgr);
-            rlMaterialDirty = false;
+            if (assetMgr)
+                rlMaterialDirty = false;
         }
 
         return &rlMaterialCache;

@@ -65,16 +65,18 @@ public:
     CulledLights cullLightsForObject(const Vector3& objectPos, float objectRadius = 5.0f) const;
 
     void renderShadowMaps(const std::vector<RenderableEntity>& renderables,
-                          Corvus::Core::AssetManager*            assetMgr,
+                          Corvus::Core::AssetManager*          assetMgr,
                           Vector3                              sceneCenter = { 0, 0, 0 });
 
     void applyToShaderForObject(Shader&        shader,
                                 const Vector3& objectPos,
-                                float          objectRadius = 5.0f) const;
+                                float          objectRadius,
+                                const Vector3& viewPos) const;
 
     void applyToMaterial(raylib::Material* material,
                          const Vector3&    objectPos,
-                         float             objectRadius = 5.0f) const;
+                         float             objectRadius,
+                         const Vector3&    viewPos) const;
 
 private:
     std::vector<float> shadowBiases;

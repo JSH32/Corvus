@@ -102,7 +102,7 @@ LightingSystem::CulledLights LightingSystem::cullLightsForObject(const Vector3& 
 }
 
 void LightingSystem::renderShadowMaps(const std::vector<RenderableEntity>& renderables,
-                                      Corvus::Core::AssetManager*            assetMgr,
+                                      Corvus::Core::AssetManager*          assetMgr,
                                       Vector3                              sceneCenter) {
     if (!shadowManager.initialized) {
         shadowManager.initialize();
@@ -182,13 +182,21 @@ void LightingSystem::renderShadowMaps(const std::vector<RenderableEntity>& rende
 
 void LightingSystem::applyToShaderForObject(Shader&        shader,
                                             const Vector3& objectPos,
-                                            float          objectRadius) const {
+                                            float          objectRadius,
+                                            const Vector3& viewPos) const {
     // Ambient
     int ambientLoc = GetShaderLocation(shader, "u_AmbientColor");
     if (ambientLoc != -1) {
         float ambient[3]
             = { ambientColor.r / 255.0f, ambientColor.g / 255.0f, ambientColor.b / 255.0f };
         SetShaderValue(shader, ambientLoc, ambient, SHADER_UNIFORM_VEC3);
+    }
+
+    // View position
+    int viewPosLoc = GetShaderLocation(shader, "u_ViewPos");
+    if (viewPosLoc != -1) {
+        float vp[3] = { viewPos.x, viewPos.y, viewPos.z };
+        SetShaderValue(shader, viewPosLoc, vp, SHADER_UNIFORM_VEC3);
     }
 
     // Directional light (always applied, not culled)
@@ -449,10 +457,11 @@ void LightingSystem::applyToShaderForObject(Shader&        shader,
 
 void LightingSystem::applyToMaterial(raylib::Material* material,
                                      const Vector3&    objectPos,
-                                     float             objectRadius) const {
+                                     float             objectRadius,
+                                     const Vector3&    viewPos) const {
     if (!material || material->shader.id == 0)
         return;
-    applyToShaderForObject(material->shader, objectPos, objectRadius);
+    applyToShaderForObject(material->shader, objectPos, objectRadius, viewPos);
 }
 
 }

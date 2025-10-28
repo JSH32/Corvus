@@ -54,7 +54,7 @@ void Scene::collectRenderables() {
     }
 }
 
-void Scene::render(raylib::RenderTexture& target) {
+void Scene::render(raylib::RenderTexture& target, const Vector3& viewPos) {
     for (auto it = rootOrderedEntities.rbegin(); it != rootOrderedEntities.rend(); ++it) {
         auto& entity = *it;
 
@@ -137,7 +137,7 @@ void Scene::render(raylib::RenderTexture& target) {
         float   objectRadius = 5.0f; // Could calculate from mesh bounds
 
         // Apply per-object lighting with culling
-        lightingSystem.applyToMaterial(rlMat, objectCenter, objectRadius);
+        lightingSystem.applyToMaterial(rlMat, objectCenter, objectRadius, viewPos);
 
         if (auto model = renderable.meshRenderer->getModel(assetManager)) {
             for (int i = 0; i < model->meshCount; ++i) {

@@ -145,7 +145,7 @@ void MaterialViewer::renderPreview() {
 
     if (previewSphere.materialCount > 0) {
         auto& rayMat = reinterpret_cast<raylib::Material&>(previewSphere.materials[0]);
-        previewLighting.applyToMaterial(&rayMat, Vector3 { 0, 0, 0 }, 1.0f);
+        previewLighting.applyToMaterial(&rayMat, Vector3 { 0, 0, 0 }, 1.0f, previewCamera.position);
     }
 
     BeginMode3D(previewCamera);

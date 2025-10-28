@@ -22,7 +22,7 @@ public:
     Entity createEntity(const std::string& entityName = std::string());
     void   destroyEntity(Entity entity);
 
-    void render(raylib::RenderTexture& target);
+    void render(raylib::RenderTexture& target, const Vector3& viewPos);
 
     std::string    name;
     entt::registry registry;

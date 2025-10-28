@@ -3,6 +3,7 @@
 #include "corvus/log.hpp"
 #include "corvus/scene.hpp"
 #include "editor/panels/asset_browser/material_viewer.hpp"
+#include "editor/panels/asset_browser/model_viewer.hpp"
 #include "editor/panels/asset_browser/texture_viewer.hpp"
 #include "imgui_internal.h"
 #include <algorithm>
@@ -260,6 +261,7 @@ void AssetBrowserPanel::handleAssetDoubleClick(const Core::AssetMetadata& meta) 
             break;
         case Core::AssetType::Texture:
         case Core::AssetType::Material:
+        case Core::AssetType::Model:
             openAssetViewer(meta.id, meta.type);
             break;
 
@@ -475,6 +477,9 @@ void AssetBrowserPanel::openAssetViewer(const Core::UUID& assetID, Core::AssetTy
             break;
         case Core::AssetType::Texture:
             openViewers.push_back(std::make_unique<TextureViewer>(assetID, assetManager));
+            break;
+        case Core::AssetType::Model:
+            openViewers.push_back(std::make_unique<ModelViewer>(assetID, assetManager));
             break;
         // Add more viewer types here
         default:

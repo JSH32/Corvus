@@ -13,6 +13,7 @@ uniform float     _Metallic;
 uniform float     _Smoothness;
 
 // Lighting uniforms
+uniform vec3 u_ViewPos;
 uniform vec3 u_AmbientColor;
 uniform vec3 u_DirLightDir;
 uniform vec3 u_DirLightColor;
@@ -227,7 +228,7 @@ void main() {
     vec3  albedo = texelColor.rgb * _MainColor.rgb;
     float alpha  = texelColor.a * _MainColor.a;
 
-    vec3 viewDir = -normalize(fragPosition);
+    vec3 viewDir = normalize(u_ViewPos - fragPosition);
 
     // Ambient
     vec3 ambient = u_AmbientColor * albedo;

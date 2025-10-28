@@ -80,7 +80,7 @@ void SceneViewport::renderSceneToTexture() {
     renderGrid(editorCamera.getCamera());
 
     // Render entities
-    project.getCurrentScene()->render(sceneTexture);
+    project.getCurrentScene()->render(sceneTexture, editorCamera.getCamera().GetPosition());
 
     EndMode3D();
     EndTextureMode();
