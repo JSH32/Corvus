@@ -49,7 +49,7 @@ void Log::init() {
     logSinks[0]->set_pattern("%^[%T] %n: %v%$");
     logSinks[1]->set_pattern("[%T] [%l] %n: %v");
 
-    coreLogger = std::make_shared<spdlog::logger>("LINP", begin(logSinks), end(logSinks));
+    coreLogger = std::make_shared<spdlog::logger>("CORVUS", begin(logSinks), end(logSinks));
     spdlog::register_logger(coreLogger);
     coreLogger->set_level(spdlog::level::trace);
     coreLogger->flush_on(spdlog::level::trace);
