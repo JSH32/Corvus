@@ -25,7 +25,6 @@ static uint32_t compileGL(uint32_t type, const char* src) {
         std::cerr << "GL shader compile error:\n" << log << "\n";
         CORVUS_CORE_ERROR("SHADER COMPILE FAILED:\n{}", log);
     } else {
-        // ADD THIS - check for warnings too
         char    log[2048];
         GLsizei n = 0;
         glGetShaderInfoLog(sh, 2048, &n, log);
