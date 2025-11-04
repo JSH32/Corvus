@@ -93,6 +93,7 @@ public:
     void                         queueCommandBuffer(uint32_t cmdId);
     const std::vector<uint32_t>& getPendingSubmissions() const;
     void                         clearPendingSubmissions();
+    void                         clearCommandBuffers();
 
     // Buffer updates (deferred)
     void

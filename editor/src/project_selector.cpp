@@ -329,7 +329,7 @@ void ProjectSelector::addToRecentProjects(const std::string& name, const std::st
 }
 
 void ProjectSelector::transitionToEditor() {
-    const std::string& path = *selectedPath;
+    std::string path = *selectedPath;
     CORVUS_CORE_INFO("Project selected: {}", path);
 
     auto project = Core::Project::loadOrCreate(

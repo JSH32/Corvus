@@ -1008,7 +1008,17 @@ void OpenGLContext::shutdown() {
     window = nullptr;
 }
 
-void OpenGLContext::beginFrame() { backend->clearPendingSubmissions(); }
+void OpenGLBackend::clearCommandBuffers() {
+    commandBuffers_.clear();
+    commandBuffers_.rehash(0);
+    nextCmdBufferId_ = 1;
+}
+
+void OpenGLContext::beginFrame() {
+    backend->clearPendingSubmissions();
+    backend->clearCommandBuffers();
+}
+
 void OpenGLContext::endFrame() {
     const auto& submissions = backend->getPendingSubmissions();
 
