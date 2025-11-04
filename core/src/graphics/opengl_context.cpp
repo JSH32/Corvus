@@ -980,22 +980,20 @@ void OpenGLBackend::fbDestroy(uint32_t fbID) {
 }
 
 // OpenGL Context
-OpenGLContext::OpenGLContext(GLFWwindow* w) : glfwWindow_(w) { }
+OpenGLContext::OpenGLContext(Window* w) : window(w) { }
 OpenGLContext::~OpenGLContext() { shutdown(); }
 
-bool OpenGLContext::initialize(const Window& window) {
-    auto* gw = static_cast<GLFWwindow*>(window.getNativeHandle());
-    glfwMakeContextCurrent(gw);
+bool OpenGLContext::initialize(Window& window) {
+    window.makeContextCurrent();
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "Failed to initialize GLAD\n";
         return false;
     }
-    backend_ = std::make_unique<OpenGLBackend>();
-    std::cout << "OpenGL: " << glGetString(GL_VERSION) << "\n";
+    backend = std::make_unique<OpenGLBackend>();
+    CORVUS_CORE_INFO("OpenGL: {}", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_DEPTH_TEST);
-
     return true;
 }
 
@@ -1006,13 +1004,13 @@ void OpenGLContext::flush() {
 }
 
 void OpenGLContext::shutdown() {
-    backend_.reset();
-    glfwWindow_ = nullptr;
+    backend.reset();
+    window = nullptr;
 }
 
-void OpenGLContext::beginFrame() { backend_->clearPendingSubmissions(); }
+void OpenGLContext::beginFrame() { backend->clearPendingSubmissions(); }
 void OpenGLContext::endFrame() {
-    const auto& submissions = backend_->getPendingSubmissions();
+    const auto& submissions = backend->getPendingSubmissions();
 
     // CORVUS_CORE_INFO("Submission order:");
     // for (size_t i = 0; i < submissions.size(); ++i) {
@@ -1029,7 +1027,7 @@ void OpenGLContext::endFrame() {
 
         // CORVUS_CORE_INFO("Command Buffer #{} (ID: {})", i, cmdId);
 
-        backend_->cmdExecute(cmdId);
+        backend->cmdExecute(cmdId);
 
         // Reset state between command buffers
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1049,59 +1047,59 @@ void OpenGLContext::endFrame() {
     // CORVUS_CORE_INFO("========================================\n");
 }
 
-void OpenGLContext::attachBackend(HandleBase& h) { h.be = backend_.get(); }
+void OpenGLContext::attachBackend(HandleBase& h) { h.be = backend.get(); }
 
 // Factories
 VertexBuffer OpenGLContext::createVertexBuffer(const void* data, uint32_t size) {
-    auto h = backend_->vbCreate(data, size);
+    auto h = backend->vbCreate(data, size);
     attachBackend(h);
     return h;
 }
 
 IndexBuffer OpenGLContext::createIndexBuffer(const void* indices, uint32_t count, bool index16) {
-    auto h = backend_->ibCreate(indices, count, index16);
+    auto h = backend->ibCreate(indices, count, index16);
     attachBackend(h);
     return h;
 }
 
 VertexArray OpenGLContext::createVertexArray() {
-    auto h = backend_->vaoCreate();
+    auto h = backend->vaoCreate();
     attachBackend(h);
     return h;
 }
 
 Shader OpenGLContext::createShader(const std::string& vs, const std::string& fs) {
-    auto h = backend_->shaderCreate(vs, fs);
+    auto h = backend->shaderCreate(vs, fs);
     attachBackend(h);
     return h;
 }
 
 Texture2D OpenGLContext::createTexture2D(uint32_t w, uint32_t h) {
-    auto t2d = backend_->tex2DCreate(w, h);
+    auto t2d = backend->tex2DCreate(w, h);
     attachBackend(t2d);
     return t2d;
 }
 
 Texture2D OpenGLContext::createDepthTexture(uint32_t w, uint32_t h) {
-    auto tex = backend_->tex2DCreateDepth(w, h);
+    auto tex = backend->tex2DCreateDepth(w, h);
     attachBackend(tex);
     return tex;
 }
 
 TextureCube OpenGLContext::createTextureCube(uint32_t resolution) {
-    TextureCube tex = backend_->texCubeCreate(resolution);
-    tex.be          = backend_.get();
+    TextureCube tex = backend->texCubeCreate(resolution);
+    tex.be          = backend.get();
     return tex;
 }
 
 CommandBuffer OpenGLContext::createCommandBuffer() {
-    auto h = backend_->cmdCreate();
+    auto h = backend->cmdCreate();
     attachBackend(h);
     return h;
 }
 
 Framebuffer OpenGLContext::createFramebuffer(uint32_t width, uint32_t height) {
-    auto h = backend_->fbCreate(width, height);
+    auto h = backend->fbCreate(width, height);
     attachBackend(h);
     return h;
 }

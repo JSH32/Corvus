@@ -40,8 +40,9 @@ public:
     virtual void  setSize(uint32_t width, uint32_t height)          = 0;
     virtual void  getFramebufferSize(int& width, int& height) const = 0;
 
-    virtual double getTime() const = 0;
-    virtual double getDeltaTime()  = 0;
+    virtual double getTime() const      = 0;
+    virtual double getDeltaTime()       = 0;
+    virtual void   makeContextCurrent() = 0;
 
     static std::unique_ptr<Window> create(WindowAPI          windowAPI,
                                           GraphicsAPI        graphicsAPI,

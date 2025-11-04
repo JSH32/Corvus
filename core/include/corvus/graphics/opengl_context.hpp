@@ -140,10 +140,10 @@ private:
 
 class OpenGLContext final : public GraphicsContext {
 public:
-    explicit OpenGLContext(GLFWwindow* window);
+    explicit OpenGLContext(Window* window);
     ~OpenGLContext() override;
 
-    bool initialize(const Window& window) override;
+    bool initialize(Window& window) override;
     void shutdown() override;
 
     void beginFrame() override;
@@ -165,8 +165,8 @@ public:
     void flush() override;
 
 private:
-    GLFWwindow*                    glfwWindow_ { nullptr };
-    std::unique_ptr<OpenGLBackend> backend_;
+    Window*                        window { nullptr };
+    std::unique_ptr<OpenGLBackend> backend;
     void                           attachBackend(HandleBase& h);
 };
 

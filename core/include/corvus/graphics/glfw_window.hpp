@@ -118,6 +118,8 @@ public:
 
     double getTime() const override { return glfwGetTime(); }
 
+    void makeContextCurrent() override { glfwMakeContextCurrent(window); }
+
     double getDeltaTime() override {
         double current = glfwGetTime();
         double delta   = current - lastTime;

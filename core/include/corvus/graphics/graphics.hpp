@@ -480,8 +480,8 @@ class GraphicsContext {
 public:
     virtual ~GraphicsContext() = default;
 
-    virtual bool initialize(const Window& window) = 0;
-    virtual void shutdown()                       = 0;
+    virtual bool initialize(Window& window) = 0;
+    virtual void shutdown()                 = 0;
 
     virtual void beginFrame() = 0;
     virtual void endFrame()   = 0;
