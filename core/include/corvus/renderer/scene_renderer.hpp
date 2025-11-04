@@ -114,8 +114,6 @@ public:
     MaterialRenderer& getMaterialRenderer() { return materialRenderer_; };
 
 private:
-    // INTERNAL HELPERS
-
     void setupStandardUniforms(Graphics::CommandBuffer& cmd,
                                Graphics::Shader&        shader,
                                const glm::mat4&         model,

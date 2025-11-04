@@ -1,5 +1,6 @@
 #include "corvus/graphics/graphics.hpp"
 #include "corvus/graphics/opengl_context.hpp"
+#include <optional>
 
 namespace Corvus::Graphics {
 
@@ -279,14 +280,18 @@ void CommandBuffer::setLineWidth(float width) {
         be->cmdSetLineWidth(id, width);
 }
 
-void CommandBuffer::bindTexture(uint32_t slot, const Texture2D& t) {
+void CommandBuffer::bindTexture(uint32_t                   slot,
+                                const Texture2D&           t,
+                                std::optional<std::string> uniformName) {
     if (valid() && t.valid())
-        be->cmdBindTexture(id, slot, t.id);
+        be->cmdBindTexture(id, slot, t.id, uniformName);
 }
 
-void CommandBuffer::bindTextureCube(uint32_t slot, const TextureCube& t) {
+void CommandBuffer::bindTextureCube(uint32_t                   slot,
+                                    const TextureCube&         t,
+                                    std::optional<std::string> uniformName) {
     if (valid() && t.valid())
-        be->cmdBindTextureCube(id, slot, t.id);
+        be->cmdBindTextureCube(id, slot, t.id, uniformName);
 }
 
 void CommandBuffer::drawIndexed(uint32_t      elemCount,

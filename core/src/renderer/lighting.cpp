@@ -62,7 +62,9 @@ LightingSystem::LightingSystem(LightingSystem&& other) noexcept
       ambientColor_(other.ambientColor_), shadowMaps_(std::move(other.shadowMaps_)),
       cubemapShadows_(std::move(other.cubemapShadows_)),
       shadowShader_(std::move(other.shadowShader_)),
-      shadowShaderInitialized_(other.shadowShaderInitialized_) {
+      shadowShaderInitialized_(other.shadowShaderInitialized_),
+      shadowBiases_(std::move(other.shadowBiases_)),
+      shadowStrengths_(std::move(other.shadowStrengths_)) {
 
     other.initialized_             = false;
     other.context_                 = nullptr;
@@ -81,6 +83,8 @@ LightingSystem& LightingSystem::operator=(LightingSystem&& other) noexcept {
         cubemapShadows_          = std::move(other.cubemapShadows_);
         shadowShader_            = std::move(other.shadowShader_);
         shadowShaderInitialized_ = other.shadowShaderInitialized_;
+        shadowBiases_            = std::move(other.shadowBiases_);
+        shadowStrengths_         = std::move(other.shadowStrengths_);
 
         other.initialized_             = false;
         other.context_                 = nullptr;
@@ -100,9 +104,26 @@ void LightingSystem::initialize(Graphics::GraphicsContext& ctx) {
     CORVUS_CORE_INFO("LightingSystem initialized");
 }
 
-void LightingSystem::clear() { lights_.clear(); }
+void LightingSystem::clear() {
+    lights_.clear();
+    shadowBiases_.clear();
+    shadowStrengths_.clear();
+}
 
 void LightingSystem::addLight(const Light& light) { lights_.push_back(light); }
+
+void LightingSystem::setShadowProperties(const std::vector<float>& biases,
+                                         const std::vector<float>& strengths) {
+    shadowBiases_    = biases;
+    shadowStrengths_ = strengths;
+}
+
+glm::vec3 LightingSystem::normalizeColor(const glm::vec3& color) {
+    if (color.r > 1.0f || color.g > 1.0f || color.b > 1.0f) {
+        return color / 255.0f;
+    }
+    return color;
+}
 
 std::vector<const Light*> LightingSystem::getDirectionalLights() const {
     std::vector<const Light*> result;
@@ -337,8 +358,8 @@ void LightingSystem::applyLightingUniforms(Graphics::CommandBuffer& cmd,
                                            float                    objectRadius,
                                            const glm::vec3&         cameraPosition) {
 
-    // Ambient color
-    shader.setVec3(cmd, "u_AmbientColor", ambientColor_);
+    // Ambient color - normalize to 0-1 range
+    shader.setVec3(cmd, "u_AmbientColor", normalizeColor(ambientColor_));
 
     // Camera position
     shader.setVec3(cmd, "u_ViewPos", cameraPosition);
@@ -347,7 +368,9 @@ void LightingSystem::applyLightingUniforms(Graphics::CommandBuffer& cmd,
     auto* dirLight = getPrimaryDirectionalLight();
     if (dirLight) {
         shader.setVec3(cmd, "u_DirLightDir", glm::normalize(dirLight->direction));
-        shader.setVec3(cmd, "u_DirLightColor", dirLight->color * dirLight->intensity);
+        // Normalize color before multiplying by intensity
+        shader.setVec3(
+            cmd, "u_DirLightColor", normalizeColor(dirLight->color) * dirLight->intensity);
     } else {
         shader.setVec3(cmd, "u_DirLightDir", glm::vec3(0.0f));
         shader.setVec3(cmd, "u_DirLightColor", glm::vec3(0.0f));
@@ -363,7 +386,9 @@ void LightingSystem::applyLightingUniforms(Graphics::CommandBuffer& cmd,
 
         std::string base = "u_PointLights[" + std::to_string(i) + "].";
         shader.setVec3(cmd, (base + "position").c_str(), light->position);
-        shader.setVec3(cmd, (base + "color").c_str(), light->color * light->intensity);
+        // Normalize color before multiplying by intensity
+        shader.setVec3(
+            cmd, (base + "color").c_str(), normalizeColor(light->color) * light->intensity);
         shader.setFloat(cmd, (base + "range").c_str(), light->range);
     }
 
@@ -375,7 +400,9 @@ void LightingSystem::applyLightingUniforms(Graphics::CommandBuffer& cmd,
         std::string base = "u_SpotLights[" + std::to_string(i) + "].";
         shader.setVec3(cmd, (base + "position").c_str(), light->position);
         shader.setVec3(cmd, (base + "direction").c_str(), glm::normalize(light->direction));
-        shader.setVec3(cmd, (base + "color").c_str(), light->color * light->intensity);
+        // Normalize color before multiplying by intensity
+        shader.setVec3(
+            cmd, (base + "color").c_str(), normalizeColor(light->color) * light->intensity);
         shader.setFloat(cmd, (base + "range").c_str(), light->range);
         shader.setFloat(
             cmd, (base + "innerCutoff").c_str(), std::cos(glm::radians(light->innerCutoff)));
@@ -383,12 +410,23 @@ void LightingSystem::applyLightingUniforms(Graphics::CommandBuffer& cmd,
             cmd, (base + "outerCutoff").c_str(), std::cos(glm::radians(light->outerCutoff)));
     }
 
-    // Shadow uniforms
+    // Shadow uniforms with proper bias and strength
     size_t validShadows = 0;
     for (size_t i = 0; i < shadowMaps_.size() && i < MAX_SHADOW_MAPS; ++i) {
         if (shadowMaps_[i].initialized) {
-            std::string base = "u_LightSpaceMatrices[" + std::to_string(validShadows) + "]";
-            shader.setMat4(cmd, base.c_str(), shadowMaps_[i].lightSpaceMatrix);
+            std::string matrixName = "u_LightSpaceMatrices[" + std::to_string(validShadows) + "]";
+            shader.setMat4(cmd, matrixName.c_str(), shadowMaps_[i].lightSpaceMatrix);
+
+            // Set bias and strength from stored values
+            if (validShadows < shadowBiases_.size()) {
+                std::string biasName = "u_ShadowBias[" + std::to_string(validShadows) + "]";
+                shader.setFloat(cmd, biasName.c_str(), shadowBiases_[validShadows]);
+            }
+
+            if (validShadows < shadowStrengths_.size()) {
+                std::string strengthName = "u_ShadowStrength[" + std::to_string(validShadows) + "]";
+                shader.setFloat(cmd, strengthName.c_str(), shadowStrengths_[validShadows]);
+            }
 
             validShadows++;
         }
@@ -399,17 +437,21 @@ void LightingSystem::applyLightingUniforms(Graphics::CommandBuffer& cmd,
 void LightingSystem::bindShadowTextures(Graphics::CommandBuffer& cmd) {
     uint32_t textureSlot = 3; // Reserve 0-2 for material textures
 
-    // Bind directional/spot shadow maps
+    // Directional & spot shadow maps
     for (size_t i = 0; i < shadowMaps_.size() && i < MAX_SHADOW_MAPS; ++i) {
         if (shadowMaps_[i].initialized) {
-            cmd.bindTexture(textureSlot++, shadowMaps_[i].depthTexture);
+            std::string uniformName = "u_ShadowMaps[" + std::to_string(i) + "]";
+            cmd.bindTexture(textureSlot, shadowMaps_[i].depthTexture, uniformName.c_str());
+            textureSlot++;
         }
     }
 
-    // Bind point light cubemap shadows
+    // Point light cubemap shadows
     for (size_t i = 0; i < cubemapShadows_.size() && i < MAX_POINT_SHADOWS; ++i) {
         if (cubemapShadows_[i].initialized) {
-            cmd.bindTextureCube(textureSlot++, cubemapShadows_[i].depthCubemap);
+            std::string uniformName = "u_PointShadowMaps[" + std::to_string(i) + "]";
+            cmd.bindTextureCube(textureSlot, cubemapShadows_[i].depthCubemap, uniformName);
+            textureSlot++;
         }
     }
 }
@@ -431,6 +473,8 @@ void LightingSystem::shutdown() {
     }
 
     lights_.clear();
+    shadowBiases_.clear();
+    shadowStrengths_.clear();
     initialized_ = false;
     context_     = nullptr;
 }

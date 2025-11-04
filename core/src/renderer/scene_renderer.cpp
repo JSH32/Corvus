@@ -237,7 +237,7 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
     // Get shadow shader
     auto& shadowShader = lighting_.getShadowShader();
     if (!shadowShader.valid()) {
-        return; // No shadows if shader unavailable
+        return;
     }
 
     if (renderables.empty())
@@ -258,6 +258,9 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
     size_t shadowMapIndex = 0;
     size_t cubemapIndex   = 0;
 
+    std::vector<float> shadowBiases;
+    std::vector<float> shadowStrengths;
+
     // Render shadow maps for each shadow-casting light
     for (const auto& light : lights) {
         if (!light.castShadows)
@@ -276,6 +279,9 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
                 = lighting_.calculateDirectionalLightMatrix(light, sceneCenter);
             shadowMap.lightSpaceMatrix = lightSpaceMatrix;
 
+            shadowBiases.push_back(light.shadowBias);
+            shadowStrengths.push_back(light.shadowStrength);
+
             renderDirectionalShadowMap(
                 shadowMap, light, lightSpaceMatrix, renderables, shadowShader);
             shadowMapIndex++;
@@ -291,6 +297,9 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
             auto&     shadowMap        = shadowMaps[shadowMapIndex];
             glm::mat4 lightSpaceMatrix = lighting_.calculateSpotLightMatrix(light);
             shadowMap.lightSpaceMatrix = lightSpaceMatrix;
+
+            shadowBiases.push_back(light.shadowBias);
+            shadowStrengths.push_back(light.shadowStrength);
 
             renderDirectionalShadowMap(
                 shadowMap, light, lightSpaceMatrix, renderables, shadowShader);
@@ -313,6 +322,7 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
             renderPointShadowMap(cubemap, light, lightMatrices, renderables, shadowShader);
             cubemapIndex++;
         }
+        lighting_.setShadowProperties(shadowBiases, shadowStrengths);
     }
 }
 

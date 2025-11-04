@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -85,7 +86,8 @@ struct Command {
     };
 
     struct TextureData {
-        uint32_t slot, texId;
+        uint32_t                   slot, texId;
+        std::optional<std::string> uniformName;
     };
 
     struct DrawIndexedData {
@@ -251,8 +253,16 @@ public:
     virtual void cmdSetViewport(uint32_t id, uint32_t x, uint32_t y, uint32_t w, uint32_t h) = 0;
     virtual void cmdSetShader(uint32_t id, uint32_t shaderId)                                = 0;
     virtual void cmdSetVAO(uint32_t id, uint32_t vaoId)                                      = 0;
-    virtual void cmdBindTexture(uint32_t id, uint32_t slot, uint32_t texId)                  = 0;
-    virtual void cmdBindTextureCube(uint32_t cmdID, uint32_t slot, uint32_t texID)           = 0;
+    virtual void cmdBindTexture(uint32_t                   id,
+                                uint32_t                   slot,
+                                uint32_t                   texId,
+                                std::optional<std::string> uniformName = std::nullopt)
+        = 0;
+    virtual void cmdBindTextureCube(uint32_t                   cmdID,
+                                    uint32_t                   slot,
+                                    uint32_t                   texID,
+                                    std::optional<std::string> uniformName = std::nullopt)
+        = 0;
     virtual void cmdDrawIndexed(uint32_t      id,
                                 uint32_t      elemCount,
                                 bool          index16,
@@ -436,8 +446,12 @@ struct CommandBuffer : HandleBase {
     void setViewport(uint32_t x, uint32_t y, uint32_t w, uint32_t h);
     void setShader(const Shader& s);
     void setVertexArray(const VertexArray& v);
-    void bindTexture(uint32_t slot, const Texture2D& t);
-    void bindTextureCube(uint32_t slot, const TextureCube& t);
+    void bindTexture(uint32_t                   slot,
+                     const Texture2D&           t,
+                     std::optional<std::string> uniformName = std::nullopt);
+    void bindTextureCube(uint32_t                   slot,
+                         const TextureCube&         t,
+                         std::optional<std::string> uniformName = std::nullopt);
     void drawIndexed(uint32_t      elemCount,
                      bool          index16,
                      uint32_t      indexOffset = 0,

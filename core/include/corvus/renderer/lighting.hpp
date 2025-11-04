@@ -197,6 +197,11 @@ public:
     void bindShadowTextures(Graphics::CommandBuffer& cmd);
 
     /**
+     * Set shadow properties (called by SceneRenderer after rendering shadow maps)
+     */
+    void setShadowProperties(const std::vector<float>& biases, const std::vector<float>& strengths);
+
+    /**
      * Cleanup
      */
     void shutdown();
@@ -213,6 +218,10 @@ private:
     std::vector<ShadowMap>     shadowMaps_;
     std::vector<CubemapShadow> cubemapShadows_;
 
+    // Shadow properties (stored per shadow map)
+    std::vector<float> shadowBiases_;
+    std::vector<float> shadowStrengths_;
+
     // Shadow shader
     Graphics::Shader shadowShader_;
     bool             shadowShaderInitialized_ = false;
@@ -220,6 +229,9 @@ private:
     // Shadow map management
     ShadowMap&     getShadowMap(size_t index);
     CubemapShadow& getCubemapShadow(size_t index);
+
+    // Helper to normalize color from 0-255 or 0-1 range to 0-1
+    static glm::vec3 normalizeColor(const glm::vec3& color);
 };
 
 }

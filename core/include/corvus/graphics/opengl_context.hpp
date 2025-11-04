@@ -55,8 +55,14 @@ public:
     void cmdSetShader(uint32_t id, uint32_t shaderId) override;
     void cmdSetLineWidth(uint32_t cmdId, float width) override;
     void cmdSetVAO(uint32_t id, uint32_t vaoId) override;
-    void cmdBindTexture(uint32_t id, uint32_t slot, uint32_t texId) override;
-    void cmdBindTextureCube(uint32_t cmdID, uint32_t slot, uint32_t texID) override;
+    void cmdBindTexture(uint32_t                   id,
+                        uint32_t                   slot,
+                        uint32_t                   texId,
+                        std::optional<std::string> uniformName = std::nullopt) override;
+    void cmdBindTextureCube(uint32_t                   cmdID,
+                            uint32_t                   slot,
+                            uint32_t                   texID,
+                            std::optional<std::string> uniformName = std::nullopt) override;
     void cmdDrawIndexed(uint32_t      id,
                         uint32_t      elemCount,
                         bool          index16,

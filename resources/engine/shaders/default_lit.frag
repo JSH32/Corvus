@@ -7,7 +7,7 @@ in vec3 fragPosition;
 in vec3 fragNormal;
 
 // Material properties
-uniform sampler2D _MainTex;
+uniform sampler2D texture0;
 uniform vec4      _MainColor;
 uniform float     _Metallic;
 uniform float     _Smoothness;
@@ -51,12 +51,10 @@ uniform int         u_PointLightShadowCount;
 uniform samplerCube u_PointLightShadowMaps[4];
 uniform vec3        u_PointLightShadowPositions[4];
 uniform float       u_PointLightShadowFarPlanes[4];
-uniform int         u_PointLightShadowIndices[4];
+uniform int         u_PointLightShadowIndices[4]; // Maps shadow index to point light index
 
 // Output
 out vec4 finalColor;
-
-const float PI = 3.14159265359;
 
 // Simple PBR-ish lighting for directional light
 vec3 calculateDirectionalLight(
@@ -66,25 +64,21 @@ vec3 calculateDirectionalLight(
     vec3 V = normalize(viewDir);
     vec3 H = normalize(L + V);
 
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotL   = max(dot(N, L), 0.0);
+    vec3  diffuse = albedo * u_DirLightColor * NdotL;
 
-    // Lambertian diffuse (already includes light color * intensity from uniform)
-    vec3 diffuse = (albedo / PI) * u_DirLightColor * NdotL;
-
-    // Specular
     float shininess = mix(32.0, 256.0, smoothness);
     float spec      = pow(max(dot(N, H), 0.0), shininess);
 
     vec3 F0       = mix(vec3(0.04), albedo, metallic);
     vec3 specular = F0 * spec * u_DirLightColor;
 
-    // Energy conservation
-    vec3 kD = mix(vec3(1.0) - F0, vec3(0.0), metallic);
+    vec3 kD = mix(vec3(1.0), vec3(0.0), metallic);
 
     return (kD * diffuse) + specular;
 }
 
-// Point light calculation
+// Point light calculation (without shadows, applied seperately)
 vec3 calculatePointLight(PointLight light,
                          vec3       normal,
                          vec3       fragPos,
@@ -100,7 +94,6 @@ vec3 calculatePointLight(PointLight light,
 
     L = normalize(L);
 
-    // Proper attenuation
     float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);
     attenuation *= smoothstep(light.range, 0.0, distance);
 
@@ -108,20 +101,16 @@ vec3 calculatePointLight(PointLight light,
     vec3 V = normalize(viewDir);
     vec3 H = normalize(L + V);
 
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotL   = max(dot(N, L), 0.0);
+    vec3  diffuse = albedo * light.color * NdotL;
 
-    // Proper diffuse (light.color already includes intensity from uniform)
-    vec3 diffuse = (albedo / PI) * light.color * NdotL;
-
-    // Specular
     float shininess = mix(32.0, 256.0, smoothness);
     float spec      = pow(max(dot(N, H), 0.0), shininess);
 
     vec3 F0       = mix(vec3(0.04), albedo, metallic);
     vec3 specular = F0 * spec * light.color;
 
-    // Energy conservation
-    vec3 kD = mix(vec3(1.0) - F0, vec3(0.0), metallic);
+    vec3 kD = mix(vec3(1.0), vec3(0.0), metallic);
 
     return ((kD * diffuse) + specular) * attenuation;
 }
@@ -142,7 +131,6 @@ vec3 calculateSpotLight(SpotLight light,
 
     L = normalize(L);
 
-    // Spot cone attenuation
     float theta         = dot(L, normalize(-light.direction));
     float epsilon       = light.innerCutoff - light.outerCutoff;
     float spotIntensity = clamp((theta - light.outerCutoff) / epsilon, 0.0, 1.0);
@@ -150,7 +138,6 @@ vec3 calculateSpotLight(SpotLight light,
     if (spotIntensity <= 0.0)
         return vec3(0.0);
 
-    // Distance attenuation
     float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);
     attenuation *= smoothstep(light.range, 0.0, distance);
 
@@ -158,20 +145,16 @@ vec3 calculateSpotLight(SpotLight light,
     vec3 V = normalize(viewDir);
     vec3 H = normalize(L + V);
 
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotL   = max(dot(N, L), 0.0);
+    vec3  diffuse = albedo * light.color * NdotL;
 
-    // Proper diffuse (light.color already includes intensity from uniform)
-    vec3 diffuse = (albedo / PI) * light.color * NdotL;
-
-    // Specular
     float shininess = mix(32.0, 256.0, smoothness);
     float spec      = pow(max(dot(N, H), 0.0), shininess);
 
     vec3 F0       = mix(vec3(0.04), albedo, metallic);
     vec3 specular = F0 * spec * light.color;
 
-    // Energy conservation
-    vec3 kD = mix(vec3(1.0) - F0, vec3(0.0), metallic);
+    vec3 kD = mix(vec3(1.0), vec3(0.0), metallic);
 
     return ((kD * diffuse) + specular) * attenuation * spotIntensity;
 }
@@ -199,7 +182,6 @@ float calculateShadow(vec3 fragPos, int shadowIndex) {
     float shadow    = 0.0;
     vec2  texelSize = 1.0 / textureSize(u_ShadowMaps[shadowIndex], 0);
 
-    // PCF
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
             vec2 sampleCoord = projCoords.xy + vec2(x, y) * texelSize;
@@ -235,11 +217,13 @@ float calculatePointLightShadow(vec3 fragPos, int shadowIndex) {
     float bias   = 0.05;
     float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
 
-    return shadow * 0.8;
+    // Add PCF for softer shadows here?
+
+    return shadow * 0.8; // Shadow strength
 }
 
 void main() {
-    vec4 texelColor = texture(_MainTex, fragTexCoord);
+    vec4 texelColor = texture(texture0, fragTexCoord);
 
     vec3  albedo = texelColor.rgb * _MainColor.rgb;
     float alpha  = texelColor.a * _MainColor.a;
@@ -289,12 +273,6 @@ void main() {
 
     // Combine all lighting
     vec3 finalLighting = ambient + shadedDirectional + pointLighting + spotLighting;
-
-    // Tone mapping (Reinhard), prevents blowout from bright lights
-    finalLighting = finalLighting / (finalLighting + vec3(1.0));
-
-    // Gamma correction
-    finalLighting = pow(finalLighting, vec3(1.0 / 2.2));
 
     finalColor = vec4(finalLighting, alpha);
 }

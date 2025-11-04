@@ -2,9 +2,12 @@
 #include "corvus/graphics/graphics.hpp"
 #include "corvus/log.hpp"
 #include "spdlog/fmt/bundled/format.h"
+#include <algorithm>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <optional>
+#include <string>
 
 namespace Corvus::Graphics {
 
@@ -209,19 +212,15 @@ Texture2D OpenGLBackend::tex2DCreateDepth(uint32_t w, uint32_t h) {
     GLuint id = 0;
     glGenTextures(1, &id);
     glBindTexture(GL_TEXTURE_2D, id);
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_DEPTH_COMPONENT24,
-                 w,
-                 h,
-                 0,
-                 GL_DEPTH_COMPONENT,
-                 GL_UNSIGNED_INT,
-                 nullptr);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, w, h, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    GLfloat borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
     Texture2D t;
     t.id     = id;
     t.be     = this;
@@ -353,25 +352,31 @@ void OpenGLBackend::cmdSetVAO(uint32_t id, uint32_t vaoId) {
     it->second.commands.push_back(cmd);
 }
 
-void OpenGLBackend::cmdBindTexture(uint32_t id, uint32_t slot, uint32_t texId) {
+void OpenGLBackend::cmdBindTexture(uint32_t                   id,
+                                   uint32_t                   slot,
+                                   uint32_t                   texId,
+                                   std::optional<std::string> uniformName) {
     auto it = commandBuffers_.find(id);
     if (it == commandBuffers_.end() || !it->second.recording)
         return;
 
     Command cmd;
     cmd.type = Command::Type::BindTexture;
-    cmd.data = Command::TextureData { slot, texId };
+    cmd.data = Command::TextureData { slot, texId, uniformName };
     it->second.commands.push_back(cmd);
 }
 
-void OpenGLBackend::cmdBindTextureCube(uint32_t id, uint32_t slot, uint32_t texID) {
+void OpenGLBackend::cmdBindTextureCube(uint32_t                   id,
+                                       uint32_t                   slot,
+                                       uint32_t                   texID,
+                                       std::optional<std::string> uniformName) {
     auto it = commandBuffers_.find(id);
     if (it == commandBuffers_.end() || !it->second.recording)
         return;
 
     Command cmd;
     cmd.type = Command::Type::BindTextureCube;
-    cmd.data = Command::TextureData { slot, texID };
+    cmd.data = Command::TextureData { slot, texID, uniformName };
     it->second.commands.push_back(cmd);
 }
 
@@ -690,6 +695,17 @@ void OpenGLBackend::executeCommand(const Command& cmd) {
             auto& tex = std::get<Command::TextureData>(cmd.data);
             glActiveTexture(GL_TEXTURE0 + tex.slot);
             glBindTexture(GL_TEXTURE_2D, tex.texId);
+
+            if (tex.uniformName && !tex.uniformName->empty()) {
+                GLint currentProgram = 0;
+                glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+                if (currentProgram != 0) {
+                    GLint loc = glGetUniformLocation(currentProgram, tex.uniformName->c_str());
+                    if (loc >= 0)
+                        glUniform1i(loc, tex.slot);
+                }
+            }
+
             break;
         }
 
@@ -697,6 +713,16 @@ void OpenGLBackend::executeCommand(const Command& cmd) {
             auto& tex = std::get<Command::TextureData>(cmd.data);
             glActiveTexture(GL_TEXTURE0 + tex.slot);
             glBindTexture(GL_TEXTURE_CUBE_MAP, tex.texId);
+
+            if (tex.uniformName && !tex.uniformName->empty()) {
+                GLint currentProgram = 0;
+                glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+                if (currentProgram != 0) {
+                    GLint loc = glGetUniformLocation(currentProgram, tex.uniformName->c_str());
+                    if (loc >= 0)
+                        glUniform1i(loc, tex.slot);
+                }
+            }
             break;
         }
 
