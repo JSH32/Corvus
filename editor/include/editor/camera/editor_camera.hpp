@@ -1,7 +1,8 @@
 #pragma once
 
+#include "corvus/renderer/camera.hpp"
+#include "glm/glm.hpp"
 #include "imgui.h"
-#include "raylib-cpp.hpp"
 
 namespace Corvus::Editor {
 
@@ -20,8 +21,8 @@ public:
     static constexpr float DEFAULT_ZOOM_SPEED       = 1.0f;
     static constexpr float DEFAULT_ORBIT_SPEED      = 0.005f;
     static constexpr float DEFAULT_PAN_SPEED_FACTOR = 0.002f;
-    static constexpr float DEFAULT_PITCH_MIN        = -PI / 2.0f + 0.01f;
-    static constexpr float DEFAULT_PITCH_MAX        = PI / 2.0f - 0.01f;
+    static constexpr float DEFAULT_PITCH_MIN        = -glm::half_pi<float>() + 0.01f;
+    static constexpr float DEFAULT_PITCH_MAX        = glm::half_pi<float>() - 0.01f;
     static constexpr float DEFAULT_FOV              = 45.0f;
 
     /**
@@ -32,9 +33,9 @@ public:
     /**
      * @brief Constructs an EditorCamera with custom parameters.
      */
-    EditorCamera(const raylib::Vector3& target,
-                 float                  distance    = 10.0f,
-                 const raylib::Vector2& orbitAngles = { 0.45f, -0.45f });
+    EditorCamera(const glm::vec3& target,
+                 float            distance    = 10.0f,
+                 const glm::vec2& orbitAngles = { 0.45f, -0.45f });
 
     /**
      * @brief Updates camera based on input. Call this each frame.
@@ -45,22 +46,27 @@ public:
     bool update(const ImGuiIO& io, bool isInputAllowed = true);
 
     /**
-     * @brief Gets the Raylib camera for rendering.
+     * @brief Gets the underlying Renderer::Camera.
      */
-    const raylib::Camera3D& getCamera() const { return camera; }
-    raylib::Camera3D&       getCamera() { return camera; }
+    const Renderer::Camera& getCamera() const { return camera; }
+    Renderer::Camera&       getCamera() { return camera; }
+
+    // Matrix interface (for backward compatibility)
+    glm::mat4 getViewMatrix() const { return camera.getViewMatrix(); }
+    glm::mat4 getProjectionMatrix(float aspectRatio) const { return camera.getProjectionMatrix(); }
+    glm::vec3 getPosition() const { return camera.getPosition(); }
 
     // Target manipulation
-    const raylib::Vector3& getTarget() const { return target; }
-    void                   setTarget(const raylib::Vector3& newTarget);
+    const glm::vec3& getTarget() const { return target; }
+    void             setTarget(const glm::vec3& newTarget);
 
     // Distance controls
     float getDistance() const { return distance; }
     void  setDistance(float newDistance);
 
     // Orbit angle controls (pitch, yaw in radians)
-    const raylib::Vector2& getOrbitAngles() const { return orbitAngles; }
-    void                   setOrbitAngles(const raylib::Vector2& angles);
+    const glm::vec2& getOrbitAngles() const { return orbitAngles; }
+    void             setOrbitAngles(const glm::vec2& angles);
 
     // Configuration
     void setDistanceConstraints(float minDist, float maxDist);
@@ -77,33 +83,36 @@ public:
      * @param focusPoint Point to focus on
      * @param optimalDistance Desired distance from focus point
      */
-    void focusOn(const Vector3& focusPoint, float optimalDistance = 10.0f);
+    void focusOn(const glm::vec3& focusPoint, float optimalDistance = 10.0f);
 
     /**
      * @brief Gets the forward direction vector of the camera.
      */
-    Vector3 getForward() const;
+    glm::vec3 getForward() const;
 
     /**
      * @brief Gets the right direction vector of the camera.
      */
-    Vector3 getRight() const;
+    glm::vec3 getRight() const;
+
+    /**
+     * @brief Gets the up direction vector of the camera.
+     */
+    glm::vec3 getUp() const;
 
 private:
-    raylib::Camera3D camera;
+    Renderer::Camera camera;
 
     // Camera state
-    raylib::Vector3 target;
-    raylib::Vector2 orbitAngles; // x: pitch, y: yaw (radians)
-    float           distance;
+    glm::vec3 target;
+    glm::vec2 orbitAngles; // x: pitch, y: yaw (radians)
+    float     distance;
 
     // Configuration
     float minDistance, maxDistance;
     float pitchMin, pitchMax;
     float zoomSpeed, orbitSpeed, panSpeedFactor;
     float flySpeed = 5.0f;
-
-    bool isInFlyMode = false;
 
     /**
      * @brief Recalculates camera position based on current orbit state.
@@ -118,17 +127,17 @@ private:
     /**
      * @brief Processes right mouse button orbit input.
      */
-    bool processOrbit(const raylib::Vector2& mouseDelta);
+    bool processOrbit(const glm::vec2& mouseDelta);
 
     /**
      * @brief Processes middle mouse button pan input.
      */
-    bool processPan(const raylib::Vector2& mouseDelta);
+    bool processPan(const glm::vec2& mouseDelta);
 
     /**
      * @brief Processes fly mode input (right mouse + WASD).
      */
-    bool processFlyMode(const ImGuiIO& io, const raylib::Vector2& mouseDelta);
+    bool processFlyMode(const ImGuiIO& io, const glm::vec2& mouseDelta);
 };
 
 }

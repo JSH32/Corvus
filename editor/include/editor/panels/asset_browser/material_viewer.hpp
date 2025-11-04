@@ -1,35 +1,49 @@
 #pragma once
 #include "asset_viewer.hpp"
-#include "imgui.h"
 #include "corvus/asset/asset_handle.hpp"
-#include "corvus/asset/material/material_loader.hpp"
-#include "corvus/systems/lighting_system.hpp"
-#include "raylib-cpp.hpp"
-#include "raylib.h"
+#include "corvus/asset/material/material.hpp"
+#include "corvus/graphics/graphics.hpp"
+#include "corvus/renderer/camera.hpp"
+#include "corvus/renderer/lighting.hpp"
+#include "corvus/renderer/scene_renderer.hpp"
+#include "imgui.h"
 #include <array>
 
 namespace Corvus::Editor {
 
 class MaterialViewer : public AssetViewer {
 private:
-    Core::AssetHandle<Core::Material> materialHandle;
-    Core::Systems::LightingSystem     previewLighting;
+    Core::AssetHandle<Core::MaterialAsset> materialHandle;
 
-    // Preview rendering
-    RenderTexture2D previewTexture     = { 0 };
-    Camera3D        previewCamera      = { 0 };
-    Model           previewSphere      = { 0 };
-    bool            previewInitialized = false;
-    bool            needsPreviewUpdate = true;
+    // Graphics context and rendering
+    Graphics::GraphicsContext* context_ = nullptr;
+
+    // Preview scene
+    Renderer::Camera         previewCamera;
+    Renderer::LightingSystem previewLighting;
+    Renderer::SceneRenderer  sceneRenderer;
+
+    // Temporary components for the preview sphere (fake ECS entity)
+    Core::Components::MeshRendererComponent previewMeshRenderer;
+    Core::Components::TransformComponent    previewTransform;
+
+    // Render target
+    Graphics::Framebuffer framebuffer;
+    Graphics::Texture2D   colorTexture;
+    Graphics::Texture2D   depthTexture;
+    uint32_t              previewResolution = 512;
+
+    bool previewInitialized = false;
+    bool needsPreviewUpdate = true;
 
     // Camera rotation
-    Vector2 lastMousePos = { 0, 0 };
-    bool    isDragging   = false;
-    float   cameraAngleX = 0.0f;
-    float   cameraAngleY = 0.0f;
+    ImVec2 lastMousePos   = { 0, 0 };
+    bool   isDragging     = false;
+    float  cameraAngleX   = 0.0f;
+    float  cameraAngleY   = 0.0f;
+    float  cameraDistance = 3.0f;
 
     // UI state
-    std::array<char, 256> nameBuffer;
     std::array<char, 256> propertyNameBuffer;
     bool                  showAddPropertyPopup = false;
 
@@ -38,6 +52,8 @@ private:
     void renderPreview();
     void updatePreview();
     void handleCameraControls();
+    void setupPreviewLights();
+    void updateCameraPosition();
 
     bool renderColorProperty(const std::string& name, Core::MaterialProperty& prop);
     bool renderFloatProperty(const std::string& name, Core::MaterialProperty& prop);
@@ -46,9 +62,12 @@ private:
     void renderAddPropertyPopup();
 
 public:
-    MaterialViewer(const Core::UUID& id, Core::AssetManager* manager);
+    MaterialViewer(const Core::UUID&          id,
+                   Core::AssetManager*        manager,
+                   Graphics::GraphicsContext& context);
     ~MaterialViewer();
+
     void render() override;
 };
 
-}
+} // namespace Corvus::Editor

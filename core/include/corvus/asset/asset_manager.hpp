@@ -1,5 +1,6 @@
 #pragma once
 #include "asset_handle.hpp"
+#include "corvus/asset/loader_context.hpp"
 #include "corvus/log.hpp"
 #include <atomic>
 #include <boost/functional/hash.hpp>
@@ -16,7 +17,8 @@ namespace Corvus::Core {
 
 class IAssetLoader {
 private:
-    AssetManager* assetManager = nullptr;
+    AssetManager*  assetManager  = nullptr;
+    LoaderContext* loaderContext = nullptr;
 
 public:
     virtual ~IAssetLoader()                         = default;
@@ -28,6 +30,9 @@ public:
 
     virtual bool  canCreate() const { return false; }
     virtual void* create(const std::string& name) { return nullptr; }
+
+    virtual void   setLoaderContext(LoaderContext* ctx) { loaderContext = ctx; }
+    LoaderContext* getLoaderContext() const { return loaderContext; }
 
     virtual void  setAssetManager(AssetManager* mgr) { assetManager = mgr; }
     AssetManager* getAssetManager() const { return assetManager; }
@@ -110,6 +115,8 @@ struct AssetEntry {
 
 class AssetManager {
 private:
+    LoaderContext loaderContext;
+
     std::string projectPath;
     std::string physfsAlias;
 
@@ -152,7 +159,9 @@ private:
     bool deleteDirectoryRecursive(const std::string& internalPath, bool untrackAssets = true);
 
 public:
-    AssetManager(const std::string& projectPath, const std::string& alias = "project");
+    AssetManager(Graphics::GraphicsContext* GraphicsContext,
+                 const std::string&         projectPath,
+                 const std::string&         alias = "project");
     ~AssetManager();
 
     AssetManager(const AssetManager&)            = delete;
@@ -216,6 +225,7 @@ public:
 
         auto loader = std::make_unique<LoaderT>();
         loader->setAssetManager(this);
+        loader->setLoaderContext(&loaderContext);
         std::type_index typeIdx = typeid(T);
 
         for (const auto& ext : extensions) {

@@ -69,9 +69,8 @@ void ProjectSelector::onImGuiRender() {
 
     handleFileDialogs();
 
-    if (selectedPath.has_value()) {
+    if (selectedPath.has_value())
         transitionToEditor();
-    }
 }
 
 void ProjectSelector::renderHeader() {
@@ -333,8 +332,8 @@ void ProjectSelector::transitionToEditor() {
     const std::string& path = *selectedPath;
     CORVUS_CORE_INFO("Project selected: {}", path);
 
-    auto project
-        = Core::Project::loadOrCreate(path, std::filesystem::path(path).filename().string());
+    auto project = Core::Project::loadOrCreate(
+        application->getGraphics(), path, std::filesystem::path(path).filename().string());
 
     if (!project) {
         CORVUS_CORE_ERROR("Failed to load or create project at {}", path);

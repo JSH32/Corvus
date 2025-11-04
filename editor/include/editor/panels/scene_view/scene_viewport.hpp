@@ -1,127 +1,148 @@
 #pragma once
-
-#include "RenderTexture.hpp"
-#include "editor/camera/editor_camera.hpp"
-#include "editor/gizmo/editor_gizmo.hpp"
-#include "imgui.h"
 #include "corvus/entity.hpp"
+#include "corvus/graphics/graphics.hpp"
 #include "corvus/project/project.hpp"
 #include "corvus/scene.hpp"
-#include "raylib.h"
+#include "editor/camera/editor_camera.hpp"
+#include "editor/gizmo/editor_gizmo.hpp"
+#include "glm/glm.hpp"
+#include "imgui.h"
 
 namespace Corvus::Editor {
 
 /**
  * @class SceneViewport
- * @brief Core 3D viewport functionality for rendering scenes with camera controls and entity
- * interaction.
+ * @brief Renders the active scene to an off-screen framebuffer, handles camera input,
+ *        and manages editor-level gizmos and grid display.
  *
- * Handles scene rendering to texture, camera management, entity picking, and gizmo manipulation.
- * Designed to be reusable across different editor UI contexts.
+ * This class owns its own framebuffer and camera, rendering into an internal texture
+ * that can be displayed in an ImGui panel. It is fully backend-agnostic through
+ * the GraphicsContext/CommandBuffer API.
  */
 class SceneViewport {
 public:
-    /**
-     * @brief Constructs a SceneViewport.
-     * @param scene A reference to the scene to be rendered.
-     */
-    explicit SceneViewport(Core::Project& project);
-
-    /**
-     * @brief Destructor. Cleans up the Raylib RenderTexture.
-     */
+    explicit SceneViewport(Core::Project& project, Graphics::GraphicsContext& ctx);
     ~SceneViewport();
 
     /**
-     * @brief Renders the scene to an internal texture with the specified size.
-     * @param size Desired viewport size.
+     * @brief Renders the active scene into the viewport's framebuffer.
+     * @param size The size (in pixels) of the viewport region in ImGui.
      */
-    void render(const ImVec2& size);
+    void render(const ImVec2&    size,
+                Core::Entity*    selectedEntity,
+                const glm::vec2& mousePos,
+                bool             mousePressed,
+                bool             mouseDown,
+                bool             mouseInViewport);
 
     /**
-     * @brief Updates camera input processing.
-     * @param io ImGui IO context for input handling.
-     * @param inputAllowed Whether camera input should be processed.
+     * @brief Updates the editor camera based on user input.
+     * @param io ImGui IO reference
+     * @param inputAllowed Whether input should be processed this frame
      */
     void updateCamera(const ImGuiIO& io, bool inputAllowed);
 
     /**
-     * @brief Performs entity picking at the specified mouse position.
-     * @param mousePos Mouse position relative to the viewport.
-     * @return The picked entity, or an invalid entity if nothing was picked.
+     * @brief Performs entity picking from the mouse position.
+     * @param mousePos Mouse position relative to the viewport
+     * @return The entity under the mouse, or an empty handle if none.
      */
-    Core::Entity pickEntity(const Vector2& mousePos);
+    Core::Entity pickEntity(const glm::vec2& mousePos);
 
     /**
-     * @brief Updates the gizmo for the specified entity.
-     * @param entity Entity to manipulate with the gizmo.
-     * @param mousePos Mouse position relative to the viewport.
-     * @param mousePressed Whether the mouse was just pressed.
-     * @param mouseDown Whether the mouse is currently down.
-     * @param mouseInViewport Whether the mouse is within the viewport bounds.
-     * @param viewportWidth Current viewport width.
-     * @param viewportHeight Current viewport height.
+     * @brief Updates and renders the gizmo for a given entity transform.
+     * @param entity Entity to manipulate
+     * @param mousePos Mouse position relative to viewport
+     * @param mousePressed Whether the mouse was pressed this frame
+     * @param mouseDown Whether the mouse is currently down
+     * @param mouseInViewport Whether the cursor is inside the viewport
+     * @param viewportWidth Width of the viewport (in pixels)
+     * @param viewportHeight Height of the viewport (in pixels)
      */
-    void updateGizmo(Core::Entity&  entity,
-                     const Vector2& mousePos,
-                     bool           mousePressed,
-                     bool           mouseDown,
-                     bool           mouseInViewport,
-                     float          viewportWidth,
-                     float          viewportHeight);
+    void updateGizmo(Core::Entity&    entity,
+                     const glm::vec2& mousePos,
+                     bool             mousePressed,
+                     bool             mouseDown,
+                     bool             mouseInViewport,
+                     float            viewportWidth,
+                     float            viewportHeight);
 
     /**
-     * @brief Gets the render texture for display in ImGui.
+     * @brief Gets the framebuffer for rendering.
      */
-    const RenderTexture& getRenderTexture() const { return sceneTexture; }
+    const Graphics::Framebuffer& getFramebuffer() const { return framebuffer; }
 
     /**
-     * @brief Gets the editor camera for external access.
+     * @brief Gets the color texture attached to the framebuffer.
+     */
+    const Graphics::Texture2D& getColorTexture() const { return colorTexture; }
+
+    /**
+     * @brief Returns whether the framebuffer is currently valid.
+     */
+    bool isValid() const { return framebuffer.valid(); }
+
+    /**
+     * @brief Gets the editor camera.
      */
     EditorCamera&       getCamera() { return editorCamera; }
     const EditorCamera& getCamera() const { return editorCamera; }
 
     /**
-     * @brief Gets the editor gizmo for external access.
+     * @brief Gets the editor gizmo.
      */
-    EditorGizmo& getGizmo() { return editorGizmo; }
+    EditorGizmo&       getGizmo() { return editorGizmo; }
+    const EditorGizmo& getGizmo() const { return editorGizmo; }
 
     /**
-     * @brief Checks if the viewport has a valid render texture.
+     * @brief Toggles the grid overlay.
      */
-    bool isValid() const { return sceneTexture.id != 0; }
-
     void setGridEnabled(bool enabled) { gridEnabled = enabled; }
     bool isGridEnabled() const { return gridEnabled; }
 
 private:
-    // void drawInfiniteGrid(const Camera3D& camera, float baseGridSize = 1.0f);
-    void renderGrid(const Camera3D& camera);
+    /**
+     * @brief Creates or resizes the internal framebuffer as needed.
+     */
+    void manageFramebuffer(const ImVec2& size);
 
     /**
-     * @brief Manages the render texture (creation, resizing).
-     * @param size Desired size of the render texture.
+     * @brief Renders the grid, scene, and any active gizmos to the framebuffer.
      */
-    void manageRenderTexture(const ImVec2& size);
+    void renderSceneToFramebuffer(Core::Entity*    selectedEntity,
+                                  const glm::vec2& mousePos,
+                                  bool             mousePressed,
+                                  bool             mouseDown,
+                                  bool             mouseInViewport);
 
     /**
-     * @brief Renders the scene content to the internal texture.
+     * @brief Renders the editor grid overlay.
      */
-    void renderSceneToTexture();
+    void renderGrid(Graphics::CommandBuffer& cmd,
+                    const glm::mat4&         view,
+                    const glm::mat4&         proj,
+                    const glm::vec3&         camPo);
 
-    // Core components
-    Core::Project& project;
-    EditorCamera   editorCamera;
-    EditorGizmo    editorGizmo;
+    // Core references
+    Core::Project&             project;
+    Graphics::GraphicsContext& ctx;
 
-    // Rendering
-    raylib::RenderTexture sceneTexture;
-    ImVec2                currentSize;
+    // Core systems
+    EditorCamera editorCamera;
+    EditorGizmo  editorGizmo;
 
-    // Grid rendering
-    Shader gridShader;
-    Mesh   gridQuad;
-    bool   gridEnabled = true;
+    // Rendering resources
+    Graphics::Framebuffer framebuffer;
+    Graphics::Texture2D   colorTexture;
+    Graphics::Texture2D   depthTexture;
+    ImVec2                currentSize { 1.0f, 1.0f };
+
+    // Grid
+    Graphics::Shader       gridShader;
+    Graphics::VertexArray  gridVAO;
+    Graphics::VertexBuffer gridVBO;
+    Graphics::IndexBuffer  gridIBO;
+    bool                   gridEnabled = true;
 };
 
-}
+} // namespace Corvus::Editor

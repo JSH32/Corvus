@@ -1,56 +1,71 @@
 #pragma once
-
+#include "asset_viewer.hpp"
 #include "corvus/asset/asset_handle.hpp"
-#include "corvus/systems/lighting_system.hpp"
-#include "editor/panels/asset_browser/asset_viewer.hpp"
-#include "raylib-cpp.hpp"
+#include "corvus/asset/asset_manager.hpp"
+#include "corvus/graphics/graphics.hpp"
+#include "corvus/renderer/camera.hpp"
+#include "corvus/renderer/lighting.hpp"
+#include "corvus/renderer/model.hpp"
+#include "corvus/renderer/scene_renderer.hpp"
+#include "imgui.h"
 #include <array>
+#include <glm/glm.hpp>
 
 namespace Corvus::Editor {
 
 class ModelViewer : public AssetViewer {
 private:
-    Core::AssetHandle<raylib::Model> modelHandle;
+    Core::AssetHandle<Renderer::Model> modelHandle;
+    Graphics::GraphicsContext*         context_ = nullptr;
 
-    // Preview rendering
-    RenderTexture2D previewTexture     = { 0 };
-    Camera3D        previewCamera      = { 0 };
-    bool            previewInitialized = false;
+    Renderer::Camera         previewCamera;
+    Renderer::LightingSystem previewLighting;
+    Renderer::SceneRenderer  sceneRenderer;
+
+    Graphics::Framebuffer framebuffer;
+    Graphics::Texture2D   colorTexture;
+    Graphics::Texture2D   depthTexture;
+    uint32_t              previewResolution = 512;
+
+    bool previewInitialized = false;
+    bool needsPreviewUpdate = true;
 
     // Camera controls
-    float   cameraAngleY   = 0.0f;
-    float   cameraAngleX   = 0.0f;
-    float   cameraDistance = 5.0f;
-    bool    isDragging     = false;
-    Vector2 lastMousePos   = { 0, 0 };
-    bool    isPanning      = false;
+    ImVec2 lastMousePos    = { 0, 0 };
+    bool   isDragging      = false;
+    float  cameraAngleX    = 0.0f;
+    float  cameraAngleY    = 0.0f;
+    float  cameraDistance  = 3.0f;
+    bool   autoRotate      = false;
+    float  autoRotateSpeed = 0.3f;
 
     // Display options
-    bool  showWireframe   = false;
-    bool  showBoundingBox = false;
-    bool  showGrid        = true;
-    bool  autoRotate      = false;
-    float autoRotateSpeed = 0.5f;
+    bool showWireframe   = false;
+    bool showBoundingBox = false;
+    bool showGrid        = true;
 
-    // Lighting
-    Core::Systems::LightingSystem previewLighting;
-    bool                          needsPreviewUpdate = true;
-
-    // Model info
-    BoundingBox modelBounds = { 0 };
+    // Cached bounds
+    glm::vec3 boundsMin { 0.0f };
+    glm::vec3 boundsMax { 0.0f };
+    glm::vec3 modelCenter { 0.0f };
 
     void initPreview();
     void cleanupPreview();
-    void updatePreview();
     void renderPreview();
+    void updatePreview();
     void handleCameraControls();
-    void renderModelInfo(raylib::Model* model);
+    void setupPreviewLights();
+    void updateCameraPosition();
+    void calculateModelBounds();
+
+    void renderModelInfo(const Renderer::Model& model);
     void renderDisplayOptions();
-    void calculateModelBounds(raylib::Model* model);
 
 public:
-    ModelViewer(const Core::UUID& id, Core::AssetManager* manager);
-    ~ModelViewer() override;
+    ModelViewer(const Core::UUID&          id,
+                Core::AssetManager*        manager,
+                Graphics::GraphicsContext& context);
+    ~ModelViewer();
 
     void render() override;
 };

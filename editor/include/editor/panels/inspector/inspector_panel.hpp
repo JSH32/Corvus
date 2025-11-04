@@ -4,11 +4,11 @@
 #include "corvus/components/light.hpp"
 #include <IconsFontAwesome6.h>
 #include <concepts>
-#include <imgui.h>
 #include <corvus/components/entity_info.hpp>
 #include <corvus/components/mesh_renderer.hpp>
 #include <corvus/components/transform.hpp>
 #include <corvus/entity.hpp>
+#include <imgui.h>
 
 namespace Corvus::Editor {
 
@@ -41,7 +41,8 @@ struct ComponentInfo {
      *
      * @param component A reference to the component instance to be drawn/edited.
      */
-    static void draw(T& component, Core::AssetManager* assetManager) = delete;
+    static void draw(T& component, Core::AssetManager* assetManager, Graphics::GraphicsContext* ctx)
+        = delete;
 };
 
 /**
@@ -52,13 +53,14 @@ struct ComponentInfo {
  * present on a selected entity.
  */
 template <typename T>
-concept HasComponentInfo = requires(T component, Core::AssetManager* assetManager) {
-    typename ComponentInfo<T>::ComponentType;
-    { ComponentInfo<T>::name } -> std::convertible_to<std::string_view>;
-    { ComponentInfo<T>::removable } -> std::convertible_to<bool>;
-    { ComponentInfo<T>::flat } -> std::convertible_to<bool>;
-    { ComponentInfo<T>::draw(component, assetManager) } -> std::same_as<void>;
-};
+concept HasComponentInfo
+    = requires(T component, Core::AssetManager* assetManager, Graphics::GraphicsContext* ctx) {
+          typename ComponentInfo<T>::ComponentType;
+          { ComponentInfo<T>::name } -> std::convertible_to<std::string_view>;
+          { ComponentInfo<T>::removable } -> std::convertible_to<bool>;
+          { ComponentInfo<T>::flat } -> std::convertible_to<bool>;
+          { ComponentInfo<T>::draw(component, assetManager, ctx) } -> std::same_as<void>;
+      };
 
 /**
  * @brief A ilst of all component types that can be drawn in the inspector.

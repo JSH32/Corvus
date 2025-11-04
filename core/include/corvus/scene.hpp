@@ -1,28 +1,54 @@
 #pragma once
-
 #include "corvus/asset/asset_manager.hpp"
 #include "corvus/components/component_registry.hpp"
 #include "corvus/components/mesh_renderer.hpp"
 #include "corvus/entity.hpp"
-#include "corvus/systems/lighting_system.hpp"
+#include "corvus/renderer/camera.hpp"
+#include "corvus/renderer/lighting.hpp"
+#include "corvus/renderer/scene_renderer.hpp"
 #include "entt/entt.hpp"
-#include "raylib-cpp.hpp"
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace Corvus::Core {
+
 class Scene {
 public:
     explicit Scene(const std::string_view& name, AssetManager* assetManager)
-        : name(name), assetManager(assetManager) { }
-    const std::vector<Entity>& getRootOrderedEntities() { return rootOrderedEntities; }
+        : name(name), assetManager(assetManager), renderer(nullptr) { }
+
+    std::vector<Entity>& getRootOrderedEntities() { return rootOrderedEntities; }
+
+    Scene(const Scene&)            = delete;
+    Scene& operator=(const Scene&) = delete;
+    Scene(Scene&& other) noexcept;
+    Scene& operator=(Scene&& other) noexcept;
 
     Entity createEntity(const std::string& entityName = std::string());
     void   destroyEntity(Entity entity);
 
-    void render(raylib::RenderTexture& target, const Vector3& viewPos);
+    /**
+     * Render the scene using the new unified renderer
+     *
+     * @param ctx Graphics context
+     * @param camera Camera to render from
+     * @param targetFB Optional framebuffer target (nullptr = screen)
+     */
+    void render(Graphics::GraphicsContext&   ctx,
+                const Renderer::Camera&      camera,
+                const Graphics::Framebuffer* targetFB = nullptr);
+
+    /**
+     * Get the scene renderer
+     */
+    Renderer::SceneRenderer* getRenderer() { return renderer; }
+
+    /**
+     * Get the lighting system
+     */
+    Renderer::LightingSystem& getLightingSystem() { return lightingSystem; }
 
     std::string    name;
     entt::registry registry;
@@ -34,12 +60,13 @@ public:
         if constexpr (Archive::is_loading::value) {
             CORVUS_CORE_TRACE("Starting scene deserialization for scene: {}", name);
 
-            // Clear out existing scene components and registry to prepare for next scene to load.
+            // Clear out existing scene components and registry
             registry.clear();
             rootOrderedEntities.clear();
 
             std::vector<std::map<std::string, std::string>> entityData;
             size_t                                          entityCount;
+
             ar.setNextName("entities");
             ar.startNode();
             ar(cereal::make_size_tag(entityCount));
@@ -53,6 +80,7 @@ public:
                 // Create a fresh entity in the registry
                 entt::entity handle = registry.create();
                 CORVUS_CORE_TRACE("Created entity with handle: {}", static_cast<uint32_t>(handle));
+
                 Entity entity { handle, this };
 
                 // Let the entity deserialize its components
@@ -75,14 +103,10 @@ public:
     }
 
 private:
-    std::vector<Entity> rootOrderedEntities;
-    AssetManager*       assetManager;
-
-    Systems::LightingSystem lightingSystem;
-
-    // Cache of renderable entities to be passed to systems to avoid redundancy.
-    std::vector<Systems::RenderableEntity> cachedRenderables;
-
-    void collectRenderables();
+    std::vector<Entity>      rootOrderedEntities;
+    AssetManager*            assetManager;
+    Renderer::SceneRenderer* renderer;
+    Renderer::LightingSystem lightingSystem;
 };
+
 }

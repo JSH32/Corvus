@@ -10,7 +10,7 @@ void InspectorPanel::onUpdate() {
     ImGui::Begin(title().c_str());
 
     if (sceneHierarchy->selectedEntity) {
-        drawAllComponents(sceneHierarchy->selectedEntity, assetManager);
+        drawAllComponents(sceneHierarchy->selectedEntity, assetManager, graphics);
 
         // Add Component section
         ImGui::Separator();
@@ -31,7 +31,9 @@ void InspectorPanel::onUpdate() {
 }
 
 template <std::size_t I>
-void InspectorPanel::drawAllComponents(Core::Entity entity, Core::AssetManager* assetManager) {
+void InspectorPanel::drawAllComponents(Core::Entity               entity,
+                                       Core::AssetManager*        assetManager,
+                                       Graphics::GraphicsContext* ctx) {
     if constexpr (I < std::tuple_size_v<DrawableComponents>) {
         using ComponentType = std::tuple_element_t<I, DrawableComponents>;
 
@@ -40,6 +42,7 @@ void InspectorPanel::drawAllComponents(Core::Entity entity, Core::AssetManager* 
                 auto& component = entity.getComponent<ComponentType>();
                 drawComponentImpl<ComponentType>(entity,
                                                  assetManager,
+                                                 ctx,
                                                  std::string(ComponentInfo<ComponentType>::name),
                                                  ComponentInfo<ComponentType>::removable,
                                                  ComponentInfo<ComponentType>::flat);
@@ -47,16 +50,17 @@ void InspectorPanel::drawAllComponents(Core::Entity entity, Core::AssetManager* 
         }
 
         // Recurse to next component
-        drawAllComponents<I + 1>(entity, assetManager);
+        drawAllComponents<I + 1>(entity, assetManager, ctx);
     }
 }
 
 template <typename T>
-void InspectorPanel::drawComponentImpl(Core::Entity        entity,
-                                       Core::AssetManager* assetManager,
-                                       const std::string&  name,
-                                       bool                removable,
-                                       bool                flat) {
+void InspectorPanel::drawComponentImpl(Core::Entity               entity,
+                                       Core::AssetManager*        assetManager,
+                                       Graphics::GraphicsContext* ctx,
+                                       const std::string&         name,
+                                       bool                       removable,
+                                       bool                       flat) {
     auto& component = entity.getComponent<T>();
 
     if (flat) {
@@ -91,7 +95,7 @@ void InspectorPanel::drawComponentImpl(Core::Entity        entity,
 
         // Draw component content directly
         ImGui::PushID(reinterpret_cast<void*>(typeid(T).hash_code()));
-        ComponentInfo<T>::draw(component, assetManager);
+        ComponentInfo<T>::draw(component, assetManager, ctx);
         ImGui::PopID();
     } else {
         constexpr ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_DefaultOpen
@@ -130,7 +134,7 @@ void InspectorPanel::drawComponentImpl(Core::Entity        entity,
 
         if (open) {
             ImGui::PushID(reinterpret_cast<void*>(typeid(T).hash_code()));
-            ComponentInfo<T>::draw(component, assetManager);
+            ComponentInfo<T>::draw(component, assetManager, ctx);
             ImGui::PopID();
             ImGui::TreePop();
         }

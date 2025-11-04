@@ -1,40 +1,10 @@
 #include "editor/imguiutils.hpp"
+#include "corvus/graphics/opengl_context.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
 
 namespace ImGui {
-
-// std::tuple<ImVec2, ImVec2> GetContentArea() {
-//     return {
-//         { ImGui::GetWindowContentRegionMin().x + ImGui::GetWindowPos().x,
-//             ImGui::GetWindowContentRegionMax().y + ImGui::GetWindowPos().y },
-//         { ImGui::GetWindowContentRegionMax().x + ImGui::GetWindowPos().x,
-//             ImGui::GetWindowContentRegionMin().y + ImGui::GetWindowPos().y }
-//     };
-// }
-
-// raylib::Vector2 CalculateImOffset(const raylib::RenderTexture& target,
-//     const raylib::Vector2 mousePos,
-//     const ImVec2 contentStartPos) {
-//     // Calculate offset position relative to the content area
-//     float offsetX = mousePos.x - contentStartPos.x;
-//     float offsetY = mousePos.y - contentStartPos.y;
-
-//     return raylib::Vector2 {
-//         offsetX,
-//         target.texture.height - offsetY // Flip Y coordinate
-//     };
-// }
-
-// void TwoColumnBegin(const std::string_view& label, const float labelWidth) {
-//     ImGui::Columns(2);
-//     ImGui::SetColumnWidth(0, labelWidth);
-//     ImGui::Text("%s", label.data());
-//     ImGui::NextColumn();
-//     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-// }
-
-bool Vector3Editor(const std::string& label, raylib::Vector3& vec, const float labelWidth) {
+bool Vector3Editor(const std::string& label, glm::vec3& vec, const float labelWidth) {
     bool changed = false;
     ImGui::PushID(label.c_str());
 
@@ -185,6 +155,38 @@ bool IntEditor(const std::string& label,
     ImGui::EndColumns();
     ImGui::PopID();
     return changed;
+}
+
+static inline ImTextureID ToImGuiTexID(const Corvus::Graphics::Texture2D& t) {
+    return (ImTextureID)(uintptr_t)t.id; // ImTextureID is void* pointer (OpenGL default)
+    // TODO: Implement others
+}
+
+bool RenderFramebuffer(const Corvus::Graphics::Framebuffer& fb,
+                       const Corvus::Graphics::Texture2D&   colorTex,
+                       const ImVec2&                        size,
+                       bool                                 flipY) {
+    if (!fb.valid() || !colorTex.valid() || size.x <= 0 || size.y <= 0)
+        return false;
+
+    ImTextureID  id  = ToImGuiTexID(colorTex);
+    const ImVec2 uv0 = flipY ? ImVec2(0, 1) : ImVec2(0, 0);
+    const ImVec2 uv1 = flipY ? ImVec2(1, 0) : ImVec2(1, 1);
+
+    ImGui::Image(id, size, uv0, uv1);
+    return true;
+}
+
+bool RenderTexture(const Corvus::Graphics::Texture2D& tex, const ImVec2& size, bool flipY) {
+    if (!tex.valid() || size.x <= 0 || size.y <= 0)
+        return false;
+
+    ImTextureID id  = (ImTextureID)(uintptr_t)tex.id;
+    ImVec2      uv0 = flipY ? ImVec2(0, 1) : ImVec2(0, 0);
+    ImVec2      uv1 = flipY ? ImVec2(1, 0) : ImVec2(1, 1);
+
+    ImGui::Image(id, size, uv0, uv1);
+    return true;
 }
 
 }

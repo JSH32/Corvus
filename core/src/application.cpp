@@ -1,59 +1,111 @@
 #include "corvus/application.hpp"
-#include "corvus/asset/material/material.hpp"
+#include "FA6FreeSolidFontData.h"
+#include "IconsFontAwesome6.h"
 #include "corvus/files/static_resource_file.hpp"
-#include "corvus/layerstack.hpp"
-#include "extras/FA6FreeSolidFontData.h"
-#include "extras/IconsFontAwesome6.h"
+#include "corvus/graphics/graphics.hpp"
+#include "corvus/graphics/opengl_context.hpp"
 #include "imgui.h"
 #include "physfs.h"
-#include "rlImGui.h"
 
 namespace Corvus::Core {
-Application::Application(unsigned int width, unsigned int height, const std::string& title)
-    : raylib::Window(width, height, title, FLAG_WINDOW_RESIZABLE) {
-    PHYSFS_init(nullptr);
-    // Add engine zip, contains all engine resources required by the engine.
-    PHYSFS_mount("engine.zip", NULL, 1);
-    rlImGuiSetup(true);
 
+Application::Application(unsigned int width, unsigned int height, const std::string& title)
+    : width(width), height(height) {
+    PHYSFS_init(nullptr);
+    PHYSFS_mount("engine.zip", nullptr, 1);
+
+    auto windowAPI   = Graphics::WindowAPI::GLFW;
+    auto graphicsAPI = Graphics::GraphicsAPI::OpenGL;
+
+    window = Graphics::Window::create(windowAPI, graphicsAPI, width, height, title);
+    if (!window) {
+        CORVUS_CORE_ERROR("Failed to create window!");
+        return;
+    }
+
+    graphicsContext = Graphics::GraphicsContext::create(graphicsAPI);
+    if (!graphicsContext || !graphicsContext->initialize(*window)) {
+        CORVUS_CORE_ERROR("Failed to initialize graphics context!");
+        return;
+    }
+
+    inputProducer = std::make_unique<Events::InputProducer>(window.get());
+
+    // Setup ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
     setupImgui();
+
+    imguiRenderer = Im::ImGuiRenderer();
+    if (!imguiRenderer.initialize(*graphicsContext)) {
+        CORVUS_CORE_ERROR("Failed to initialize ImGuiRenderer!");
+    }
+
+    inputProducer->bus.attachConsumer(imguiRenderer);
 }
 
 Application::~Application() {
     layerStack.clear();
+    inputProducer.reset();
 
-    rlImGuiShutdown();
+    imguiRenderer.shutdown();
+
+    ImGui::DestroyContext();
+
+    if (graphicsContext) {
+        graphicsContext->shutdown();
+        graphicsContext.reset();
+    }
+
+    window.reset();
     PHYSFS_deinit();
-    CloseWindow();
 }
 
 LayerStack& Application::getLayerStack() { return layerStack; }
 
-void Application::stop() { this->isRunning = false; }
+void Application::stop() { isRunning = false; }
 
 void Application::run() {
-    SetTargetFPS(60);
     isRunning = true;
 
-    while (this->isRunning) {
-        BeginDrawing();
+    int fbw, fbh;
 
-        this->ClearBackground(RAYWHITE);
+    while (isRunning && !window->shouldClose()) {
+        window->pollEvents();
+        window->getFramebufferSize(fbw, fbh);
+
+        graphicsContext->beginFrame();
+        {
+            auto cmd = graphicsContext->createCommandBuffer();
+            cmd.begin();
+            cmd.setViewport(0, 0, fbw, fbh);
+            cmd.clear(0.19f, 0.19f, 0.20f, 1.0f);
+            cmd.end();
+            cmd.submit();
+        }
 
         for (Layer* layer : layerStack)
             layer->onUpdate();
 
-        rlImGuiBegin();
+        // ImGui Frame
+        ImGuiIO& io                = ImGui::GetIO();
+        io.DeltaTime               = (float)window->getDeltaTime();
+        io.DisplaySize             = ImVec2((float)fbw, (float)fbh);
+        io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+        imguiRenderer.newFrame();
 
         for (Layer* layer : layerStack)
             layer->onImGuiRender();
 
-        rlImGuiEnd();
+        ImGui::Render();
+        imguiRenderer.renderDrawData(ImGui::GetDrawData());
 
-        EndDrawing();
-
-        if (this->ShouldClose())
-            this->isRunning = false;
+        graphicsContext->endFrame();
+        window->swapBuffers();
     }
 }
 
@@ -139,7 +191,6 @@ void Application::setupImgui() {
                                              &fontConfig,
                                              iconRanges);
     io.Fonts->Build();
+}
 
-    rlImGuiReloadFonts();
-}
-}
+} // namespace Corvus::Core

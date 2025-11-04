@@ -9,11 +9,10 @@ protected:
     Core::UUID          assetID;
     Core::AssetManager* assetManager;
     bool                isOpen = true;
-    std::string         windowTitle;
 
 public:
     AssetViewer(const Core::UUID& id, Core::AssetManager* manager, const std::string& title)
-        : assetID(id), assetManager(manager), windowTitle(title) { }
+        : assetID(id), assetManager(manager) { }
 
     virtual ~AssetViewer() = default;
 

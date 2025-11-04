@@ -1,225 +1,273 @@
 #include "editor/panels/scene_view/scene_viewport.hpp"
 
-#include "ShaderUnmanaged.hpp"
 #include "corvus/components/entity_info.hpp"
 #include "corvus/components/mesh_renderer.hpp"
 #include "corvus/components/transform.hpp"
 #include "corvus/files/static_resource_file.hpp"
+#include "corvus/graphics/opengl_context.hpp"
 #include "corvus/log.hpp"
-#include "raylib.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include <algorithm>
+#include <cfloat>
 
 namespace Corvus::Editor {
 
-SceneViewport::SceneViewport(Core::Project& project)
-    : project(project), editorCamera(), editorGizmo(), sceneTexture({ 0 }),
-      currentSize({ 1.0f, 1.0f }) {
+SceneViewport::SceneViewport(Core::Project& project, Graphics::GraphicsContext& ctx)
+    : project(project), ctx(ctx), editorCamera(), editorGizmo(ctx), currentSize({ 1.0f, 1.0f }) {
 
-    // Set up camera with good defaults for scene editing
-    editorCamera.setTarget({ 0.0f, 0.0f, 0.0f });
+    // Camera defaults
+    editorCamera.setTarget(glm::vec3(0.0f));
     editorCamera.setDistance(10.0f);
-    editorCamera.setOrbitAngles({ 0.45f, -0.45f });
+    editorCamera.setOrbitAngles(glm::vec2(-0.6f, 0.8f));
 
-    auto vertBytes = Core::StaticResourceFile::create("engine/shaders/grid.vert")->readAllBytes();
-    auto fragBytes = Core::StaticResourceFile::create("engine/shaders/grid.frag")->readAllBytes();
-    std::string vertShader(vertBytes.begin(), vertBytes.end());
-    std::string fragShader(fragBytes.begin(), fragBytes.end());
+    // Set up camera projection
+    editorCamera.getCamera().setPerspective(45.0f, 1.0f, 0.1f, 1000.0f);
 
-    gridShader = LoadShaderFromMemory(vertShader.c_str(), fragShader.c_str());
-    gridQuad   = GenMeshPlane(1000.0f, 1000.0f, 1, 1);
+    auto vsBytes = Core::StaticResourceFile::create("engine/shaders/grid.vert")->readAllBytes();
+    auto fsBytes = Core::StaticResourceFile::create("engine/shaders/grid.frag")->readAllBytes();
+    std::string vsSrc(vsBytes.begin(), vsBytes.end());
+    std::string fsSrc(fsBytes.begin(), fsBytes.end());
+    gridShader = ctx.createShader(vsSrc, fsSrc);
+
+    struct GridVertex {
+        glm::vec3 pos;
+        glm::vec2 uv;
+    };
+
+    float      halfSize  = 500.0f;
+    GridVertex verts[]   = { { { -halfSize, 0.f, -halfSize }, { 0, 0 } },
+                             { { halfSize, 0.f, -halfSize }, { 1, 0 } },
+                             { { halfSize, 0.f, halfSize }, { 1, 1 } },
+                             { { -halfSize, 0.f, halfSize }, { 0, 1 } } };
+    uint16_t   indices[] = { 0, 1, 2, 0, 2, 3 };
+
+    gridVBO = ctx.createVertexBuffer(verts, sizeof(verts));
+    gridIBO = ctx.createIndexBuffer(indices, 6, true);
+    gridVAO = ctx.createVertexArray();
+
+    Graphics::VertexBufferLayout layout;
+    layout.push<float>(3);
+    layout.push<float>(2);
+    gridVAO.addVertexBuffer(gridVBO, layout);
+    gridVAO.setIndexBuffer(gridIBO);
+
+    editorGizmo.initialize();
+    editorGizmo.setMode(EditorGizmo::Mode::All);
+    editorGizmo.setOrientation(EditorGizmo::Orientation::Local);
 }
 
 SceneViewport::~SceneViewport() {
-    if (sceneTexture.id != 0) {
-        UnloadRenderTexture(sceneTexture);
-    }
-
-    UnloadShader(this->gridShader);
-    UnloadMesh(this->gridQuad);
+    editorGizmo.shutdown();
+    if (framebuffer.valid())
+        framebuffer.release();
+    if (colorTexture.valid())
+        colorTexture.release();
+    if (depthTexture.valid())
+        depthTexture.release();
+    if (gridShader.valid())
+        gridShader.release();
+    if (gridVAO.valid())
+        gridVAO.release();
+    if (gridVBO.valid())
+        gridVBO.release();
+    if (gridIBO.valid())
+        gridIBO.release();
 }
 
-void SceneViewport::manageRenderTexture(const ImVec2& size) {
-    if (size.x <= 0 || size.y <= 0) {
-        return; // Invalid size
-    }
-
-    int width  = static_cast<int>(size.x);
-    int height = static_cast<int>(size.y);
-
-    // Only recreate if size changed or texture doesn't exist
-    bool needsRecreation = (sceneTexture.id == 0) || (sceneTexture.texture.width != width)
-        || (sceneTexture.texture.height != height);
-
-    if (needsRecreation) {
-        if (sceneTexture.id != 0) {
-            UnloadRenderTexture(sceneTexture);
-        }
-
-        sceneTexture = LoadRenderTexture(width, height);
-        if (sceneTexture.id != 0) {
-            SetTextureFilter(sceneTexture.texture, TEXTURE_FILTER_BILINEAR);
-            currentSize = size;
-        } else {
-            CORVUS_ERROR("SceneViewport: Failed to create render texture.");
-        }
-    }
-}
-
-void SceneViewport::renderSceneToTexture() {
-    if (sceneTexture.id == 0 || currentSize.x <= 0 || currentSize.y <= 0) {
+void SceneViewport::manageFramebuffer(const ImVec2& size) {
+    if (size.x <= 0 || size.y <= 0)
         return;
-    }
 
-    BeginTextureMode(sceneTexture);
-    ClearBackground({ 64, 64, 64, 255 });
+    int  width  = static_cast<int>(size.x);
+    int  height = static_cast<int>(size.y);
+    bool recreate
+        = !framebuffer.valid() || colorTexture.width != width || colorTexture.height != height;
 
-    // Use the EditorCamera's raylib camera
-    BeginMode3D(editorCamera.getCamera());
-
-    // Draw grid
-    renderGrid(editorCamera.getCamera());
-
-    // Render entities
-    project.getCurrentScene()->render(sceneTexture, editorCamera.getCamera().GetPosition());
-
-    EndMode3D();
-    EndTextureMode();
-}
-
-void SceneViewport::render(const ImVec2& size) {
-    // Ensure valid size
-    ImVec2 validSize = { std::max(1.0f, size.x), std::max(1.0f, size.y) };
-
-    // Update viewport size if changed
-    if (validSize.x != currentSize.x || validSize.y != currentSize.y) {
-        manageRenderTexture(validSize);
-    }
-
-    // Render scene to texture
-    renderSceneToTexture();
-}
-
-void SceneViewport::updateCamera(const ImGuiIO& io, bool inputAllowed) {
-    editorCamera.update(io, inputAllowed);
-}
-
-Core::Entity SceneViewport::pickEntity(const Vector2& mousePos) {
-    if (sceneTexture.id == 0) {
-        return {};
-    }
-
-    // Cast ray from mouse position into 3D world using EditorCamera
-    Ray mouseRay = GetScreenToWorldRayEx(mousePos,
-                                         editorCamera.getCamera(),
-                                         sceneTexture.texture.width,
-                                         sceneTexture.texture.height);
-
-    Core::Entity closestEntity   = {};
-    float        closestDistance = FLT_MAX;
-
-    // Check all entities for collision (render order matters for picking)
-    auto rootOrderedEntities = project.getCurrentScene()->getRootOrderedEntities();
-    for (auto it = rootOrderedEntities.rbegin(); it != rootOrderedEntities.rend(); ++it) {
-        Core::Entity& entity = *it;
-
-        // Skip disabled entities
-        if (!entity.hasComponent<Core::Components::EntityInfoComponent>()
-            || !entity.getComponent<Core::Components::EntityInfoComponent>().enabled) {
-            continue;
-        }
-
-        // Only check entities with transform
-        if (!entity.hasComponent<Core::Components::MeshRendererComponent>()
-            || !entity.hasComponent<Core::Components::TransformComponent>()) {
-            continue;
-        }
-
-        auto& meshRenderer  = entity.getComponent<Core::Components::MeshRendererComponent>();
-        auto& transformComp = entity.getComponent<Core::Components::TransformComponent>();
-
-        if (auto model = meshRenderer.getModel(nullptr)) {
-            for (int i = 0; i < model->meshCount; ++i) {
-                RayCollision collision
-                    = GetRayCollisionMesh(mouseRay, model->meshes[i], transformComp.getMatrix());
-                if (collision.hit && collision.distance < closestDistance) {
-                    closestDistance = collision.distance;
-                    closestEntity   = entity;
-                }
-            }
-        }
-    }
-
-    return closestEntity;
-}
-
-void SceneViewport::updateGizmo(Core::Entity&  entity,
-                                const Vector2& mousePos,
-                                bool           mousePressed,
-                                bool           mouseDown,
-                                bool           mouseInViewport,
-                                float          viewportWidth,
-                                float          viewportHeight) {
-    if (!entity || !entity.hasComponent<Core::Components::TransformComponent>()) {
+    if (!recreate)
         return;
+
+    if (framebuffer.valid())
+        framebuffer.release();
+    if (colorTexture.valid())
+        colorTexture.release();
+    if (depthTexture.valid())
+        depthTexture.release();
+
+    framebuffer  = ctx.createFramebuffer(width, height);
+    colorTexture = ctx.createTexture2D(width, height);
+    depthTexture = ctx.createDepthTexture(width, height);
+
+    framebuffer.attachTexture2D(colorTexture, 0);
+    framebuffer.attachDepthTexture(depthTexture);
+
+    framebuffer.width   = width;
+    framebuffer.height  = height;
+    colorTexture.width  = width;
+    colorTexture.height = height;
+    currentSize         = size;
+
+    // Update camera aspect ratio
+    float aspectRatio = width / static_cast<float>(height);
+    editorCamera.getCamera().setPerspective(45.0f, aspectRatio, 0.1f, 1000.0f);
+}
+
+void SceneViewport::renderSceneToFramebuffer(Core::Entity*    selectedEntity,
+                                             const glm::vec2& mousePos,
+                                             bool             mousePressed,
+                                             bool             mouseDown,
+                                             bool             mouseInViewport) {
+    if (!framebuffer.valid())
+        return;
+
+    // Get camera for rendering
+    auto& camera = editorCamera.getCamera();
+    auto  view   = camera.getViewMatrix();
+    auto  proj   = camera.getProjectionMatrix();
+    auto  camPos = camera.getPosition();
+
+    // Render grid
+    {
+        Graphics::CommandBuffer cmd = ctx.createCommandBuffer();
+        cmd.begin();
+        cmd.bindFramebuffer(framebuffer);
+        cmd.setViewport(0, 0, (uint32_t)currentSize.x, (uint32_t)currentSize.y);
+
+        cmd.executeCallback([]() { glFrontFace(GL_CCW); });
+
+        cmd.enableScissor(false);
+        cmd.clear(64.f / 255.0f, 64.f / 255.0f, 64.0f / 255.0f, 1.f, true, true);
+
+        renderGrid(cmd, view, proj, camPos);
+
+        cmd.unbindFramebuffer();
+        cmd.end();
+        cmd.submit();
     }
 
-    auto& transform = entity.getComponent<Core::Components::TransformComponent>();
+    // Render scene using new camera-based API
+    project.getCurrentScene()->render(ctx, camera, &framebuffer);
 
-    // Render gizmo during scene rendering
-    if (sceneTexture.id != 0) {
-        BeginTextureMode(sceneTexture);
-        BeginMode3D(editorCamera.getCamera());
+    if (selectedEntity && *selectedEntity
+        && selectedEntity->hasComponent<Core::Components::TransformComponent>()) {
 
-        editorGizmo.update(transform,
+        auto& tr = selectedEntity->getComponent<Core::Components::TransformComponent>();
+
+        Graphics::CommandBuffer cmd = ctx.createCommandBuffer();
+        cmd.begin();
+        cmd.bindFramebuffer(framebuffer);
+        cmd.setViewport(0, 0, (uint32_t)currentSize.x, (uint32_t)currentSize.y);
+
+        editorGizmo.render(cmd,
+                           tr,
                            mousePos,
                            mousePressed,
-                           mouseDown,
-                           mouseInViewport,
-                           viewportWidth,
-                           viewportHeight);
+                           mouseDown && mouseInViewport,
+                           currentSize.x,
+                           currentSize.y,
+                           view,
+                           proj,
+                           camPos);
 
-        EndMode3D();
-        EndTextureMode();
+        cmd.unbindFramebuffer();
+        cmd.end();
+        cmd.submit();
     }
 }
 
-void SceneViewport::renderGrid(const Camera3D& camera) {
-    if (!gridEnabled)
+void SceneViewport::renderGrid(Graphics::CommandBuffer& cmd,
+                               const glm::mat4&         view,
+                               const glm::mat4&         proj,
+                               const glm::vec3&         camPos) {
+    if (!gridEnabled || !gridShader.valid())
         return;
 
-    // Set shader uniforms
-    Matrix viewProjection = MatrixMultiply(
-        GetCameraMatrix(camera),
-        MatrixPerspective(camera.fovy * DEG2RAD,
-                          (float)sceneTexture.texture.width / sceneTexture.texture.height,
-                          0.1f,
-                          1000.0f));
+    glm::mat4 vp = proj * view;
 
-    SetShaderValueMatrix(
-        gridShader, GetShaderLocation(gridShader, "viewProjection"), viewProjection);
-    SetShaderValue(gridShader,
-                   GetShaderLocation(gridShader, "cameraPos"),
-                   &camera.position,
-                   SHADER_UNIFORM_VEC3);
+    // Set uniforms through command buffer
+    gridShader.setMat4(cmd, "viewProjection", vp);
+    gridShader.setVec3(cmd, "cameraPos", camPos);
+    gridShader.setFloat(cmd, "gridSize", 1000.0f);
+    cmd.setShader(gridShader);
 
-    float gridSize = 1000.0f;
-    SetShaderValue(
-        gridShader, GetShaderLocation(gridShader, "gridSize"), &gridSize, SHADER_UNIFORM_FLOAT);
+    // Set rendering state and draw
+    cmd.setVertexArray(gridVAO);
+    cmd.setDepthTest(false);
+    cmd.setDepthMask(false);
+    cmd.setBlendState(true);
+    cmd.setCullFace(false, false);
 
-    Material gridMaterial = LoadMaterialDefault();
-    gridMaterial.shader   = gridShader;
+    cmd.drawIndexed(6, true);
 
-    rlDisableDepthTest();
-    rlDisableDepthMask();
-    rlDisableBackfaceCulling();
-
-    // Draw the grid
-    BeginShaderMode(gridShader);
-    DrawMesh(gridQuad, gridMaterial, MatrixIdentity());
-    EndShaderMode();
-
-    rlEnableBackfaceCulling();
-    rlEnableDepthTest();
-    rlEnableDepthMask();
+    cmd.setCullFace(true, false);
+    cmd.setDepthTest(true);
+    cmd.setDepthMask(true);
 }
+
+void SceneViewport::updateCamera(const ImGuiIO& io, bool allowInput) {
+    editorCamera.update(io, allowInput);
+}
+
+Core::Entity SceneViewport::pickEntity(const glm::vec2& mousePos) {
+    if (!framebuffer.valid())
+        return {};
+
+    glm::mat4 view = editorCamera.getViewMatrix();
+    glm::mat4 proj = editorCamera.getProjectionMatrix(currentSize.x / currentSize.y);
+    glm::mat4 inv  = glm::inverse(proj * view);
+
+    glm::vec2 ndc
+        = { (2.f * mousePos.x) / currentSize.x - 1.f, 1.f - (2.f * mousePos.y) / currentSize.y };
+    glm::vec4 nearP = inv * glm::vec4(ndc, 0.f, 1.f);
+    glm::vec4 farP  = inv * glm::vec4(ndc, 1.f, 1.f);
+    nearP /= nearP.w;
+    farP /= farP.w;
+
+    glm::vec3 ro = glm::vec3(nearP);
+    glm::vec3 rd = glm::normalize(glm::vec3(farP - nearP));
+
+    Core::Entity picked;
+    float        closest = FLT_MAX;
+
+    for (auto& e : project.getCurrentScene()->getRootOrderedEntities()) {
+        if (!e.hasComponent<Core::Components::MeshRendererComponent>()
+            || !e.hasComponent<Core::Components::TransformComponent>())
+            continue;
+
+        auto&     tr     = e.getComponent<Core::Components::TransformComponent>();
+        glm::vec3 pos    = tr.position;
+        float     radius = 1.0f;
+        glm::vec3 oc     = ro - pos;
+        float     a      = glm::dot(rd, rd);
+        float     b      = 2.f * glm::dot(oc, rd);
+        float     c      = glm::dot(oc, oc) - radius * radius;
+        float     disc   = b * b - 4 * a * c;
+
+        if (disc < 0)
+            continue;
+
+        float t = (-b - sqrtf(disc)) / (2 * a);
+        if (t >= 0 && t < closest) {
+            closest = t;
+            picked  = e;
+        }
+    }
+    return picked;
+}
+
+void SceneViewport::render(const ImVec2&    size,
+                           Core::Entity*    selectedEntity,
+                           const glm::vec2& mousePos,
+                           bool             mousePressed,
+                           bool             mouseDown,
+                           bool             mouseInViewport) {
+    ImVec2 valid = { std::max(1.f, size.x), std::max(1.f, size.y) };
+    if (valid.x != currentSize.x || valid.y != currentSize.y)
+        manageFramebuffer(valid);
+
+    renderSceneToFramebuffer(selectedEntity, mousePos, mousePressed, mouseDown, mouseInViewport);
+}
+
 }

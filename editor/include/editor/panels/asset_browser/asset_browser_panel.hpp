@@ -2,6 +2,7 @@
 
 #include "IconsFontAwesome6.h"
 #include "corvus/asset/asset_manager.hpp"
+#include "corvus/graphics/graphics.hpp"
 #include "corvus/project/project.hpp"
 #include "editor/editor.hpp"
 #include "editor/panels/asset_browser/asset_viewer.hpp"
@@ -17,15 +18,18 @@ namespace Corvus::Editor {
 
 class AssetBrowserPanel : public EditorPanel {
 public:
-    explicit AssetBrowserPanel(Core::AssetManager* manager, Core::Project* project);
+    explicit AssetBrowserPanel(Core::AssetManager*        manager,
+                               Core::Project*             project,
+                               Graphics::GraphicsContext* graphics);
     ~AssetBrowserPanel();
 
     void        onUpdate() override;
     std::string title() { return ICON_FA_FOLDER_OPEN " Asset Browser"; };
 
 private:
-    Core::AssetManager* assetManager;
-    Core::Project*      project;
+    Core::AssetManager*        assetManager;
+    Core::Project*             project;
+    Graphics::GraphicsContext* graphics;
 
     // State
     std::string               currentDir;

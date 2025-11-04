@@ -81,5 +81,7 @@ private:
     entt::registry& getRegistry() const;
 
     Scene* scene = nullptr;
+
+    friend Scene;
 };
 }

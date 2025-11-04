@@ -27,19 +27,22 @@ const std::vector<EditorLayer::PanelDefinition> EditorLayer::PANEL_REGISTRY
           [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
               return std::make_unique<InspectorPanel>(*editor->currentProject,
                                                       editor->currentProject->getAssetManager(),
+                                                      editor->getApplication()->getGraphics(),
                                                       editor->getPanel<SceneHierarchyPanel>());
           } },
         { "Scene View",
           true,
           [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
               return std::make_unique<SceneViewPanel>(*editor->currentProject,
+                                                      *editor->getApplication()->getGraphics(),
                                                       editor->getPanel<SceneHierarchyPanel>());
           } },
         { "Asset Browser",
           true,
           [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
               return std::make_unique<AssetBrowserPanel>(editor->currentProject->getAssetManager(),
-                                                         editor->currentProject.get());
+                                                         editor->currentProject.get(),
+                                                         editor->getApplication()->getGraphics());
           } },
         { "Project Settings", false, [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
              return std::make_unique<ProjectSettingsPanel>(editor->currentProject.get());
@@ -173,7 +176,7 @@ void EditorLayer::returnToProjectSelector() {
 }
 
 void EditorLayer::openProject(const std::string& path) {
-    auto project = Core::Project::load(path);
+    auto project = Core::Project::load(application->getGraphics(), path);
     if (project) {
         if (currentProject) {
             currentProject->stopFileWatcher();
@@ -188,7 +191,7 @@ void EditorLayer::openProject(const std::string& path) {
 }
 
 void EditorLayer::createNewProject(const std::string& path, const std::string& name) {
-    auto project = Core::Project::create(path, name);
+    auto project = Core::Project::create(application->getGraphics(), path, name);
     if (project) {
         if (currentProject) {
             currentProject->stopFileWatcher();

@@ -2,7 +2,7 @@
 #include "cereal/cereal.hpp"
 #include "component_registry.hpp"
 #include "corvus/components/serializers.hpp"
-#include <raylib.h>
+// #include <raylib.h>
 
 namespace Corvus::Core::Components {
 
@@ -14,7 +14,7 @@ enum class LightType {
 
 struct LightComponent {
     LightType type      = LightType::Directional;
-    Color     color     = WHITE;
+    glm::vec4 color     = glm::vec4(1.0f);
     float     intensity = 1.0f;
 
     // Point/Spot light properties

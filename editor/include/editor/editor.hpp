@@ -27,6 +27,8 @@ public:
         return nullptr;
     }
 
+    Core::Application* getApplication() { return application; }
+
 private:
     struct PanelDefinition {
         const char*                                               displayName;

@@ -59,6 +59,9 @@ public:
     const std::string& getPath() const { return path; }
     void               setAssetManager(AssetManager* mgr) { assetManager = mgr; }
 
+    void setRuntime(T&& obj) { cachedPtr = std::make_shared<T>(std::move(obj)); }
+    void setRuntime(const T& obj) { cachedPtr = std::make_shared<T>(obj); }
+
     bool reload();
 
     template <class Archive>

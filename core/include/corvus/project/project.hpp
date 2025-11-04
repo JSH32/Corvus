@@ -1,6 +1,7 @@
 #pragma once
 
 #include "corvus/asset/asset_manager.hpp"
+#include "corvus/graphics/graphics.hpp"
 #include "corvus/scene.hpp"
 #include <cereal/archives/json.hpp>
 #include <memory>
@@ -29,14 +30,16 @@ public:
     ~Project() = default;
 
     // Static factory methods
-    static std::unique_ptr<Project> create(const std::string& path, const std::string& name);
-    static std::unique_ptr<Project> load(const std::string& path);
+    static std::unique_ptr<Project>
+    create(Graphics::GraphicsContext* ctx, const std::string& path, const std::string& name);
+    static std::unique_ptr<Project> load(Graphics::GraphicsContext* ctx, const std::string& path);
 
     // Utility to check if project exists at path
     static bool exists(const std::string& path);
 
     // Load if exists, otherwise create
-    static std::unique_ptr<Project> loadOrCreate(const std::string& path, const std::string& name);
+    static std::unique_ptr<Project>
+    loadOrCreate(Graphics::GraphicsContext* ctx, const std::string& path, const std::string& name);
 
     // Scene management
     bool                            saveCurrentScene();

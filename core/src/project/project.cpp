@@ -1,5 +1,6 @@
 #include "corvus/project/project.hpp"
 #include "corvus/asset/asset_handle.hpp"
+#include "corvus/graphics/graphics.hpp"
 #include "corvus/log.hpp"
 #include <filesystem>
 #include <fstream>
@@ -25,17 +26,20 @@ void ProjectSettings::serialize(Archive& ar) {
     ar(CEREAL_NVP(assetsDirectory));
 }
 
-std::unique_ptr<Project> Project::loadOrCreate(const std::string& path, const std::string& name) {
+std::unique_ptr<Project> Project::loadOrCreate(Graphics::GraphicsContext* ctx,
+                                               const std::string&         path,
+                                               const std::string&         name) {
     if (exists(path)) {
         CORVUS_CORE_INFO("Project exists at {}, loading...", path);
-        return load(path);
+        return load(ctx, path);
     } else {
         CORVUS_CORE_INFO("Project does not exist at {}, creating...", path);
-        return create(path, name);
+        return create(ctx, path, name);
     }
 }
 
-std::unique_ptr<Project> Project::create(const std::string& path, const std::string& name) {
+std::unique_ptr<Project>
+Project::create(Graphics::GraphicsContext* ctx, const std::string& path, const std::string& name) {
     auto project                  = std::make_unique<Project>();
     project->projectPath          = path;
     project->settings.projectName = name;
@@ -50,7 +54,7 @@ std::unique_ptr<Project> Project::create(const std::string& path, const std::str
     std::filesystem::create_directories(assetPath / "audio");
 
     // Initialize asset manager pointing to project root
-    project->assetManager = std::make_unique<AssetManager>(assetPath, "project");
+    project->assetManager = std::make_unique<AssetManager>(ctx, assetPath, "project");
     project->assetManager->scanAssets();
 
     // Create default scene
@@ -70,7 +74,7 @@ std::unique_ptr<Project> Project::create(const std::string& path, const std::str
     return project;
 }
 
-std::unique_ptr<Project> Project::load(const std::string& path) {
+std::unique_ptr<Project> Project::load(Graphics::GraphicsContext* ctx, const std::string& path) {
     auto project         = std::make_unique<Project>();
     project->projectPath = path;
 
@@ -84,7 +88,7 @@ std::unique_ptr<Project> Project::load(const std::string& path) {
         = std::filesystem::path(project->projectPath) / project->settings.assetsDirectory;
 
     // Initialize asset manager pointing to project root
-    project->assetManager = std::make_unique<AssetManager>(assetPath, "project");
+    project->assetManager = std::make_unique<AssetManager>(ctx, assetPath, "project");
     project->assetManager->scanAssets();
 
     // Try to load main scene, fallback to a new one if missing

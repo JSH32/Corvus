@@ -1,6 +1,7 @@
 #include "corvus/asset/asset_manager.hpp"
 #include "corvus/asset/asset_handle.hpp"
 #include "corvus/asset/loaders.hpp"
+#include "corvus/graphics/graphics.hpp"
 #include "corvus/log.hpp"
 
 #include <algorithm>
@@ -79,7 +80,9 @@ static bool physfsCopyFile(const std::string& srcPath, const std::string& dstPat
     return success;
 }
 
-AssetManager::AssetManager(const std::string& assetRoot, const std::string& alias)
+AssetManager::AssetManager(Graphics::GraphicsContext* graphicsContext,
+                           const std::string&         assetRoot,
+                           const std::string&         alias)
     : projectPath(assetRoot), physfsAlias(alias), watcherRunning(false) {
     if (!PHYSFS_mount(assetRoot.c_str(), alias.c_str(), 1)) {
         throw std::runtime_error("Failed to mount asset root: " + assetRoot);
@@ -87,6 +90,8 @@ AssetManager::AssetManager(const std::string& assetRoot, const std::string& alia
     if (!PHYSFS_setWriteDir(assetRoot.c_str())) {
         throw std::runtime_error("Failed to set PhysFS write directory: " + assetRoot);
     }
+
+    this->loaderContext.graphics = graphicsContext;
 
     // setupRaylibBridge();
     registerLoaders(*this);

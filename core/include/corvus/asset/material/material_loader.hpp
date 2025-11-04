@@ -8,9 +8,9 @@
 
 namespace Corvus::Core {
 
-class MaterialLoader : public AssetLoader<Material> {
+class MaterialLoader : public AssetLoader<MaterialAsset> {
 public:
-    Material* loadTyped(const std::string& path) override {
+    MaterialAsset* loadTyped(const std::string& path) override {
         PHYSFS_File* file = PHYSFS_openRead(path.c_str());
         if (!file) {
             CORVUS_CORE_ERROR("Failed to open material file: {}", path);
@@ -19,17 +19,20 @@ public:
 
         PHYSFS_sint64     fileSize = PHYSFS_fileLength(file);
         std::vector<char> buffer(fileSize);
-        PHYSFS_readBytes(file, buffer.data(), fileSize);
+        if (PHYSFS_readBytes(file, buffer.data(), fileSize) != fileSize) {
+            CORVUS_CORE_ERROR("Failed to read material file: {}", path);
+            PHYSFS_close(file);
+            return nullptr;
+        }
         PHYSFS_close(file);
 
         try {
             std::istringstream       iss(std::string(buffer.begin(), buffer.end()));
             cereal::JSONInputArchive ar(iss);
 
-            Material* material = new Material();
+            auto* material = new MaterialAsset();
             ar(cereal::make_nvp("material", *material));
 
-            // Extract filename from path for logging
             std::string filename = path.substr(path.find_last_of('/') + 1);
             CORVUS_CORE_INFO("Loaded material: {}", filename);
 
@@ -40,7 +43,7 @@ public:
         }
     }
 
-    bool saveTyped(const Material* material, const std::string& path) override {
+    bool saveTyped(const MaterialAsset* material, const std::string& path) override {
         if (!material) {
             CORVUS_CORE_ERROR("Cannot save null material");
             return false;
@@ -53,20 +56,18 @@ public:
                 ar(cereal::make_nvp("material", *material));
             }
 
-            std::string data      = oss.str();
+            std::string data = oss.str();
+
+            // Remove mount prefix for PHYSFS
             std::string writePath = path;
-
-            // Remove mount point prefix if present
-            size_t slashPos = writePath.find('/');
-            if (slashPos != std::string::npos) {
+            size_t      slashPos  = writePath.find('/');
+            if (slashPos != std::string::npos)
                 writePath = writePath.substr(slashPos + 1);
-            }
 
-            // Create directory if needed
+            // Create dir if needed
             auto lastSlash = writePath.find_last_of('/');
-            if (lastSlash != std::string::npos) {
+            if (lastSlash != std::string::npos)
                 PHYSFS_mkdir(writePath.substr(0, lastSlash).c_str());
-            }
 
             PHYSFS_File* file = PHYSFS_openWrite(writePath.c_str());
             if (!file) {
@@ -82,10 +83,8 @@ public:
                 return false;
             }
 
-            // Extract filename from path for logging
             std::string filename = path.substr(path.find_last_of('/') + 1);
             CORVUS_CORE_INFO("Material saved: {} ({} bytes)", filename, data.size());
-
             return true;
         } catch (const std::exception& e) {
             CORVUS_CORE_ERROR("Failed to save material {}: {}", path, e.what());
@@ -95,34 +94,35 @@ public:
 
     bool canCreate() const override { return true; }
 
-    Material* createTyped(const std::string& name) override {
-        auto* material = new Material();
-
+    MaterialAsset* createTyped(const std::string& name) override {
+        auto*       mat      = new MaterialAsset();
         std::string filename = name.empty() ? "NewMaterial" : name;
         CORVUS_CORE_INFO("Created new material asset: {}", filename);
-
-        return material;
+        return mat;
     }
 
-    void unloadTyped(Material* material) override {
-        if (material) {
-            material->cachedShaderHandle = {};
-            material->cachedTextureHandles.clear();
-            delete material;
-        }
+    void unloadTyped(MaterialAsset* mat) override {
+        if (!mat)
+            return;
+
+        // MaterialAsset is pure data, no GPU resources to clean up
+        delete mat;
     }
 
-    void reloadTyped(Material* existing, Material* fresh) override {
+    void reloadTyped(MaterialAsset* existing, MaterialAsset* fresh) override {
+        if (!existing || !fresh)
+            return;
+
         existing->properties  = std::move(fresh->properties);
         existing->shaderAsset = fresh->shaderAsset;
+        existing->doubleSided = fresh->doubleSided;
+        existing->alphaBlend  = fresh->alphaBlend;
 
-        // Drop caches so they’ll rebuild on next use
-        existing->cachedShaderHandle = {};
-        existing->cachedTextureHandles.clear();
-
-        // Mark the RL material dirty, renderer will rebuild it safely later
-        existing->rlMaterialDirty     = true;
-        existing->defaultShaderLoaded = false;
+        CORVUS_CORE_INFO("Reloaded material asset (shader {}, {} properties)",
+                         !existing->shaderAsset.is_nil()
+                             ? boost::uuids::to_string(existing->shaderAsset)
+                             : "none",
+                         existing->properties.size());
     }
 
     AssetType getType() const override { return AssetType::Material; }

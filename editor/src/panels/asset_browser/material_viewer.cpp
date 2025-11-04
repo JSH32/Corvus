@@ -1,22 +1,19 @@
 #include "editor/panels/asset_browser/material_viewer.hpp"
 #include "IconsFontAwesome6.h"
 #include "corvus/log.hpp"
-#include "corvus/systems/lighting_system.hpp"
+#include "editor/imguiutils.hpp"
 #include "imgui_internal.h"
-#include "rlImGui.h"
 #include <format>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace Corvus::Editor {
 
-MaterialViewer::MaterialViewer(const Core::UUID& id, Core::AssetManager* manager)
-    : AssetViewer(id, manager, "Material Viewer") {
-    materialHandle = assetManager->loadByID<Core::Material>(id);
-    if (materialHandle.isValid()) {
-        auto meta   = assetManager->getMetadata(id);
-        windowTitle = std::format(
-            "{} Material: {}", ICON_FA_PALETTE, meta.path.substr(meta.path.find_last_of('/') + 1));
-    }
+MaterialViewer::MaterialViewer(const Core::UUID&          id,
+                               Core::AssetManager*        manager,
+                               Graphics::GraphicsContext& context)
+    : AssetViewer(id, manager, "Material Viewer"), context_(&context), sceneRenderer(context) {
 
+    materialHandle = assetManager->loadByID<Core::MaterialAsset>(id);
     initPreview();
 }
 
@@ -26,16 +23,34 @@ void MaterialViewer::initPreview() {
     if (previewInitialized)
         return;
 
-    previewTexture = LoadRenderTexture(512, 512);
+    // Create render target
+    colorTexture = context_->createTexture2D(previewResolution, previewResolution);
+    depthTexture = context_->createDepthTexture(previewResolution, previewResolution);
 
-    previewCamera.position   = Vector3 { 0.0f, 1.5f, 3.0f };
-    previewCamera.target     = Vector3 { 0.0f, 0.0f, 0.0f };
-    previewCamera.up         = Vector3 { 0.0f, 1.0f, 0.0f };
-    previewCamera.fovy       = 45.0f;
-    previewCamera.projection = CAMERA_PERSPECTIVE;
+    framebuffer = context_->createFramebuffer(previewResolution, previewResolution);
+    framebuffer.attachTexture2D(colorTexture, 0);
+    framebuffer.attachDepthTexture(depthTexture);
 
-    Mesh sphereMesh = GenMeshSphere(1.0f, 32, 32);
-    previewSphere   = LoadModelFromMesh(sphereMesh);
+    // Setup fake mesh renderer component
+    // Set it to Sphere primitive so it will generate the sphere mesh
+    previewMeshRenderer.primitiveType        = Core::Components::PrimitiveType::Sphere;
+    previewMeshRenderer.params.sphere.radius = 1.0f;
+    previewMeshRenderer.params.sphere.rings  = 32;
+    previewMeshRenderer.params.sphere.slices = 32;
+    previewMeshRenderer.materialHandle       = materialHandle; // Use the material handle
+
+    previewTransform.position = glm::vec3(0.0f);
+    previewTransform.rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    previewTransform.scale    = glm::vec3(1.0f);
+
+    // Setup camera
+    previewCamera.setPosition(glm::vec3(0.0f, 1.5f, 3.0f));
+    previewCamera.lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    previewCamera.setPerspective(45.0f, 1.0f, 0.1f, 100.0f);
+
+    // Initialize lighting system
+    previewLighting.initialize(*context_);
+    setupPreviewLights();
 
     previewInitialized = true;
     CORVUS_CORE_INFO("Material viewer preview initialized");
@@ -47,29 +62,59 @@ void MaterialViewer::cleanupPreview() {
 
     CORVUS_CORE_INFO("Cleaning up material viewer preview");
 
-    if (previewSphere.meshCount > 0) {
-        UnloadModel(previewSphere);
-        previewSphere = { 0 };
-    }
-
-    if (previewTexture.id > 0) {
-        UnloadRenderTexture(previewTexture);
-        previewTexture = { 0 };
-    }
-
     previewInitialized = false;
+    previewLighting.shutdown();
+
+    context_->flush();
+
+    // The mesh renderer component will clean up its own generated model
+    colorTexture.release();
+    depthTexture.release();
+    framebuffer.release();
+}
+
+void MaterialViewer::setupPreviewLights() {
+    previewLighting.clear();
+
+    // Key light from top-front-right (standard 3-point lighting)
+    Renderer::Light keyLight;
+    keyLight.type      = Renderer::LightType::Directional;
+    keyLight.direction = glm::normalize(glm::vec3(-0.3f, -0.7f, -0.5f));
+    keyLight.color     = glm::vec3(1.0f, 1.0f, 1.0f);
+    keyLight.intensity = 1.0f;
+    previewLighting.addLight(keyLight);
+
+    // Fill light from left (softer, slightly blue)
+    Renderer::Light fillLight;
+    fillLight.type      = Renderer::LightType::Directional;
+    fillLight.direction = glm::normalize(glm::vec3(0.5f, -0.3f, 0.5f));
+    fillLight.color     = glm::vec3(0.7f, 0.78f, 0.86f);
+    fillLight.intensity = 0.4f;
+    previewLighting.addLight(fillLight);
+
+    // Rim light from back (highlights edges)
+    Renderer::Light rimLight;
+    rimLight.type      = Renderer::LightType::Directional;
+    rimLight.direction = glm::normalize(glm::vec3(0.0f, 0.3f, 1.0f));
+    rimLight.color     = glm::vec3(1.0f, 1.0f, 1.0f);
+    rimLight.intensity = 0.3f;
+    previewLighting.addLight(rimLight);
+
+    // Ambient light
+    previewLighting.setAmbientColor(glm::vec3(0.1f, 0.1f, 0.12f));
+}
+
+void MaterialViewer::updateCameraPosition() {
+    previewCamera.setPosition(glm::vec3(cameraDistance * cosf(cameraAngleX) * sinf(cameraAngleY),
+                                        cameraDistance * sinf(cameraAngleX),
+                                        cameraDistance * cosf(cameraAngleX) * cosf(cameraAngleY)));
+    previewCamera.lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 void MaterialViewer::updatePreview() {
     auto mat = materialHandle.get();
     if (!mat || !previewInitialized)
         return;
-
-    if (previewSphere.materialCount > 0) {
-        raylib::Material& raylibMat
-            = *reinterpret_cast<raylib::Material*>(&previewSphere.materials[0]);
-        mat->applyToRaylibMaterial(raylibMat, assetManager);
-    }
 
     needsPreviewUpdate = false;
 }
@@ -79,7 +124,7 @@ void MaterialViewer::handleCameraControls() {
 
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         isDragging   = true;
-        lastMousePos = { mousePos.x, mousePos.y };
+        lastMousePos = mousePos;
     }
 
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
@@ -87,24 +132,28 @@ void MaterialViewer::handleCameraControls() {
     }
 
     if (isDragging && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-        Vector2 delta = { mousePos.x - lastMousePos.x, mousePos.y - lastMousePos.y };
+        ImVec2 delta = ImVec2(mousePos.x - lastMousePos.x, mousePos.y - lastMousePos.y);
 
         cameraAngleY += delta.x * 0.01f;
         cameraAngleX += delta.y * 0.01f;
 
         // Clamp vertical rotation
+        constexpr float PI = 3.14159265359f;
         if (cameraAngleX > PI / 2.0f - 0.1f)
             cameraAngleX = PI / 2.0f - 0.1f;
         if (cameraAngleX < -PI / 2.0f + 0.1f)
             cameraAngleX = -PI / 2.0f + 0.1f;
 
-        // Update camera position
-        float radius             = 3.0f;
-        previewCamera.position.x = radius * cosf(cameraAngleX) * sinf(cameraAngleY);
-        previewCamera.position.y = radius * sinf(cameraAngleX);
-        previewCamera.position.z = radius * cosf(cameraAngleX) * cosf(cameraAngleY);
+        updateCameraPosition();
+        lastMousePos = mousePos;
+    }
 
-        lastMousePos = { mousePos.x, mousePos.y };
+    // Mouse wheel zoom
+    float wheel = ImGui::GetIO().MouseWheel;
+    if (wheel != 0.0f) {
+        cameraDistance -= wheel * 0.3f;
+        cameraDistance = glm::clamp(cameraDistance, 1.5f, 10.0f);
+        updateCameraPosition();
     }
 }
 
@@ -114,51 +163,26 @@ void MaterialViewer::renderPreview() {
 
     updatePreview();
 
-    BeginTextureMode(previewTexture);
-    ClearBackground(Color { 45, 45, 48, 255 });
+    // Clear frmaebuffer before rendering
+    auto clearCmd = context_->createCommandBuffer();
+    clearCmd.begin();
+    clearCmd.bindFramebuffer(framebuffer);
+    clearCmd.setViewport(0, 0, previewResolution, previewResolution);
+    clearCmd.clear(0.176f, 0.176f, 0.188f, 1.0f, true); // Clear color + depth
+    clearCmd.unbindFramebuffer();
+    clearCmd.end();
+    clearCmd.submit();
 
-    previewLighting.clear();
+    // Create a fake renderable entity
+    std::vector<Renderer::RenderableEntity> renderables;
+    Renderer::RenderableEntity              renderable;
+    renderable.meshRenderer = &previewMeshRenderer;
+    renderable.transform    = &previewTransform;
+    renderable.isEnabled    = true;
+    renderables.push_back(renderable);
 
-    // Key light from top-front-right (standard 3-point lighting)
-    Core::Systems::LightData keyLight;
-    keyLight.type      = Core::Systems::LightType::Directional;
-    keyLight.direction = Vector3Normalize({ -0.3f, -0.7f, -0.5f });
-    keyLight.color     = WHITE;
-    keyLight.intensity = 1.0f;
-    previewLighting.addLight(keyLight);
-
-    // Fill light from left (softer)
-    Core::Systems::LightData fillLight;
-    fillLight.type      = Core::Systems::LightType::Directional;
-    fillLight.direction = Vector3Normalize({ 0.5f, -0.3f, 0.5f });
-    fillLight.color     = Color { 180, 200, 220, 255 }; // Slightly blue tint
-    fillLight.intensity = 0.4f;
-    previewLighting.addLight(fillLight);
-
-    // Rim light from back (highlights edges)
-    Core::Systems::LightData rimLight;
-    rimLight.type      = Core::Systems::LightType::Directional;
-    rimLight.direction = Vector3Normalize({ 0.0f, 0.3f, 1.0f });
-    rimLight.color     = WHITE;
-    rimLight.intensity = 0.3f;
-    previewLighting.addLight(rimLight);
-
-    if (previewSphere.materialCount > 0) {
-        auto& rayMat = reinterpret_cast<raylib::Material&>(previewSphere.materials[0]);
-        previewLighting.applyToMaterial(&rayMat, Vector3 { 0, 0, 0 }, 1.0f, previewCamera.position);
-    }
-
-    BeginMode3D(previewCamera);
-    // Draw subtle grid lines without the ugly built-in grid
-    for (int i = -5; i <= 5; i++) {
-        Color lineColor = (i == 0) ? Color { 100, 100, 100, 100 } : Color { 60, 60, 60, 60 };
-        DrawLine3D({ (float)i, -0.01f, -5.0f }, { (float)i, -0.01f, 5.0f }, lineColor);
-        DrawLine3D({ -5.0f, -0.01f, (float)i }, { 5.0f, -0.01f, (float)i }, lineColor);
-    }
-    DrawModel(previewSphere, Vector3 { 0, 0, 0 }, 1.0f, WHITE);
-    EndMode3D();
-
-    EndTextureMode();
+    // Let the scene renderer handle everything!
+    sceneRenderer.render(renderables, previewCamera, assetManager, &previewLighting, &framebuffer);
 }
 
 void MaterialViewer::render() {
@@ -175,7 +199,14 @@ void MaterialViewer::render() {
 
     ImGui::SetNextWindowSize(ImVec2(800, 700), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin(windowTitle.c_str(), &isOpen, ImGuiWindowFlags_MenuBar)) {
+    std::string title = "";
+    if (materialHandle.isValid()) {
+        auto meta = assetManager->getMetadata(materialHandle.getID());
+        title     = std::format(
+            "{} Material: {}", ICON_FA_PALETTE, meta.path.substr(meta.path.find_last_of('/') + 1));
+    }
+
+    if (!ImGui::Begin(title.c_str(), &isOpen, ImGuiWindowFlags_MenuBar)) {
         ImGui::End();
         return;
     }
@@ -184,7 +215,7 @@ void MaterialViewer::render() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save")) {
             if (materialHandle.save()) {
-                CORVUS_CORE_INFO("Saved material: {}", windowTitle);
+                CORVUS_CORE_INFO("Saved material: {}", title);
             }
         }
         if (ImGui::IsItemHovered()) {
@@ -203,7 +234,9 @@ void MaterialViewer::render() {
         ImGui::EndMenuBar();
     }
 
-    renderPreview();
+    if (previewInitialized) {
+        renderPreview();
+    }
 
     // Two-column layout
     ImGui::Columns(2, "##MaterialColumns", true);
@@ -213,7 +246,6 @@ void MaterialViewer::render() {
     {
         ImGui::BeginChild("##PreviewSection", ImVec2(0, 0), true, ImGuiWindowFlags_NoScrollbar);
 
-        // Section header
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
         ImGui::SeparatorText(ICON_FA_EYE " Preview");
         ImGui::PopStyleVar();
@@ -236,12 +268,12 @@ void MaterialViewer::render() {
         ImGui::BeginChild(
             "##PreviewFrame", ImVec2(previewSize, previewSize), true, ImGuiWindowFlags_NoScrollbar);
 
-        rlImGuiImageRect(
-            &previewTexture.texture,
-            (int)previewSize - 2,
-            (int)previewSize - 2,
-            Rectangle {
-                0, 0, (float)previewTexture.texture.width, -(float)previewTexture.texture.height });
+        // Display the rendered texture using the helper
+        ImGui::RenderFramebuffer(framebuffer,
+                                 colorTexture,
+                                 ImVec2(previewSize - 2, previewSize - 2),
+                                 true // flipY = true for OpenGL
+        );
 
         ImGui::EndChild();
         ImGui::PopStyleColor();
@@ -258,7 +290,7 @@ void MaterialViewer::render() {
 
         ImGui::Spacing();
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
-        ImGui::TextDisabled(ICON_FA_COMPUTER_MOUSE " Drag to rotate");
+        ImGui::TextDisabled(ICON_FA_COMPUTER_MOUSE " Drag to rotate • Scroll to zoom");
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -287,16 +319,15 @@ void MaterialViewer::render() {
             // "Default" option (clears shader asset)
             bool isDefault = mat->shaderAsset.is_nil();
             if (ImGui::Selectable("Default", isDefault)) {
-                mat->shaderAsset        = Core::UUID();
-                mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
-                needsPreviewUpdate      = true;
+                mat->shaderAsset   = Core::UUID();
+                needsPreviewUpdate = true;
             }
             if (isDefault) {
                 ImGui::SetItemDefaultFocus();
             }
 
             // List all available shaders
-            auto allShaders = assetManager->getAllOfType<raylib::Shader>();
+            auto allShaders = assetManager->getAllOfType<Graphics::Shader>();
             for (auto& shaderHandle : allShaders) {
                 auto        shaderMeta = assetManager->getMetadata(shaderHandle.getID());
                 std::string shaderName = shaderMeta.path.empty()
@@ -305,9 +336,8 @@ void MaterialViewer::render() {
 
                 bool isSelected = (shaderHandle.getID() == mat->shaderAsset);
                 if (ImGui::Selectable(shaderName.c_str(), isSelected)) {
-                    mat->shaderAsset        = shaderHandle.getID();
-                    mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
-                    needsPreviewUpdate      = true;
+                    mat->shaderAsset   = shaderHandle.getID();
+                    needsPreviewUpdate = true;
                 }
 
                 if (isSelected) {
@@ -346,10 +376,6 @@ void MaterialViewer::render() {
             const char* typeIcon;
 
             switch (prop.value.type) {
-                case Core::MaterialPropertyType::Color:
-                    typeColor = ImVec4(0.8f, 0.4f, 0.4f, 1.0f);
-                    typeIcon  = ICON_FA_PALETTE;
-                    break;
                 case Core::MaterialPropertyType::Float:
                     typeColor = ImVec4(0.4f, 0.7f, 0.9f, 1.0f);
                     typeIcon  = ICON_FA_HASHTAG;
@@ -360,9 +386,12 @@ void MaterialViewer::render() {
                     break;
                 case Core::MaterialPropertyType::Vector2:
                 case Core::MaterialPropertyType::Vector3:
-                case Core::MaterialPropertyType::Vector4:
                     typeColor = ImVec4(0.5f, 0.8f, 0.5f, 1.0f);
                     typeIcon  = ICON_FA_VECTOR_SQUARE;
+                    break;
+                case Core::MaterialPropertyType::Vector4:
+                    typeColor = ImVec4(0.8f, 0.4f, 0.4f, 1.0f);
+                    typeIcon  = ICON_FA_PALETTE;
                     break;
                 case Core::MaterialPropertyType::Int:
                     typeColor = ImVec4(0.4f, 0.7f, 0.9f, 1.0f);
@@ -393,7 +422,7 @@ void MaterialViewer::render() {
 
             bool changed = false;
             switch (prop.value.type) {
-                case Core::MaterialPropertyType::Color:
+                case Core::MaterialPropertyType::Vector4:
                     changed = renderColorProperty(name, prop);
                     break;
                 case Core::MaterialPropertyType::Float:
@@ -467,18 +496,14 @@ void MaterialViewer::render() {
 }
 
 bool MaterialViewer::renderColorProperty(const std::string& name, Core::MaterialProperty& prop) {
-    Color color  = prop.value.getColor();
-    float col[4] = { color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
+    glm::vec4 color  = prop.value.getVector4();
+    float     col[4] = { color.r, color.g, color.b, color.a };
 
     ImGui::SetNextItemWidth(-30);
     if (ImGui::ColorEdit4(std::format("##{}_color", name).c_str(),
                           col,
                           ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaBar)) {
-        Color newColor = { static_cast<unsigned char>(col[0] * 255),
-                           static_cast<unsigned char>(col[1] * 255),
-                           static_cast<unsigned char>(col[2] * 255),
-                           static_cast<unsigned char>(col[3] * 255) };
-        prop.value     = Core::MaterialPropertyValue(newColor);
+        prop.value = Core::MaterialPropertyValue(glm::vec4(col[0], col[1], col[2], col[3]));
         return true;
     }
     return false;
@@ -512,11 +537,10 @@ bool MaterialViewer::renderTextureProperty(const std::string& name, Core::Materi
         if (ImGui::Selectable("None", texID.is_nil())) {
             auto mat = materialHandle.get();
             mat->setTexture(name, Core::UUID(), slot);
-            changed                 = true;
-            mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
+            changed = true;
         }
 
-        auto allTextures = assetManager->getAllOfType<raylib::Texture>();
+        auto allTextures = assetManager->getAllOfType<Graphics::Texture2D>();
         for (auto& texHandle : allTextures) {
             auto        texMeta = assetManager->getMetadata(texHandle.getID());
             std::string texName = texMeta.path.substr(texMeta.path.find_last_of('/') + 1);
@@ -525,8 +549,7 @@ bool MaterialViewer::renderTextureProperty(const std::string& name, Core::Materi
             if (ImGui::Selectable(texName.c_str(), isSelected)) {
                 auto mat = materialHandle.get();
                 mat->setTexture(name, texHandle.getID(), slot);
-                changed                 = true;
-                mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
+                changed = true;
             }
 
             if (isSelected) {
@@ -548,8 +571,7 @@ bool MaterialViewer::renderTextureProperty(const std::string& name, Core::Materi
             slot--;
             auto mat = materialHandle.get();
             mat->setTexture(name, texID, slot);
-            changed                 = true;
-            mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
+            changed = true;
         }
     }
 
@@ -562,8 +584,7 @@ bool MaterialViewer::renderTextureProperty(const std::string& name, Core::Materi
             slot++;
             auto mat = materialHandle.get();
             mat->setTexture(name, texID, slot);
-            changed                 = true;
-            mat->cachedShaderHandle = Core::AssetHandle<raylib::Shader>();
+            changed = true;
         }
     }
     ImGui::PopButtonRepeat();
@@ -572,12 +593,12 @@ bool MaterialViewer::renderTextureProperty(const std::string& name, Core::Materi
 }
 
 bool MaterialViewer::renderVectorProperty(const std::string& name, Core::MaterialProperty& prop) {
-    Vector3 vec  = prop.value.getVector3();
-    float   v[3] = { vec.x, vec.y, vec.z };
+    glm::vec3 vec  = prop.value.getVector3();
+    float     v[3] = { vec.x, vec.y, vec.z };
 
     ImGui::SetNextItemWidth(-30);
     if (ImGui::DragFloat3(std::format("##{}_vec3", name).c_str(), v, 0.01f, 0.0f, 0.0f, "%.2f")) {
-        prop.value = Core::MaterialPropertyValue(Vector3 { v[0], v[1], v[2] });
+        prop.value = Core::MaterialPropertyValue(glm::vec3(v[0], v[1], v[2]));
         return true;
     }
     return false;
@@ -607,7 +628,7 @@ void MaterialViewer::renderAddPropertyPopup() {
         if (ImGui::Button(ICON_FA_PALETTE " Color", buttonSize)) {
             std::string propName(propertyNameBuffer.data());
             if (!propName.empty()) {
-                mat->setColor(propName, WHITE);
+                mat->setVector4(propName, glm::vec4(1.0f));
                 needsPreviewUpdate = true;
                 ImGui::CloseCurrentPopup();
             }
@@ -625,7 +646,7 @@ void MaterialViewer::renderAddPropertyPopup() {
         if (ImGui::Button(ICON_FA_VECTOR_SQUARE " Vector3", buttonSize)) {
             std::string propName(propertyNameBuffer.data());
             if (!propName.empty()) {
-                mat->setVector(propName, Vector3 { 0, 0, 0 });
+                mat->setVector3(propName, glm::vec3(0.0f));
                 needsPreviewUpdate = true;
                 ImGui::CloseCurrentPopup();
             }
@@ -652,4 +673,4 @@ void MaterialViewer::renderAddPropertyPopup() {
     }
 }
 
-}
+} // namespace Corvus::Editor

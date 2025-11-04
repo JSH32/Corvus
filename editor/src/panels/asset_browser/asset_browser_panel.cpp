@@ -13,8 +13,10 @@
 
 namespace Corvus::Editor {
 
-AssetBrowserPanel::AssetBrowserPanel(Core::AssetManager* manager, Core::Project* project)
-    : assetManager(manager), project(project), currentDir("") {
+AssetBrowserPanel::AssetBrowserPanel(Core::AssetManager*        manager,
+                                     Core::Project*             project,
+                                     Graphics::GraphicsContext* graphics)
+    : assetManager(manager), project(project), currentDir(""), graphics(graphics) {
     popupState.renameBuffer.resize(256);
     popupState.moveBuffer.resize(512);
     popupState.copyBuffer.resize(512);
@@ -786,15 +788,17 @@ void AssetBrowserPanel::openAssetViewer(const Core::UUID& assetID, Core::AssetTy
     // Create appropriate viewer based on type
     switch (type) {
         case Core::AssetType::Material:
-            openViewers.push_back(std::make_unique<MaterialViewer>(assetID, assetManager));
+            openViewers.push_back(
+                std::make_unique<MaterialViewer>(assetID, assetManager, *graphics));
             break;
 
         case Core::AssetType::Texture:
-            openViewers.push_back(std::make_unique<TextureViewer>(assetID, assetManager));
+            openViewers.push_back(
+                std::make_unique<TextureViewer>(assetID, assetManager, *graphics));
             break;
 
         case Core::AssetType::Model:
-            openViewers.push_back(std::make_unique<ModelViewer>(assetID, assetManager));
+            openViewers.push_back(std::make_unique<ModelViewer>(assetID, assetManager, *graphics));
             break;
 
         default:

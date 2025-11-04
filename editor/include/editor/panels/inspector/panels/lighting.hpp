@@ -1,10 +1,10 @@
 #pragma once
 
 #include "IconsFontAwesome6.h"
+#include "corvus/components/light.hpp"
 #include "editor/imguiutils.hpp"
 #include "editor/panels/inspector/inspector_panel.hpp"
 #include "imgui_internal.h"
-#include "corvus/components/light.hpp"
 #include <imgui.h>
 
 namespace Corvus::Editor {
@@ -16,7 +16,9 @@ struct ComponentInfo<Corvus::Core::Components::LightComponent> {
     static constexpr bool             removable = true;
     static constexpr bool             flat      = false;
 
-    static void draw(Corvus::Core::Components::LightComponent& light, Corvus::Core::AssetManager*) {
+    static void draw(Corvus::Core::Components::LightComponent& light,
+                     Corvus::Core::AssetManager*,
+                     Graphics::GraphicsContext* ctx) {
         ImGui::PushID(&light);
 
         // Enabled checkbox

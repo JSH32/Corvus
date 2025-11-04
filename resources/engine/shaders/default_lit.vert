@@ -1,15 +1,17 @@
 #version 330
 
 // Input vertex attributes
-in vec3 vertexPosition;
-in vec2 vertexTexCoord;
-in vec3 vertexNormal;
-in vec4 vertexColor;
+layout(location = 0) in vec3 vertexPosition;
+layout(location = 1) in vec3 vertexNormal;
+layout(location = 2) in vec2 vertexTexCoord;
+layout(location = 3) in vec4 vertexColor;
 
 // Input uniform values
-uniform mat4 mvp;
-uniform mat4 matModel;
-uniform mat4 matNormal;
+uniform mat4 u_Model;
+uniform mat4 u_View;
+uniform mat4 u_Projection;
+uniform mat4 u_ViewProjection;
+uniform mat4 u_NormalMatrix;
 
 // Output to fragment shader
 out vec2 fragTexCoord;
@@ -25,11 +27,7 @@ void main() {
     fragColor = vertexColor;
 
     // Calculate fragment position in world space
-    fragPosition = vec3(matModel * vec4(vertexPosition, 1.0));
-
-    // Calculate normal in world space
-    fragNormal = normalize(vec3(matNormal * vec4(vertexNormal, 0.0)));
-
-    // Calculate final vertex position
-    gl_Position = mvp * vec4(vertexPosition, 1.0);
+    fragPosition = vec3(u_Model * vec4(vertexPosition, 1.0));
+    fragNormal   = normalize(vec3(u_NormalMatrix * vec4(vertexNormal, 0.0)));
+    gl_Position  = u_ViewProjection * u_Model * vec4(vertexPosition, 1.0);
 }

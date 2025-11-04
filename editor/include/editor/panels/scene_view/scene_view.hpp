@@ -6,7 +6,6 @@
 #include "editor/panels/scene_hierarchy.hpp"
 #include "editor/panels/scene_view/scene_viewport.hpp"
 #include "imgui.h"
-#include "raylib.h"
 
 namespace Corvus::Editor {
 
@@ -25,7 +24,9 @@ public:
      * @param scene A reference to the main scene object.
      * @param sceneHierarchy A pointer to the SceneHierarchyPanel for selection synchronization.
      */
-    SceneViewPanel(Core::Project& scene, SceneHierarchyPanel* sceneHierarchy);
+    SceneViewPanel(Core::Project&             scene,
+                   Graphics::GraphicsContext& ctx,
+                   SceneHierarchyPanel*       sceneHierarchy);
 
     /**
      * @brief Updates and renders the panel each frame.
@@ -71,10 +72,10 @@ private:
     ImVec2 currentViewportSize;
 
     // Mouse state (viewport-relative coordinates)
-    Vector2 currentMousePos = { 0, 0 };
-    bool    mousePressed    = false;
-    bool    mouseDown       = false;
-    bool    mouseInViewport = false;
+    glm::vec2 currentMousePos = { 0, 0 };
+    bool      mousePressed    = false;
+    bool      mouseDown       = false;
+    bool      mouseInViewport = false;
 };
 
 }
