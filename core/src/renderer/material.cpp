@@ -34,15 +34,6 @@ void Material::bind(CommandBuffer& cmd) {
     cmd.setBlendState(renderState_.blend);
     cmd.setCullFace(renderState_.cullFace, false);
 
-    // Bind textures
-    for (const auto& [slot, texture] : textures_) {
-        cmd.bindTexture(slot, texture);
-    }
-
-    for (const auto& [slot, texture] : textureCubes_) {
-        cmd.bindTextureCube(slot, texture);
-    }
-
     // Set uniforms
     for (const auto& [name, value] : uniforms_) {
         std::visit(
@@ -63,6 +54,16 @@ void Material::bind(CommandBuffer& cmd) {
                 }
             },
             value);
+    }
+
+    // Bind textures
+    for (const auto& [slot, texture] : textures_) {
+        cmd.bindTexture(slot, texture);
+    }
+
+    // Bind cubemaps
+    for (const auto& [slot, cubemap] : textureCubes_) {
+        cmd.bindTextureCube(slot, cubemap);
     }
 }
 

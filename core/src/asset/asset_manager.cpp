@@ -315,10 +315,7 @@ bool AssetManager::deleteDirectory(const std::string& userPath) {
     return result;
 }
 
-// ============================================================================
 // Asset Operations
-// ============================================================================
-
 bool AssetManager::copyAsset(const UUID& id, const std::string& newUserPath, bool includeMeta) {
     std::lock_guard<std::mutex> lock(assetMutex);
 
@@ -754,10 +751,7 @@ bool AssetManager::deleteDirectoryRecursive(const std::string& internalPath, boo
     return true;
 }
 
-// ============================================================================
 // Asset Scanning
-// ============================================================================
-
 void AssetManager::scanDirectory(const std::string& internalPath) {
     std::string physfsPath = toPhysFS(internalPath);
 
@@ -809,10 +803,7 @@ void AssetManager::scanAssets(const std::string& subDirectory, bool /*recursive*
     CORVUS_CORE_INFO("Asset scan complete: {} assets indexed", metadata.size());
 }
 
-// ============================================================================
 // Reference Counting
-// ============================================================================
-
 void AssetManager::incrementRef(const UUID& id) {
     auto it = assets.find(id);
     if (it != assets.end()) {
@@ -851,10 +842,7 @@ void AssetManager::unloadAll() {
     CORVUS_CORE_INFO("Unloaded all assets");
 }
 
-// ============================================================================
 // File Watcher
-// ============================================================================
-
 void AssetManager::checkFileChanges() {
     std::lock_guard<std::mutex> lock(assetMutex);
 
@@ -1039,10 +1027,7 @@ void AssetManager::onAssetReloaded(std::function<void(const UUID&, const std::st
     assetReloadedCallbacks.push_back(std::move(callback));
 }
 
-// ============================================================================
 // Queries
-// ============================================================================
-
 AssetMetadata AssetManager::getMetadata(const UUID& id) const {
     std::lock_guard<std::mutex> lock(assetMutex);
 

@@ -1,10 +1,11 @@
+// material_viewer.hpp
 #pragma once
 #include "asset_viewer.hpp"
 #include "corvus/asset/asset_handle.hpp"
 #include "corvus/asset/material/material.hpp"
 #include "corvus/graphics/graphics.hpp"
 #include "corvus/renderer/camera.hpp"
-#include "corvus/renderer/lighting.hpp"
+#include "corvus/renderer/model.hpp"
 #include "corvus/renderer/scene_renderer.hpp"
 #include "imgui.h"
 #include <array>
@@ -19,13 +20,12 @@ private:
     Graphics::GraphicsContext* context_ = nullptr;
 
     // Preview scene
-    Renderer::Camera         previewCamera;
-    Renderer::LightingSystem previewLighting;
-    Renderer::SceneRenderer  sceneRenderer;
+    Renderer::Camera        previewCamera;
+    Renderer::SceneRenderer sceneRenderer;
 
-    // Temporary components for the preview sphere (fake ECS entity)
-    Core::Components::MeshRendererComponent previewMeshRenderer;
-    Core::Components::TransformComponent    previewTransform;
+    // Preview mesh (just store the model directly)
+    Renderer::Model previewModel;
+    glm::mat4       previewTransform = glm::mat4(1.0f);
 
     // Render target
     Graphics::Framebuffer framebuffer;
@@ -70,4 +70,4 @@ public:
     void render() override;
 };
 
-} // namespace Corvus::Editor
+}

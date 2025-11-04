@@ -222,4 +222,4 @@ private:
     CubemapShadow& getCubemapShadow(size_t index);
 };
 
-} // namespace Corvus::Renderer
+}

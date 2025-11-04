@@ -58,6 +58,8 @@ public:
     // For sorting/batching
     uint32_t getShaderId() const { return shader_.id; }
 
+    const std::unordered_map<uint32_t, Texture2D>& getTextures() const { return textures_; }
+
 private:
     Shader                                        shader_;
     std::unordered_map<std::string, UniformValue> uniforms_;
@@ -68,4 +70,4 @@ private:
 
 using MaterialRef = std::shared_ptr<Material>;
 
-} // namespace Corvus::Renderer
+}

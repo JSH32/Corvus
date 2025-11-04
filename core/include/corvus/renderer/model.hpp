@@ -63,4 +63,4 @@ private:
     std::vector<std::shared_ptr<Mesh>> meshes_;
 };
 
-} // namespace Corvus::Renderer
+}

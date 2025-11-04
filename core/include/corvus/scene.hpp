@@ -45,11 +45,6 @@ public:
      */
     Renderer::SceneRenderer* getRenderer() { return renderer; }
 
-    /**
-     * Get the lighting system
-     */
-    Renderer::LightingSystem& getLightingSystem() { return lightingSystem; }
-
     std::string    name;
     entt::registry registry;
 
@@ -106,7 +101,6 @@ private:
     std::vector<Entity>      rootOrderedEntities;
     AssetManager*            assetManager;
     Renderer::SceneRenderer* renderer;
-    Renderer::LightingSystem lightingSystem;
 };
 
 }

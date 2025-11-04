@@ -145,4 +145,4 @@ private:
     bool                   gridEnabled = true;
 };
 
-} // namespace Corvus::Editor
+}

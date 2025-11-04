@@ -216,4 +216,4 @@ struct MeshRendererComponent {
 
 REGISTER_COMPONENT(MeshRendererComponent, "MeshRenderer");
 
-} // namespace Corvus::Core::Components
+}

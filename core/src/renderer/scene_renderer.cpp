@@ -1,25 +1,137 @@
+// scene_renderer.cpp
 #include "corvus/renderer/scene_renderer.hpp"
 #include "corvus/log.hpp"
-#include "corvus/renderer/material_renderer.hpp"
 
 namespace Corvus::Renderer {
 
 SceneRenderer::SceneRenderer(Graphics::GraphicsContext& context)
-    : context_(context), materialRenderer_(context) { }
+    : context_(context), materialRenderer_(context) {
+    // Initialize lighting system
+    lighting_.initialize(context_);
+}
 
-void SceneRenderer::clear(const glm::vec4& color, bool clearDepth) {
+void SceneRenderer::clear(const glm::vec4&             color,
+                          bool                         clearDepth,
+                          const Graphics::Framebuffer* targetFB) {
     auto cmd = context_.createCommandBuffer();
     cmd.begin();
+
+    if (targetFB && targetFB->valid()) {
+        cmd.bindFramebuffer(*targetFB);
+        cmd.setViewport(0, 0, targetFB->width, targetFB->height);
+    }
+
     cmd.clear(color.r, color.g, color.b, color.a, clearDepth);
+
+    if (targetFB && targetFB->valid()) {
+        cmd.unbindFramebuffer();
+    }
+
     cmd.end();
     cmd.submit();
 }
 
-void SceneRenderer::collectLights(entt::registry& registry, LightingSystem* lightingSystem) {
-    if (!lightingSystem)
-        return;
+void SceneRenderer::render(const std::vector<Renderable>& renderables,
+                           const glm::mat4&               view,
+                           const glm::mat4&               proj,
+                           const glm::vec3&               cameraPos,
+                           const Graphics::Framebuffer*   targetFB) {
 
-    lightingSystem->clear();
+    stats_.reset();
+
+    // Render shadow maps if there are shadow-casting lights
+    renderShadowMaps(renderables);
+
+    auto cmd = context_.createCommandBuffer();
+    cmd.begin();
+
+    // Bind framebuffer
+    if (targetFB && targetFB->valid()) {
+        cmd.bindFramebuffer(*targetFB);
+        cmd.setViewport(0, 0, targetFB->width, targetFB->height);
+    } else {
+        cmd.unbindFramebuffer();
+    }
+
+    for (auto& renderable : renderables) {
+        if (!renderable.enabled)
+            continue;
+
+        if (!renderable.model || !renderable.model->valid())
+            continue;
+
+        if (!renderable.material)
+            continue;
+
+        // Apply material
+        auto* shader = materialRenderer_.apply(*renderable.material, cmd);
+        if (!shader || !shader->valid())
+            continue;
+
+        // Setup standard uniforms
+        setupStandardUniforms(cmd, *shader, renderable.transform, view, proj);
+
+        // Setup lighting uniforms
+        setupLightingUniforms(
+            cmd, *shader, renderable.position, renderable.boundingRadius, cameraPos);
+        lighting_.bindShadowTextures(cmd);
+
+        // Culling
+        float det      = glm::determinant(renderable.transform);
+        bool  mirrored = det < 0.0f;
+        bool  cull     = renderable.material->getRenderState().cullFace;
+        cmd.setCullFace(cull, mirrored);
+
+        // Draw
+        renderable.model->draw(cmd, renderable.wireframe);
+
+        // Stats
+        stats_.entitiesRendered++;
+        for (const auto& mesh : renderable.model->getMeshes()) {
+            if (mesh && mesh->valid()) {
+                stats_.drawCalls++;
+                stats_.triangles += mesh->getIndexCount() / 3;
+                stats_.vertices += mesh->getIndexCount();
+            }
+        }
+    }
+
+    if (targetFB && targetFB->valid())
+        cmd.unbindFramebuffer();
+
+    cmd.end();
+    cmd.submit();
+}
+
+void SceneRenderer::render(const std::vector<Renderable>& renderables,
+                           const Camera&                  camera,
+                           const Graphics::Framebuffer*   targetFB) {
+    glm::mat4 view      = camera.getViewMatrix();
+    glm::mat4 proj      = camera.getProjectionMatrix();
+    glm::vec3 cameraPos = camera.getPosition();
+
+    render(renderables, view, proj, cameraPos, targetFB);
+}
+
+// ECS Integration
+void SceneRenderer::renderScene(entt::registry&              registry,
+                                const Camera&                camera,
+                                Core::AssetManager*          assetManager,
+                                const Graphics::Framebuffer* targetFB) {
+
+    // Convert ECS lights to renderer lights
+    collectLightsFromRegistry(registry);
+
+    // Convert ECS entities to renderables
+    auto renderables = collectRenderables(registry, assetManager);
+
+    // Use the primary render method
+    render(renderables, camera, targetFB);
+}
+
+void SceneRenderer::collectLightsFromRegistry(entt::registry& registry) {
+    // Clear lights from previous frame
+    lighting_.clear();
 
     auto lightView
         = registry.view<Core::Components::LightComponent, Core::Components::TransformComponent>();
@@ -30,18 +142,15 @@ void SceneRenderer::collectLights(entt::registry& registry, LightingSystem* ligh
 
         // Check if entity is enabled
         auto* entityInfo = registry.try_get<Core::Components::EntityInfoComponent>(entityHandle);
-        if (entityInfo && !entityInfo->enabled) {
+        if (entityInfo && !entityInfo->enabled)
             continue;
-        }
 
-        if (!lightComp.enabled) {
+        if (!lightComp.enabled)
             continue;
-        }
 
         // Convert ECS light component to renderer light
         Light light;
 
-        // Map the light type enum
         switch (lightComp.type) {
             case Core::Components::LightType::Directional:
                 light.type = LightType::Directional;
@@ -69,13 +178,14 @@ void SceneRenderer::collectLights(entt::registry& registry, LightingSystem* ligh
         light.shadowNearPlane     = lightComp.shadowNearPlane;
         light.shadowFarPlane      = lightComp.shadowFarPlane;
 
-        lightingSystem->addLight(light);
+        lighting_.addLight(light);
     }
 }
 
-std::vector<RenderableEntity> SceneRenderer::collectRenderables(entt::registry& registry) {
+std::vector<Renderable> SceneRenderer::collectRenderables(entt::registry&     registry,
+                                                          Core::AssetManager* assetManager) {
 
-    std::vector<RenderableEntity> renderables;
+    std::vector<Renderable> renderables;
 
     auto meshView = registry.view<Core::Components::MeshRendererComponent,
                                   Core::Components::TransformComponent>();
@@ -86,14 +196,33 @@ std::vector<RenderableEntity> SceneRenderer::collectRenderables(entt::registry& 
 
         // Check if entity is enabled
         auto* entityInfo = registry.try_get<Core::Components::EntityInfoComponent>(entityHandle);
-        if (entityInfo && !entityInfo->enabled) {
+        if (entityInfo && !entityInfo->enabled)
             continue;
-        }
 
-        RenderableEntity renderable;
-        renderable.meshRenderer = &meshRenderer;
-        renderable.transform    = &transform;
-        renderable.isEnabled    = true;
+        // Get model
+        auto* model = meshRenderer.getModel(assetManager, &context_);
+        if (!model || !model->valid())
+            continue;
+
+        // Get MaterialAsset and convert to Material
+        auto* materialAsset = meshRenderer.getMaterial(assetManager);
+        if (!materialAsset)
+            continue;
+
+        // Convert MaterialAsset -> Material
+        Material* material = materialRenderer_.getMaterialFromAsset(*materialAsset, assetManager);
+        if (!material)
+            continue;
+
+        // Create pure renderer Renderable
+        Renderable renderable;
+        renderable.model          = model;
+        renderable.material       = material;
+        renderable.transform      = transform.getMatrix();
+        renderable.position       = transform.position;
+        renderable.boundingRadius = meshRenderer.getBoundingRadius();
+        renderable.wireframe      = meshRenderer.renderWireframe;
+        renderable.enabled        = true;
 
         renderables.push_back(renderable);
     }
@@ -101,136 +230,30 @@ std::vector<RenderableEntity> SceneRenderer::collectRenderables(entt::registry& 
     return renderables;
 }
 
-void SceneRenderer::renderDirectionalShadowMap(ShadowMap&       shadowMap,
-                                               const Light&     light,
-                                               const glm::mat4& lightSpaceMatrix,
-                                               const std::vector<RenderableEntity>& renderables,
-                                               Core::AssetManager*                  assetManager,
-                                               Graphics::Shader&                    shadowShader) {
+void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables) {
+    // Prepare shadow maps
+    lighting_.prepareShadowMaps(context_);
 
-    if (!shadowShader.valid())
-        return;
-
-    auto cmd = context_.createCommandBuffer();
-    cmd.begin();
-
-    // Bind shadow map framebuffer
-    cmd.bindFramebuffer(shadowMap.framebuffer);
-    cmd.setViewport(0, 0, shadowMap.resolution, shadowMap.resolution);
-    cmd.clear(1.0f, 1.0f, 1.0f, 1.0f, true, false);
-
-    // Set shadow render state
-    cmd.setShader(shadowShader);
-    cmd.setDepthTest(true);
-    cmd.setDepthMask(true);
-    cmd.setCullFace(true, false);
-
-    // Render all objects from light's perspective
-    for (const auto& renderable : renderables) {
-        if (!renderable.meshRenderer || !renderable.transform)
-            continue;
-
-        auto* model = renderable.meshRenderer->getModel(assetManager, &context_);
-        if (!model || !model->valid())
-            continue;
-
-        glm::mat4 modelMatrix = renderable.transform->getMatrix();
-
-        // Set shadow uniforms
-        shadowShader.setMat4(cmd, "u_LightSpaceMatrix", lightSpaceMatrix);
-        shadowShader.setMat4(cmd, "u_Model", modelMatrix);
-
-        // Draw model
-        model->draw(cmd);
-    }
-
-    cmd.unbindFramebuffer();
-    cmd.end();
-    cmd.submit();
-}
-
-void SceneRenderer::renderPointShadowMap(CubemapShadow&                       cubemap,
-                                         const Light&                         light,
-                                         const std::array<glm::mat4, 6>&      lightMatrices,
-                                         const std::vector<RenderableEntity>& renderables,
-                                         Core::AssetManager*                  assetManager,
-                                         Graphics::Shader&                    shadowShader) {
-
-    if (!shadowShader.valid())
-        return;
-
-    // Render each face of the cubemap
-    for (int face = 0; face < 6; ++face) {
-        auto cmd = context_.createCommandBuffer();
-        cmd.begin();
-
-        // Attach this face of the cubemap to the framebuffer
-        cubemap.framebuffer.attachTextureCubeFace(cubemap.depthCubemap, face);
-        cmd.bindFramebuffer(cubemap.framebuffer);
-        cmd.setViewport(0, 0, cubemap.resolution, cubemap.resolution);
-        cmd.clear(1.0f, 1.0f, 1.0f, 1.0f, true, false);
-
-        cmd.setShader(shadowShader);
-        cmd.setDepthTest(true);
-        cmd.setDepthMask(true);
-        cmd.setCullFace(true, false);
-
-        // Render all objects from this face's perspective
-        for (const auto& renderable : renderables) {
-            if (!renderable.meshRenderer || !renderable.transform)
-                continue;
-
-            auto* model = renderable.meshRenderer->getModel(assetManager, &context_);
-            if (!model || !model->valid())
-                continue;
-
-            glm::mat4 modelMatrix = renderable.transform->getMatrix();
-
-            shadowShader.setMat4(cmd, "u_LightSpaceMatrix", lightMatrices[face]);
-            shadowShader.setMat4(cmd, "u_Model", modelMatrix);
-
-            model->draw(cmd);
-        }
-
-        cmd.unbindFramebuffer();
-        cmd.end();
-        cmd.submit();
-    }
-}
-
-void SceneRenderer::renderShadowMaps(entt::registry&     registry,
-                                     LightingSystem*     lightingSystem,
-                                     Core::AssetManager* assetManager) {
-
-    if (!lightingSystem)
-        return;
-
-    // Prepare shadow maps (ensure they're initialized)
-    lightingSystem->prepareShadowMaps(context_);
-
-    // Get shadow shader from lighting system
-    auto& shadowShader = lightingSystem->getShadowShader();
+    // Get shadow shader
+    auto& shadowShader = lighting_.getShadowShader();
     if (!shadowShader.valid()) {
-        CORVUS_CORE_WARN("Shadow shader not available, skipping shadow rendering");
-        return;
+        return; // No shadows if shader unavailable
     }
 
-    // Collect renderables
-    auto renderables = collectRenderables(registry);
     if (renderables.empty())
         return;
 
-    // Calculate scene center for directional light shadows
+    // Calculate scene center for directional lights
     glm::vec3 sceneCenter(0.0f);
     for (const auto& r : renderables) {
-        sceneCenter += r.transform->position;
+        sceneCenter += r.position;
     }
     if (!renderables.empty()) {
         sceneCenter /= static_cast<float>(renderables.size());
     }
 
     // Get all lights
-    const auto& lights = lightingSystem->getLights();
+    const auto& lights = lighting_.getLights();
 
     size_t shadowMapIndex = 0;
     size_t cubemapIndex   = 0;
@@ -244,42 +267,40 @@ void SceneRenderer::renderShadowMaps(entt::registry&     registry,
             if (shadowMapIndex >= LightingSystem::MAX_SHADOW_MAPS)
                 break;
 
-            auto& shadowMaps = lightingSystem->getShadowMaps();
+            auto& shadowMaps = lighting_.getShadowMaps();
             if (shadowMapIndex >= shadowMaps.size())
                 break;
 
-            auto& shadowMap = shadowMaps[shadowMapIndex];
-
-            // Use lighting system helper to calculate matrix
+            auto&     shadowMap = shadowMaps[shadowMapIndex];
             glm::mat4 lightSpaceMatrix
-                = lightingSystem->calculateDirectionalLightMatrix(light, sceneCenter);
+                = lighting_.calculateDirectionalLightMatrix(light, sceneCenter);
             shadowMap.lightSpaceMatrix = lightSpaceMatrix;
 
             renderDirectionalShadowMap(
-                shadowMap, light, lightSpaceMatrix, renderables, assetManager, shadowShader);
+                shadowMap, light, lightSpaceMatrix, renderables, shadowShader);
             shadowMapIndex++;
+
         } else if (light.type == LightType::Spot) {
             if (shadowMapIndex >= LightingSystem::MAX_SHADOW_MAPS)
                 break;
 
-            auto& shadowMaps = lightingSystem->getShadowMaps();
+            auto& shadowMaps = lighting_.getShadowMaps();
             if (shadowMapIndex >= shadowMaps.size())
                 break;
 
-            auto& shadowMap = shadowMaps[shadowMapIndex];
-
-            // Use lighting system helper to calculate matrix
-            glm::mat4 lightSpaceMatrix = lightingSystem->calculateSpotLightMatrix(light);
+            auto&     shadowMap        = shadowMaps[shadowMapIndex];
+            glm::mat4 lightSpaceMatrix = lighting_.calculateSpotLightMatrix(light);
             shadowMap.lightSpaceMatrix = lightSpaceMatrix;
 
             renderDirectionalShadowMap(
-                shadowMap, light, lightSpaceMatrix, renderables, assetManager, shadowShader);
+                shadowMap, light, lightSpaceMatrix, renderables, shadowShader);
             shadowMapIndex++;
+
         } else if (light.type == LightType::Point) {
             if (cubemapIndex >= LightingSystem::MAX_POINT_SHADOWS)
                 break;
 
-            auto& cubemaps = lightingSystem->getCubemapShadows();
+            auto& cubemaps = lighting_.getCubemapShadows();
             if (cubemapIndex >= cubemaps.size())
                 break;
 
@@ -287,14 +308,84 @@ void SceneRenderer::renderShadowMaps(entt::registry&     registry,
             cubemap.lightPosition = light.position;
             cubemap.farPlane      = light.range;
 
-            // Use lighting system helper to calculate matrices
             auto lightMatrices
-                = lightingSystem->calculatePointLightMatrices(light.position, 0.1f, light.range);
-
-            renderPointShadowMap(
-                cubemap, light, lightMatrices, renderables, assetManager, shadowShader);
+                = lighting_.calculatePointLightMatrices(light.position, 0.1f, light.range);
+            renderPointShadowMap(cubemap, light, lightMatrices, renderables, shadowShader);
             cubemapIndex++;
         }
+    }
+}
+
+void SceneRenderer::renderDirectionalShadowMap(ShadowMap&                     shadowMap,
+                                               const Light&                   light,
+                                               const glm::mat4&               lightSpaceMatrix,
+                                               const std::vector<Renderable>& renderables,
+                                               Graphics::Shader&              shadowShader) {
+
+    if (!shadowShader.valid())
+        return;
+
+    auto cmd = context_.createCommandBuffer();
+    cmd.begin();
+
+    cmd.bindFramebuffer(shadowMap.framebuffer);
+    cmd.setViewport(0, 0, shadowMap.resolution, shadowMap.resolution);
+    cmd.clear(1.0f, 1.0f, 1.0f, 1.0f, true, false);
+
+    cmd.setShader(shadowShader);
+    cmd.setDepthTest(true);
+    cmd.setDepthMask(true);
+    cmd.setCullFace(true, false);
+
+    for (const auto& renderable : renderables) {
+        if (!renderable.enabled || !renderable.model || !renderable.model->valid())
+            continue;
+
+        shadowShader.setMat4(cmd, "u_LightSpaceMatrix", lightSpaceMatrix);
+        shadowShader.setMat4(cmd, "u_Model", renderable.transform);
+        renderable.model->draw(cmd);
+    }
+
+    cmd.unbindFramebuffer();
+    cmd.end();
+    cmd.submit();
+}
+
+void SceneRenderer::renderPointShadowMap(CubemapShadow&                  cubemap,
+                                         const Light&                    light,
+                                         const std::array<glm::mat4, 6>& lightMatrices,
+                                         const std::vector<Renderable>&  renderables,
+                                         Graphics::Shader&               shadowShader) {
+
+    if (!shadowShader.valid())
+        return;
+
+    for (int face = 0; face < 6; ++face) {
+        auto cmd = context_.createCommandBuffer();
+        cmd.begin();
+
+        cubemap.framebuffer.attachTextureCubeFace(cubemap.depthCubemap, face);
+        cmd.bindFramebuffer(cubemap.framebuffer);
+        cmd.setViewport(0, 0, cubemap.resolution, cubemap.resolution);
+        cmd.clear(1.0f, 1.0f, 1.0f, 1.0f, true, false);
+
+        cmd.setShader(shadowShader);
+        cmd.setDepthTest(true);
+        cmd.setDepthMask(true);
+        cmd.setCullFace(true, false);
+
+        for (const auto& renderable : renderables) {
+            if (!renderable.enabled || !renderable.model || !renderable.model->valid())
+                continue;
+
+            shadowShader.setMat4(cmd, "u_LightSpaceMatrix", lightMatrices[face]);
+            shadowShader.setMat4(cmd, "u_Model", renderable.transform);
+            renderable.model->draw(cmd);
+        }
+
+        cmd.unbindFramebuffer();
+        cmd.end();
+        cmd.submit();
     }
 }
 
@@ -316,119 +407,11 @@ void SceneRenderer::setupStandardUniforms(Graphics::CommandBuffer& cmd,
 
 void SceneRenderer::setupLightingUniforms(Graphics::CommandBuffer& cmd,
                                           Graphics::Shader&        shader,
-                                          LightingSystem*          lightingSystem,
                                           const glm::vec3&         objectPos,
                                           float                    objectRadius,
                                           const glm::vec3&         cameraPos) {
 
-    if (!lightingSystem)
-        return;
-
-    // Use the lighting system's method to set all lighting uniforms
-    lightingSystem->applyLightingUniforms(cmd, shader, objectPos, objectRadius, cameraPos);
+    lighting_.applyLightingUniforms(cmd, shader, objectPos, objectRadius, cameraPos);
 }
 
-void SceneRenderer::render(const std::vector<RenderableEntity>& renderables,
-                           const glm::mat4&                     view,
-                           const glm::mat4&                     proj,
-                           const glm::vec3&                     cameraPos,
-                           Core::AssetManager*                  assetManager,
-                           LightingSystem*                      lightingSystem,
-                           const Graphics::Framebuffer*         targetFB) {
-
-    stats_.reset();
-
-    auto cmd = context_.createCommandBuffer();
-    cmd.begin();
-
-    // Bind framebuffer
-    if (targetFB && targetFB->valid()) {
-        cmd.bindFramebuffer(*targetFB);
-        cmd.setViewport(0, 0, targetFB->width, targetFB->height);
-    } else {
-        cmd.unbindFramebuffer();
-    }
-
-    for (const auto& renderable : renderables) {
-        if (!renderable.meshRenderer || !renderable.transform)
-            continue;
-
-        auto* model = renderable.meshRenderer->getModel(assetManager, &context_);
-        if (!model || !model->valid())
-            continue;
-
-        auto* materialAsset = renderable.meshRenderer->getMaterial(assetManager);
-        if (!materialAsset)
-            continue;
-
-        auto* shader = materialRenderer_.apply(*materialAsset, cmd, assetManager);
-        if (!shader || !shader->valid())
-            continue;
-
-        glm::mat4 modelMat = renderable.transform->getMatrix();
-        setupStandardUniforms(cmd, *shader, modelMat, view, proj);
-
-        if (lightingSystem) {
-            float radius = renderable.meshRenderer->getBoundingRadius();
-            setupLightingUniforms(
-                cmd, *shader, lightingSystem, renderable.transform->position, radius, cameraPos);
-            lightingSystem->bindShadowTextures(cmd);
-        }
-
-        float det      = glm::determinant(modelMat);
-        bool  mirrored = det < 0.0f;
-        bool  cull     = !materialAsset->doubleSided;
-        cmd.setCullFace(cull, mirrored);
-
-        model->draw(cmd, renderable.meshRenderer->renderWireframe);
-
-        stats_.entitiesRendered++;
-        for (const auto& mesh : model->getMeshes()) {
-            if (mesh && mesh->valid()) {
-                stats_.drawCalls++;
-                stats_.triangles += mesh->getIndexCount() / 3;
-                stats_.vertices += mesh->getIndexCount();
-            }
-        }
-    }
-
-    if (targetFB && targetFB->valid())
-        cmd.unbindFramebuffer();
-
-    cmd.end();
-    cmd.submit();
 }
-
-void SceneRenderer::render(const std::vector<RenderableEntity>& renderables,
-                           const Camera&                        camera,
-                           Core::AssetManager*                  assetManager,
-                           LightingSystem*                      lightingSystem,
-                           const Graphics::Framebuffer*         targetFB) {
-    glm::mat4 view      = camera.getViewMatrix();
-    glm::mat4 proj      = camera.getProjectionMatrix();
-    glm::vec3 cameraPos = camera.getPosition();
-
-    render(renderables, view, proj, cameraPos, assetManager, lightingSystem, targetFB);
-}
-
-void SceneRenderer::render(entt::registry&              registry,
-                           const Camera&                camera,
-                           Core::AssetManager*          assetManager,
-                           LightingSystem*              lightingSystem,
-                           const Graphics::Framebuffer* targetFB) {
-
-    if (lightingSystem) {
-        if (!lightingSystem->isInitialized()) {
-            lightingSystem->initialize(context_);
-        }
-
-        collectLights(registry, lightingSystem);
-        renderShadowMaps(registry, lightingSystem, assetManager);
-    }
-
-    auto renderables = collectRenderables(registry);
-
-    render(renderables, camera, assetManager, lightingSystem, targetFB);
-}
-
-} // namespace Corvus::Renderer

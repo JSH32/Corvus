@@ -39,7 +39,6 @@ void ModelViewer::initPreview() {
     previewCamera.lookAt(glm::vec3(0.0f, 0.0f, 0.0f));
     previewCamera.setPerspective(45.0f, 1.0f, 0.1f, 100.0f);
 
-    previewLighting.initialize(*context_);
     setupPreviewLights();
 
     previewInitialized = true;
@@ -50,7 +49,7 @@ void ModelViewer::cleanupPreview() {
     if (!previewInitialized)
         return;
 
-    previewLighting.shutdown();
+    sceneRenderer.getLighting().shutdown();
     context_->flush();
 
     colorTexture.release();
@@ -61,30 +60,30 @@ void ModelViewer::cleanupPreview() {
 }
 
 void ModelViewer::setupPreviewLights() {
-    previewLighting.clear();
+    sceneRenderer.clearLights();
 
     Renderer::Light keyLight;
     keyLight.type      = Renderer::LightType::Directional;
     keyLight.direction = glm::normalize(glm::vec3(-0.3f, -0.7f, -0.5f));
     keyLight.color     = glm::vec3(1.0f);
     keyLight.intensity = 0.9f;
-    previewLighting.addLight(keyLight);
+    sceneRenderer.addLight(keyLight);
 
     Renderer::Light fillLight;
     fillLight.type      = Renderer::LightType::Directional;
     fillLight.direction = glm::normalize(glm::vec3(0.5f, -0.3f, 0.5f));
     fillLight.color     = glm::vec3(0.7f, 0.78f, 0.86f);
     fillLight.intensity = 0.4f;
-    previewLighting.addLight(fillLight);
+    sceneRenderer.addLight(fillLight);
 
     Renderer::Light rimLight;
     rimLight.type      = Renderer::LightType::Directional;
     rimLight.direction = glm::normalize(glm::vec3(0.0f, 0.3f, 1.0f));
     rimLight.color     = glm::vec3(1.0f);
     rimLight.intensity = 0.3f;
-    previewLighting.addLight(rimLight);
+    sceneRenderer.addLight(rimLight);
 
-    previewLighting.setAmbientColor(glm::vec3(0.1f));
+    sceneRenderer.setAmbientColor(glm::vec3(0.1f));
 }
 
 void ModelViewer::calculateModelBounds() {
@@ -169,44 +168,42 @@ void ModelViewer::renderPreview() {
 
     updatePreview();
 
-    auto cmd = context_->createCommandBuffer();
-    cmd.begin();
-    cmd.bindFramebuffer(framebuffer);
-    cmd.setViewport(0, 0, previewResolution, previewResolution);
-    cmd.clear(0.176f, 0.176f, 0.188f, 1.0f, true);
-    cmd.unbindFramebuffer();
-    cmd.end();
-    cmd.submit();
+    auto model = modelHandle.get();
+    if (!model || !model->valid())
+        return;
 
-    Core::Components::MeshRendererComponent meshRendererComp;
-    Core::Components::TransformComponent    transformComp;
+    sceneRenderer.clear(glm::vec4(0.176f, 0.176f, 0.188f, 1.0f), true, &framebuffer);
 
-    meshRendererComp.primitiveType = Core::Components::PrimitiveType::Model;
-    meshRendererComp.modelHandle   = modelHandle;
+    auto& defaultShader = sceneRenderer.getMaterialRenderer().getDefaultShader();
+    if (!defaultShader.valid()) {
+        CORVUS_CORE_ERROR("Default shader not available for model preview");
+        return;
+    }
 
-    // White material
-    Core::MaterialAsset whiteMat;
-    whiteMat.shaderAsset = Core::UUID();
-    whiteMat.setVector4("_MainColor", glm::vec4(1.0f));
-    whiteMat.setFloat("_Metallic", 0.0f);
-    whiteMat.setFloat("_Smoothness", 0.5f);
-    meshRendererComp.materialHandle.setRuntime(std::move(whiteMat));
+    Renderer::Material whiteMaterial(defaultShader);
+    whiteMaterial.setVec4("_MainColor", glm::vec4(1.0f));
 
-    meshRendererComp.hasGeneratedModel = false;
-    meshRendererComp.renderWireframe   = showWireframe;
+    Renderer::RenderState state;
+    state.depthTest  = true;
+    state.depthWrite = true;
+    state.blend      = false;
+    state.cullFace   = true;
+    whiteMaterial.setRenderState(state);
 
-    transformComp.position = -modelCenter;
-    transformComp.rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    transformComp.scale    = glm::vec3(1.0f);
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f), -modelCenter);
 
-    std::vector<Renderer::RenderableEntity> renderables;
-    Renderer::RenderableEntity              entity;
-    entity.meshRenderer = &meshRendererComp;
-    entity.transform    = &transformComp;
-    entity.isEnabled    = true;
-    renderables.push_back(entity);
+    std::vector<Renderer::Renderable> renderables;
+    Renderer::Renderable              renderable;
+    renderable.model          = model.get();
+    renderable.material       = &whiteMaterial;
+    renderable.transform      = transform;
+    renderable.position       = -modelCenter;
+    renderable.boundingRadius = glm::length(boundsMax - boundsMin) * 0.5f;
+    renderable.wireframe      = showWireframe;
+    renderable.enabled        = true;
+    renderables.push_back(renderable);
 
-    sceneRenderer.render(renderables, previewCamera, assetManager, &previewLighting, &framebuffer);
+    sceneRenderer.render(renderables, previewCamera, &framebuffer);
 }
 
 void ModelViewer::renderModelInfo(const Renderer::Model& model) {

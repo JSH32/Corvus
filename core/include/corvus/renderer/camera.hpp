@@ -92,4 +92,4 @@ private:
     mutable bool frustumDirty_    = true;
 };
 
-} // namespace Corvus::Renderer
+}

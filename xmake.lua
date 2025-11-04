@@ -1,6 +1,13 @@
 add_rules("mode.release", "mode.debug")
 add_rules("plugin.compile_commands.autoupdate")
 set_languages("c++20")
+-- GLM uses a lot of ram, temporary to avoid compile ram usage
+add_defines(
+    "GLM_FORCE_INLINE",
+    "GLM_FORCE_SIZE_T_LENGTH",
+    "GLM_FORCE_EXPLICIT_CTOR", 
+    "GLM_FORCE_NO_CTOR_INIT"
+)
 
 -- Global debug symbols configuration
 if is_mode("debug") then
@@ -26,7 +33,7 @@ task("submodule")
     }
 
 task("configure")
-    on_run(function ()        
+    on_run(function ()
         os.execv("xmake", {"project", "-k", "compile_commands"}, { stdout = outfile, stderr = errfile })
         os.execv("xmake", {"project", "-k", "cmakelists"}, { stdout = outfile, stderr = errfile })
     end)
@@ -43,7 +50,6 @@ add_requires("glad")
 add_requires("glm")
 add_requires("cereal")
 add_requires("spdlog v1.11.0")
--- add_requires("raylib 5.5")
 add_requires("entt v3.9.0")
 add_requires("imgui v1.91.9b-docking")
 add_requires("boost")
@@ -60,6 +66,14 @@ package("physfs")
         import("package.tools.cmake").install(package, configs)
     end)
 package_end()
+
+target("physfs")
+    set_kind("static")
+    add_includedirs("vendor/physfs/src", { public = true })
+    add_files(
+        "vendor/physfs/src/*.cpp",
+        "vendor/physfs/src/*.c"
+    )
 
 target("ImGuiFileDialog")
     set_kind("static")
@@ -79,7 +93,6 @@ package("tinyobjloader")
     end)
 package_end()
 
-add_requires("physfs", { system = false })
 add_requires("tinyobjloader", { system = false })
 
 target("stb")
@@ -91,48 +104,6 @@ target("stb")
 target("fontawesome")
     set_kind("headeronly")
     add_includedirs("vendor/fontawesome", { public = true })
-
--- target("rlimgui")
---     set_kind("static")
---     add_includedirs("vendor/rlImGui", { public = true })
---     add_includedirs("vendor/rlImGui/extras", { public = true })
---     add_files("vendor/rlImGui/*.cpp")
---     -- Deps
---     add_packages("raylib")
---     add_packages("imgui")
-
--- target("raylib-cpp")
---     set_kind("headeronly")
---     add_includedirs("vendor/raylib-cpp/include", { public = true })
---     -- Deps
---     add_packages("raylib")
-
--- raylib as submodule target
--- target("raylib")
-    -- set_kind("static") 
-    -- set_languages("c99")
-
-    -- add_includedirs("vendor/raylib/src", { public = true })
-    -- add_files("vendor/raylib/src/*.c")
-
-    -- remove_files("vendor/raylib/src/external/glad.c")
-    -- remove_files("vendor/raylib/src/external/glfw3/*.c")
-    -- remove_files("vendor/raylib/src/external/glfw3/*.m")
-    -- remove_files("vendor/raylib/src/external/glfw3/*.mm")
-
-    -- add_defines("RAYLIB_NO_GLAD", "GRAPHICS_API_OPENGL_33")
-    -- add_packages("glad", "glfw")
-
-    -- -- Required system libs depending on platform
-    -- if is_plat("linux") then
-    --     add_syslinks("m", "dl", "pthread", "rt", "X11")
-    -- elseif is_plat("macosx") then
-    --     add_frameworks("Cocoa", "OpenGL", "IOKit", "CoreVideo")
-    -- elseif is_plat("windows") then
-    --     add_syslinks("gdi32", "winmm", "user32", "shell32")
-    -- end
-
-    -- add_defines("GRAPHICS_API_OPENGL_33", "RAYLIB_NO_GLAD")
 
 target("corvus-core")
     set_kind("static")
@@ -146,11 +117,6 @@ target("corvus-core")
         add_links("Advapi32")
     end
 
-    -- TEMPORARY
-    if is_plat("linux", "macosx") then
-        add_ldflags("-Wl,--allow-multiple-definition", { force = true })
-    end
-
     -- xrepo packages
     add_packages("glfw", { public = true })
     add_packages("glad", { public = true })
@@ -162,13 +128,10 @@ target("corvus-core")
     add_packages("spdlog", { public = true })
     add_packages("cereal", { public = true })
     -- Manual packages
-    add_packages("physfs", { public = true })
     add_packages("tinyobjloader", { public = true })
-    -- add_deps("rlimgui", { public = true })
+    add_deps("physfs", { public = true })
     add_deps("ImGuiFileDialog", { public = true })
     add_deps("fontawesome", { public = true })
-    -- add_deps("raylib", { public = true })
-    -- add_deps("raylib-cpp", { public = true })
     add_deps("stb", { public = true })
 
     add_files("core/src/**.cpp")

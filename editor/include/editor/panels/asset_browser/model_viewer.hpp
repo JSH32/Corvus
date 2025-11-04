@@ -18,9 +18,8 @@ private:
     Core::AssetHandle<Renderer::Model> modelHandle;
     Graphics::GraphicsContext*         context_ = nullptr;
 
-    Renderer::Camera         previewCamera;
-    Renderer::LightingSystem previewLighting;
-    Renderer::SceneRenderer  sceneRenderer;
+    Renderer::Camera        previewCamera;
+    Renderer::SceneRenderer sceneRenderer;
 
     Graphics::Framebuffer framebuffer;
     Graphics::Texture2D   colorTexture;

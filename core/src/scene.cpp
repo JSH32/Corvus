@@ -21,7 +21,6 @@ Scene& Scene::operator=(Scene&& other) noexcept {
         rootOrderedEntities = std::move(other.rootOrderedEntities);
         assetManager        = other.assetManager;
         renderer            = other.renderer;
-        lightingSystem      = std::move(other.lightingSystem);
 
         // Rebind all entity.scene pointers to this new Scene instance
         for (auto& e : rootOrderedEntities) {
@@ -37,7 +36,7 @@ Scene& Scene::operator=(Scene&& other) noexcept {
 Scene::Scene(Scene&& other) noexcept
     : name(std::move(other.name)), registry(std::move(other.registry)),
       rootOrderedEntities(std::move(other.rootOrderedEntities)), assetManager(other.assetManager),
-      renderer(other.renderer), lightingSystem(std::move(other.lightingSystem)) {
+      renderer(other.renderer) {
 
     // Rebind all entity.scene pointers to this new Scene instance
     for (auto& e : rootOrderedEntities) {
@@ -79,8 +78,7 @@ void Scene::render(Graphics::GraphicsContext&   ctx,
         renderer = new Renderer::SceneRenderer(ctx);
     }
 
-    // Use the unified scene renderer, it handles everything!
-    renderer->render(registry, camera, assetManager, &lightingSystem, targetFB);
+    renderer->renderScene(registry, camera, assetManager, targetFB);
 }
 
 }

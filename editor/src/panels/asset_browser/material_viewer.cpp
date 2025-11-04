@@ -31,25 +31,15 @@ void MaterialViewer::initPreview() {
     framebuffer.attachTexture2D(colorTexture, 0);
     framebuffer.attachDepthTexture(depthTexture);
 
-    // Setup fake mesh renderer component
-    // Set it to Sphere primitive so it will generate the sphere mesh
-    previewMeshRenderer.primitiveType        = Core::Components::PrimitiveType::Sphere;
-    previewMeshRenderer.params.sphere.radius = 1.0f;
-    previewMeshRenderer.params.sphere.rings  = 32;
-    previewMeshRenderer.params.sphere.slices = 32;
-    previewMeshRenderer.materialHandle       = materialHandle; // Use the material handle
-
-    previewTransform.position = glm::vec3(0.0f);
-    previewTransform.rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    previewTransform.scale    = glm::vec3(1.0f);
+    // Create preview sphere mesh directly
+    previewModel = Renderer::ModelGenerator::createSphere(*context_, 1.0f, 32, 32);
 
     // Setup camera
     previewCamera.setPosition(glm::vec3(0.0f, 1.5f, 3.0f));
     previewCamera.lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     previewCamera.setPerspective(45.0f, 1.0f, 0.1f, 100.0f);
 
-    // Initialize lighting system
-    previewLighting.initialize(*context_);
+    // Setup preview lights
     setupPreviewLights();
 
     previewInitialized = true;
@@ -63,45 +53,45 @@ void MaterialViewer::cleanupPreview() {
     CORVUS_CORE_INFO("Cleaning up material viewer preview");
 
     previewInitialized = false;
-    previewLighting.shutdown();
+    sceneRenderer.getLighting().shutdown();
 
     context_->flush();
 
-    // The mesh renderer component will clean up its own generated model
+    previewModel.release();
     colorTexture.release();
     depthTexture.release();
     framebuffer.release();
 }
 
 void MaterialViewer::setupPreviewLights() {
-    previewLighting.clear();
+    sceneRenderer.clearLights();
 
-    // Key light from top-front-right (standard 3-point lighting)
+    // Key light from top-front-right
     Renderer::Light keyLight;
     keyLight.type      = Renderer::LightType::Directional;
     keyLight.direction = glm::normalize(glm::vec3(-0.3f, -0.7f, -0.5f));
     keyLight.color     = glm::vec3(1.0f, 1.0f, 1.0f);
     keyLight.intensity = 1.0f;
-    previewLighting.addLight(keyLight);
+    sceneRenderer.addLight(keyLight);
 
-    // Fill light from left (softer, slightly blue)
+    // Fill light from left
     Renderer::Light fillLight;
     fillLight.type      = Renderer::LightType::Directional;
     fillLight.direction = glm::normalize(glm::vec3(0.5f, -0.3f, 0.5f));
     fillLight.color     = glm::vec3(0.7f, 0.78f, 0.86f);
     fillLight.intensity = 0.4f;
-    previewLighting.addLight(fillLight);
+    sceneRenderer.addLight(fillLight);
 
-    // Rim light from back (highlights edges)
+    // Rim light from back
     Renderer::Light rimLight;
     rimLight.type      = Renderer::LightType::Directional;
     rimLight.direction = glm::normalize(glm::vec3(0.0f, 0.3f, 1.0f));
     rimLight.color     = glm::vec3(1.0f, 1.0f, 1.0f);
     rimLight.intensity = 0.3f;
-    previewLighting.addLight(rimLight);
+    sceneRenderer.addLight(rimLight);
 
     // Ambient light
-    previewLighting.setAmbientColor(glm::vec3(0.1f, 0.1f, 0.12f));
+    sceneRenderer.setAmbientColor(glm::vec3(0.1f, 0.1f, 0.12f));
 }
 
 void MaterialViewer::updateCameraPosition() {
@@ -163,26 +153,31 @@ void MaterialViewer::renderPreview() {
 
     updatePreview();
 
-    // Clear frmaebuffer before rendering
-    auto clearCmd = context_->createCommandBuffer();
-    clearCmd.begin();
-    clearCmd.bindFramebuffer(framebuffer);
-    clearCmd.setViewport(0, 0, previewResolution, previewResolution);
-    clearCmd.clear(0.176f, 0.176f, 0.188f, 1.0f, true); // Clear color + depth
-    clearCmd.unbindFramebuffer();
-    clearCmd.end();
-    clearCmd.submit();
+    auto mat = materialHandle.get();
+    if (!mat)
+        return;
 
-    // Create a fake renderable entity
-    std::vector<Renderer::RenderableEntity> renderables;
-    Renderer::RenderableEntity              renderable;
-    renderable.meshRenderer = &previewMeshRenderer;
-    renderable.transform    = &previewTransform;
-    renderable.isEnabled    = true;
+    sceneRenderer.clear(glm::vec4(0.176f, 0.176f, 0.188f, 1.0f), true, &framebuffer);
+
+    Renderer::Material* material
+        = sceneRenderer.getMaterialRenderer().getMaterialFromAsset(*mat, assetManager);
+
+    if (!material)
+        return;
+
+    std::vector<Renderer::Renderable> renderables;
+    Renderer::Renderable              renderable;
+    renderable.model          = &previewModel;
+    renderable.material       = material;
+    renderable.transform      = previewTransform;
+    renderable.position       = glm::vec3(0.0f);
+    renderable.boundingRadius = 1.0f;
+    renderable.wireframe      = false;
+    renderable.enabled        = true;
     renderables.push_back(renderable);
 
     // Let the scene renderer handle everything!
-    sceneRenderer.render(renderables, previewCamera, assetManager, &previewLighting, &framebuffer);
+    sceneRenderer.render(renderables, previewCamera, &framebuffer);
 }
 
 void MaterialViewer::render() {
@@ -673,4 +668,4 @@ void MaterialViewer::renderAddPropertyPopup() {
     }
 }
 
-} // namespace Corvus::Editor
+}
