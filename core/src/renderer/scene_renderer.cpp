@@ -253,7 +253,7 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
     }
 
     // Get all lights
-    const auto& lights = lighting_.getLights();
+    auto& lights = lighting_.getLights();
 
     size_t shadowMapIndex = 0;
     size_t cubemapIndex   = 0;
@@ -262,7 +262,7 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
     std::vector<float> shadowStrengths;
 
     // Render shadow maps for each shadow-casting light
-    for (const auto& light : lights) {
+    for (auto& light : lights) {
         if (!light.castShadows)
             continue;
 
@@ -303,6 +303,9 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
 
             renderDirectionalShadowMap(
                 shadowMap, light, lightSpaceMatrix, renderables, shadowShader);
+
+            light.shadowMapIndex = static_cast<int>(shadowMapIndex);
+
             shadowMapIndex++;
 
         } else if (light.type == LightType::Point) {

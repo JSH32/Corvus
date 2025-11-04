@@ -38,6 +38,7 @@ struct SpotLight {
 };
 uniform int       u_SpotLightCount;
 uniform SpotLight u_SpotLights[16];
+uniform int       u_SpotLightShadowIndices[16];
 
 // Standard shadow uniforms (directional/spot)
 uniform int       u_ShadowMapCount;
@@ -115,6 +116,38 @@ vec3 calculatePointLight(PointLight light,
     return ((kD * diffuse) + specular) * attenuation;
 }
 
+// Spot light shadow calculation
+float calculateSpotLightShadow(vec3 fragPos, int shadowIndex) {
+    if (u_ShadowMapCount == 0 || shadowIndex >= u_ShadowMapCount || shadowIndex < 0)
+        return 0.0;
+
+    vec4 fragPosLightSpace = u_LightSpaceMatrices[shadowIndex] * vec4(fragPos, 1.0);
+    vec3 projCoords        = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords             = projCoords * 0.5 + 0.5;
+
+    // Outside light projection
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0
+        || projCoords.y > 1.0)
+        return 0.0;
+
+    float currentDepth = projCoords.z;
+    float bias         = u_ShadowBias[shadowIndex];
+    float shadow       = 0.0;
+    vec2  texelSize    = 1.0 / textureSize(u_ShadowMaps[shadowIndex], 0);
+
+    // 3x3 PCF
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            vec2  offset   = vec2(x, y) * texelSize;
+            float pcfDepth = texture(u_ShadowMaps[shadowIndex], projCoords.xy + offset).r;
+            shadow += (pcfDepth + bias) < currentDepth ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
+
+    return shadow * u_ShadowStrength[shadowIndex];
+}
+
 // Spot light calculation
 vec3 calculateSpotLight(SpotLight light,
                         vec3      normal,
@@ -188,7 +221,7 @@ float calculateShadow(vec3 fragPos, int shadowIndex) {
             sampleCoord      = clamp(sampleCoord, 0.0, 1.0);
 
             float pcfDepth = texture(u_ShadowMaps[shadowIndex], sampleCoord).r;
-            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+            shadow += (pcfDepth + bias) < currentDepth ? 1.0 : 0.0;
         }
     }
     shadow /= 9.0;
@@ -201,25 +234,29 @@ float calculatePointLightShadow(vec3 fragPos, int shadowIndex) {
     if (u_PointLightShadowCount == 0 || shadowIndex >= u_PointLightShadowCount || shadowIndex < 0)
         return 0.0;
 
-    // Get direction from light to fragment
-    vec3 fragToLight = fragPos - u_PointLightShadowPositions[shadowIndex];
-
-    // Sample the cubemap
-    float closestDepth = texture(u_PointLightShadowMaps[shadowIndex], fragToLight).r;
-
-    // Convert back to original depth value
-    closestDepth *= u_PointLightShadowFarPlanes[shadowIndex];
-
-    // Get current distance
+    vec3  fragToLight  = fragPos - u_PointLightShadowPositions[shadowIndex];
     float currentDepth = length(fragToLight);
+    float bias         = 0.05;
 
-    // Shadow bias
-    float bias   = 0.05;
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    float shadow  = 0.0;
+    float samples = 4.0; // adjust for quality vs performance
+    float offset  = 0.15;
 
-    // Add PCF for softer shadows here?
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            for (int z = -1; z <= 1; ++z) {
+                vec3  sampleOffset = vec3(x, y, z) * offset;
+                float closestDepth
+                    = texture(u_PointLightShadowMaps[shadowIndex], fragToLight + sampleOffset).r;
+                closestDepth *= u_PointLightShadowFarPlanes[shadowIndex];
+                if (currentDepth - bias > closestDepth)
+                    shadow += 1.0;
+            }
+        }
+    }
+    shadow /= (samples * samples * samples);
 
-    return shadow * 0.8; // Shadow strength
+    return shadow * 0.8;
 }
 
 void main() {
@@ -267,8 +304,16 @@ void main() {
     // Spot lights
     vec3 spotLighting = vec3(0.0);
     for (int i = 0; i < u_SpotLightCount && i < 16; ++i) {
-        spotLighting += calculateSpotLight(
+        vec3 spotLightColor = calculateSpotLight(
             u_SpotLights[i], fragNormal, fragPosition, viewDir, albedo, _Metallic, _Smoothness);
+
+        int shadowIndex = u_SpotLightShadowIndices[i];
+
+        float shadowFactor = 0.0;
+        if (shadowIndex >= 0 && shadowIndex < u_ShadowMapCount)
+            shadowFactor = calculateSpotLightShadow(fragPosition, shadowIndex);
+
+        spotLighting += (1.0 - shadowFactor) * spotLightColor;
     }
 
     // Combine all lighting

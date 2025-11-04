@@ -31,8 +31,9 @@ struct Light {
     float range = 10.0f;
 
     // Spot light properties
-    float innerCutoff = 12.5f; // degrees
-    float outerCutoff = 17.5f; // degrees
+    float innerCutoff    = 12.5f; // degrees
+    float outerCutoff    = 17.5f; // degrees
+    int   shadowMapIndex = -1;
 
     // Shadow properties
     bool     castShadows         = false;
@@ -121,7 +122,7 @@ public:
     /**
      * Get all lights
      */
-    const std::vector<Light>& getLights() const { return lights_; }
+    std::vector<Light>& getLights() { return lights_; }
 
     /**
      * Get lights by type

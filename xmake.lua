@@ -56,17 +56,6 @@ add_requires("boost")
 
 local project_dir = os.projectdir()
 
-package("physfs")
-    add_deps("cmake")
-    set_sourcedir(path.join(project_dir, "vendor", "physfs"))
-    on_install(function (package)
-        local configs = {}
-        table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
-        table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))
-        import("package.tools.cmake").install(package, configs)
-    end)
-package_end()
-
 target("physfs")
     set_kind("static")
     add_includedirs("vendor/physfs/src", { public = true })
@@ -79,27 +68,17 @@ target("ImGuiFileDialog")
     set_kind("static")
     add_includedirs("vendor/ImGuiFileDialog", { public = true })
     add_files("vendor/ImGuiFileDialog/*.cpp")
-    -- Deps
     add_packages("imgui")
 
-package("tinyobjloader")
-    add_deps("cmake")
-    set_sourcedir(path.join(project_dir, "vendor", "tinyobjloader"))
-    on_install(function (package)
-        local configs = {}
-        table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
-        table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))
-        import("package.tools.cmake").install(package, configs)
-    end)
-package_end()
-
-add_requires("tinyobjloader", { system = false })
+target("tinyobjloader")
+    set_kind("static")
+    add_includedirs("vendor/tinyobjloader", { public = true })
+    add_files("vendor/tinyobjloader/tiny_obj_loader.cc")
 
 target("stb")
     set_kind("static")
     add_includedirs("vendor/stb", { public = true })
     add_files("vendor/stb/*.c")
-
 
 target("fontawesome")
     set_kind("headeronly")
@@ -128,7 +107,7 @@ target("corvus-core")
     add_packages("spdlog", { public = true })
     add_packages("cereal", { public = true })
     -- Manual packages
-    add_packages("tinyobjloader", { public = true })
+    add_deps("tinyobjloader", { public = true })
     add_deps("physfs", { public = true })
     add_deps("ImGuiFileDialog", { public = true })
     add_deps("fontawesome", { public = true })

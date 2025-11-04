@@ -1,5 +1,6 @@
 #include "corvus/renderer/lighting.hpp"
 #include "corvus/log.hpp"
+#include "glm/gtc/epsilon.hpp"
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -325,8 +326,10 @@ glm::mat4 LightingSystem::calculateSpotLightMatrix(const Light& light) {
                                                                               : glm::vec3(0, 1, 0);
 
     glm::mat4 view = glm::lookAt(light.position, light.position + lightDir, up);
-    glm::mat4 proj
-        = glm::perspective(glm::radians(light.outerCutoff * 2.0f), 1.0f, 0.1f, light.range);
+    glm::mat4 proj = glm::perspective(glm::radians(light.outerCutoff * 1.1f),
+                                      1.0f,
+                                      std::max(0.5f, light.shadowNearPlane),
+                                      light.range);
 
     return proj * view;
 }
@@ -400,7 +403,6 @@ void LightingSystem::applyLightingUniforms(Graphics::CommandBuffer& cmd,
         std::string base = "u_SpotLights[" + std::to_string(i) + "].";
         shader.setVec3(cmd, (base + "position").c_str(), light->position);
         shader.setVec3(cmd, (base + "direction").c_str(), glm::normalize(light->direction));
-        // Normalize color before multiplying by intensity
         shader.setVec3(
             cmd, (base + "color").c_str(), normalizeColor(light->color) * light->intensity);
         shader.setFloat(cmd, (base + "range").c_str(), light->range);
@@ -408,6 +410,48 @@ void LightingSystem::applyLightingUniforms(Graphics::CommandBuffer& cmd,
             cmd, (base + "innerCutoff").c_str(), std::cos(glm::radians(light->innerCutoff)));
         shader.setFloat(
             cmd, (base + "outerCutoff").c_str(), std::cos(glm::radians(light->outerCutoff)));
+    }
+
+    for (size_t i = 0; i < culled.spotLights.size() && i < MAX_LIGHTS; ++i) {
+        const auto* light       = culled.spotLights[i];
+        int         shadowIndex = -1;
+
+        for (const auto& fullLight : lights_) {
+            if (fullLight.type == LightType::Spot
+                && glm::all(glm::epsilonEqual(fullLight.position, light->position, 0.0001f))) {
+                shadowIndex = fullLight.shadowMapIndex;
+                break;
+            }
+        }
+
+        std::string uniformName = "u_SpotLightShadowIndices[" + std::to_string(i) + "]";
+        shader.setInt(cmd, uniformName.c_str(), shadowIndex);
+    }
+
+    shader.setInt(cmd, "u_PointLightShadowCount", static_cast<int>(cubemapShadows_.size()));
+    for (size_t i = 0; i < cubemapShadows_.size() && i < MAX_POINT_SHADOWS; ++i) {
+        // Find which light this shadow belongs to (you may need to track this when rendering
+        // shadows)
+        const auto&  shadow = cubemapShadows_[i];
+        const Light* light  = nullptr;
+
+        // Find first matching point light (simple fallback)
+        for (const auto& l : lights_) {
+            if (l.type == LightType::Point && l.castShadows) {
+                light = &l;
+                break;
+            }
+        }
+
+        if (light) {
+            shader.setVec3(cmd,
+                           ("u_PointLightShadowPositions[" + std::to_string(i) + "]").c_str(),
+                           light->position);
+            shader.setFloat(cmd,
+                            ("u_PointLightShadowFarPlanes[" + std::to_string(i) + "]").c_str(),
+                            light->range);
+            shader.setInt(cmd, ("u_PointLightShadowIndices[" + std::to_string(i) + "]").c_str(), i);
+        }
     }
 
     // Shadow uniforms with proper bias and strength
@@ -449,7 +493,7 @@ void LightingSystem::bindShadowTextures(Graphics::CommandBuffer& cmd) {
     // Point light cubemap shadows
     for (size_t i = 0; i < cubemapShadows_.size() && i < MAX_POINT_SHADOWS; ++i) {
         if (cubemapShadows_[i].initialized) {
-            std::string uniformName = "u_PointShadowMaps[" + std::to_string(i) + "]";
+            std::string uniformName = "u_PointLightShadowMaps[" + std::to_string(i) + "]";
             cmd.bindTextureCube(textureSlot, cubemapShadows_[i].depthCubemap, uniformName);
             textureSlot++;
         }
@@ -478,5 +522,4 @@ void LightingSystem::shutdown() {
     initialized_ = false;
     context_     = nullptr;
 }
-
 }
