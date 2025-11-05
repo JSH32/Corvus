@@ -6,8 +6,10 @@
 #include "corvus/files/static_resource_file.hpp"
 #include "corvus/graphics/opengl_context.hpp"
 #include "corvus/log.hpp"
+#include "corvus/renderer/raycast.hpp"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/quaternion.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include <algorithm>
@@ -37,12 +39,14 @@ SceneViewport::SceneViewport(Core::Project& project, Graphics::GraphicsContext& 
         glm::vec2 uv;
     };
 
-    float      halfSize  = 500.0f;
-    GridVertex verts[]   = { { { -halfSize, 0.f, -halfSize }, { 0, 0 } },
-                             { { halfSize, 0.f, -halfSize }, { 1, 0 } },
-                             { { halfSize, 0.f, halfSize }, { 1, 1 } },
-                             { { -halfSize, 0.f, halfSize }, { 0, 1 } } };
-    uint16_t   indices[] = { 0, 1, 2, 0, 2, 3 };
+    float      halfSize = 500.0f;
+    GridVertex verts[]  = {
+        { { -halfSize, 0.f, -halfSize }, { 0, 0 } },
+        { { halfSize, 0.f, -halfSize }, { 1, 0 } },
+        { { halfSize, 0.f, halfSize }, { 1, 1 } },
+        { { -halfSize, 0.f, halfSize }, { 0, 1 } },
+    };
+    uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
 
     gridVBO = ctx.createVertexBuffer(verts, sizeof(verts));
     gridIBO = ctx.createIndexBuffer(indices, 6, true);
@@ -109,7 +113,6 @@ void SceneViewport::manageFramebuffer(const ImVec2& size) {
     colorTexture.height = height;
     currentSize         = size;
 
-    // Update camera aspect ratio
     float aspectRatio = width / static_cast<float>(height);
     editorCamera.getCamera().setPerspective(45.0f, aspectRatio, 0.1f, 1000.0f);
 }
@@ -122,44 +125,38 @@ void SceneViewport::renderSceneToFramebuffer(Core::Entity*    selectedEntity,
     if (!framebuffer.valid())
         return;
 
-    // Get camera for rendering
     auto& camera = editorCamera.getCamera();
     auto  view   = camera.getViewMatrix();
     auto  proj   = camera.getProjectionMatrix();
     auto  camPos = camera.getPosition();
 
-    // Render grid
+    // Grid Pass
     {
         Graphics::CommandBuffer cmd = ctx.createCommandBuffer();
         cmd.begin();
         cmd.bindFramebuffer(framebuffer);
         cmd.setViewport(0, 0, (uint32_t)currentSize.x, (uint32_t)currentSize.y);
-
         cmd.executeCallback([]() { glFrontFace(GL_CCW); });
-
         cmd.enableScissor(false);
-        cmd.clear(64.f / 255.0f, 64.f / 255.0f, 64.0f / 255.0f, 1.f, true, true);
-
+        cmd.clear(64.f / 255.0f, 64.f / 255.0f, 64.f / 255.0f, 1.f, true, true);
         renderGrid(cmd, view, proj, camPos);
-
         cmd.unbindFramebuffer();
         cmd.end();
         cmd.submit();
     }
 
-    // Render scene using new camera-based API
+    // Scene pass
     project.getCurrentScene()->render(ctx, camera, &framebuffer);
 
+    // Gizmo pass
     if (selectedEntity && *selectedEntity
         && selectedEntity->hasComponent<Core::Components::TransformComponent>()) {
 
         auto& tr = selectedEntity->getComponent<Core::Components::TransformComponent>();
-
         Graphics::CommandBuffer cmd = ctx.createCommandBuffer();
         cmd.begin();
         cmd.bindFramebuffer(framebuffer);
         cmd.setViewport(0, 0, (uint32_t)currentSize.x, (uint32_t)currentSize.y);
-
         editorGizmo.render(cmd,
                            tr,
                            mousePos,
@@ -170,7 +167,6 @@ void SceneViewport::renderSceneToFramebuffer(Core::Entity*    selectedEntity,
                            view,
                            proj,
                            camPos);
-
         cmd.unbindFramebuffer();
         cmd.end();
         cmd.submit();
@@ -185,22 +181,17 @@ void SceneViewport::renderGrid(Graphics::CommandBuffer& cmd,
         return;
 
     glm::mat4 vp = proj * view;
-
-    // Set uniforms through command buffer
     gridShader.setMat4(cmd, "viewProjection", vp);
     gridShader.setVec3(cmd, "cameraPos", camPos);
     gridShader.setFloat(cmd, "gridSize", 1000.0f);
     cmd.setShader(gridShader);
 
-    // Set rendering state and draw
     cmd.setVertexArray(gridVAO);
     cmd.setDepthTest(false);
     cmd.setDepthMask(false);
     cmd.setBlendState(true);
     cmd.setCullFace(false, false);
-
     cmd.drawIndexed(6, true);
-
     cmd.setCullFace(true, false);
     cmd.setDepthTest(true);
     cmd.setDepthMask(true);
@@ -214,47 +205,44 @@ Core::Entity SceneViewport::pickEntity(const glm::vec2& mousePos) {
     if (!framebuffer.valid())
         return {};
 
-    glm::mat4 view = editorCamera.getViewMatrix();
-    glm::mat4 proj = editorCamera.getProjectionMatrix(currentSize.x / currentSize.y);
-    glm::mat4 inv  = glm::inverse(proj * view);
+    const glm::mat4 view = editorCamera.getViewMatrix();
+    const glm::mat4 proj = editorCamera.getProjectionMatrix(currentSize.x / currentSize.y);
+    Geometry::Ray   rayWorld
+        = Geometry::buildRay(mousePos, { currentSize.x, currentSize.y }, view, proj);
 
-    glm::vec2 ndc
-        = { (2.f * mousePos.x) / currentSize.x - 1.f, 1.f - (2.f * mousePos.y) / currentSize.y };
-    glm::vec4 nearP = inv * glm::vec4(ndc, 0.f, 1.f);
-    glm::vec4 farP  = inv * glm::vec4(ndc, 1.f, 1.f);
-    nearP /= nearP.w;
-    farP /= farP.w;
-
-    glm::vec3 ro = glm::vec3(nearP);
-    glm::vec3 rd = glm::normalize(glm::vec3(farP - nearP));
-
-    Core::Entity picked;
-    float        closest = FLT_MAX;
+    Core::Entity         best;
+    Geometry::RaycastHit bestHit; // distance = max
 
     for (auto& e : project.getCurrentScene()->getRootOrderedEntities()) {
         if (!e.hasComponent<Core::Components::MeshRendererComponent>()
             || !e.hasComponent<Core::Components::TransformComponent>())
             continue;
 
-        auto&     tr     = e.getComponent<Core::Components::TransformComponent>();
-        glm::vec3 pos    = tr.position;
-        float     radius = 1.0f;
-        glm::vec3 oc     = ro - pos;
-        float     a      = glm::dot(rd, rd);
-        float     b      = 2.f * glm::dot(oc, rd);
-        float     c      = glm::dot(oc, oc) - radius * radius;
-        float     disc   = b * b - 4 * a * c;
+        auto& tr = e.getComponent<Core::Components::TransformComponent>();
+        auto& mr = e.getComponent<Core::Components::MeshRendererComponent>();
 
-        if (disc < 0)
-            continue;
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), tr.position) * glm::toMat4(tr.rotation)
+            * glm::scale(glm::mat4(1.0f), tr.scale);
 
-        float t = (-b - sqrtf(disc)) / (2 * a);
-        if (t >= 0 && t < closest) {
-            closest = t;
-            picked  = e;
+        Geometry::RaycastHit hit;
+
+        bool got = false;
+        if (mr.hasGeneratedModel && mr.generatedModel)
+            got = intersectModel(*mr.generatedModel, model, rayWorld, hit);
+        else if (mr.primitiveType == Core::Components::PrimitiveType::Model
+                 && mr.modelHandle->valid()) {
+            auto modelPtr = mr.modelHandle.get();
+            if (modelPtr && modelPtr->valid())
+                got = intersectModel(*modelPtr, model, rayWorld, hit);
+        }
+
+        if (got && hit.hit && hit.distance < bestHit.distance) {
+            best    = e;
+            bestHit = hit;
         }
     }
-    return picked;
+
+    return best;
 }
 
 void SceneViewport::render(const ImVec2&    size,

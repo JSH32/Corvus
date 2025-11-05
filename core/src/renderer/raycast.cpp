@@ -40,6 +40,22 @@ bool intersectTriangle(const Ray&       ray,
     return true;
 }
 
+Ray buildRay(const glm::vec2& mouse,
+             const glm::vec2& size,
+             const glm::mat4& view,
+             const glm::mat4& proj) {
+    glm::vec2 ndc((2.f * mouse.x) / size.x - 1.f, 1.f - (2.f * mouse.y) / size.y);
+    glm::mat4 invVP = glm::inverse(proj * view);
+    glm::vec4 nearP = invVP * glm::vec4(ndc, 0.f, 1.f);
+    glm::vec4 farP  = invVP * glm::vec4(ndc, 1.f, 1.f);
+    nearP /= nearP.w;
+    farP /= farP.w;
+    Ray ray;
+    ray.origin    = glm::vec3(nearP);
+    ray.direction = glm::normalize(glm::vec3(farP - nearP));
+    return ray;
+}
+
 template <typename VertexT>
 bool intersectMesh(const Ray&                   rayLocal,
                    const std::vector<VertexT>&  vertices,

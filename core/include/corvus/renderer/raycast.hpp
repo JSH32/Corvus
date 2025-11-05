@@ -20,6 +20,11 @@ struct RaycastHit {
     int       triangleID = -1;
 };
 
+Ray buildRay(const glm::vec2& mouse,
+             const glm::vec2& size,
+             const glm::mat4& view,
+             const glm::mat4& proj);
+
 bool intersectTriangle(const Ray&       ray,
                        const glm::vec3& v0,
                        const glm::vec3& v1,
