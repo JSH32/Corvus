@@ -24,8 +24,7 @@ public:
     MaterialRenderer& operator=(MaterialRenderer&&)      = delete;
 
     /**
-     * PRIMARY METHOD: Apply a low-level Material to the current render pass.
-     * This is the core rendering logic - no asset system dependencies.
+     * Apply a Material to the current render pass.
      *
      * @param material The renderer material to apply
      * @param cmd Command buffer to record commands to
@@ -34,7 +33,7 @@ public:
     Graphics::Shader* apply(Material& material, Graphics::CommandBuffer& cmd);
 
     /**
-     * UTILITY METHOD: Apply a MaterialAsset by converting it to a Material first.
+     * Apply a MaterialAsset by converting it to a Material first.
      * This is an adapter for the asset system.
      *
      * @param materialAsset The asset material (data) to convert and apply

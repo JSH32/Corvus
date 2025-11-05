@@ -54,8 +54,6 @@ add_requires("entt v3.9.0")
 add_requires("imgui v1.91.9b-docking")
 add_requires("boost")
 
-local project_dir = os.projectdir()
-
 target("physfs")
     set_kind("static")
     add_includedirs("vendor/physfs/src", { public = true })

@@ -77,7 +77,7 @@ struct CubemapShadow {
 };
 
 /**
- * Lighting manager - handles all lights and shadow rendering
+ * Lighting manager, handles all lights and shadow rendering
  */
 class LightingSystem {
 public:
