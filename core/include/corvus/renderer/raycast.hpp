@@ -1,3 +1,4 @@
+#include "corvus/renderer/mesh.hpp"
 #include "entt/entity/fwd.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/vector_float3.hpp"
@@ -6,8 +7,8 @@
 namespace Corvus::Geometry {
 
 struct Ray {
-    glm::vec3 origin;
-    glm::vec3 direction; // should be normalized
+    glm::vec3 origin { 0.0f };
+    glm::vec3 direction { 0.0f };
 };
 
 struct RaycastHit {
@@ -37,5 +38,10 @@ bool intersectModel(const ModelT&    model,
                     const glm::mat4& modelMatrix,
                     const Ray&       rayWorld,
                     RaycastHit&      outHit);
+
+bool intersectModel(const Renderer::Mesh& mesh,
+                    const glm::mat4&      modelMatrix,
+                    const Ray&            rayWorld,
+                    RaycastHit&           outHit);
 
 }

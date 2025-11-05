@@ -112,6 +112,40 @@ bool intersectModel(const ModelT&    model,
     return hitAny;
 }
 
+bool intersectModel(const Renderer::Mesh& mesh,
+                    const glm::mat4&      modelMatrix,
+                    const Ray&            rayWorld,
+                    RaycastHit&           outHit) {
+    if (!mesh.valid())
+        return false;
+
+    glm::mat4 inv         = glm::inverse(modelMatrix);
+    glm::vec3 localOrigin = glm::vec3(inv * glm::vec4(rayWorld.origin, 1.f));
+    glm::vec3 localDir    = glm::normalize(glm::mat3(inv) * rayWorld.direction);
+    Ray       rayLocal { localOrigin, localDir };
+
+    bool  hitAny  = false;
+    float closest = outHit.distance;
+
+    const auto& verts = mesh.getVertices();
+    const auto& inds  = mesh.getIndices();
+
+    RaycastHit localHit;
+    if (intersectMesh(rayLocal, verts, inds, localHit) && localHit.distance < closest) {
+        closest = localHit.distance;
+        hitAny  = true;
+
+        glm::vec3 localPos = rayLocal.origin + rayLocal.direction * localHit.distance;
+        outHit.position    = glm::vec3(modelMatrix * glm::vec4(localPos, 1.0f));
+        outHit.normal      = glm::normalize(glm::mat3(glm::transpose(inv)) * localHit.normal);
+        outHit.distance    = glm::length(outHit.position - rayWorld.origin);
+        outHit.hit         = true;
+        outHit.triangleID  = localHit.triangleID;
+    }
+
+    return hitAny;
+}
+
 // explicit template instantiations for your standard vertex
 template bool intersectMesh(const Ray&,
                             const std::vector<Renderer::Vertex>&,
