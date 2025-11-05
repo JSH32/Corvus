@@ -7,7 +7,7 @@
 >
 > This engine is under active development as a fun side project
 
-A full-featured game engine built on top of [raylib](https://www.raylib.com/), designed for creating 3D games with a complete development workflow.
+A full-featured game engine built on top of our RHI (currently only supports OpenGL), designed for creating 3D games with a complete development workflow.
 
 ## Editor Preview
 
