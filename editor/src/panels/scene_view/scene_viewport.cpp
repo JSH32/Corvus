@@ -9,16 +9,13 @@
 #include "corvus/renderer/raycast.hpp"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/quaternion.hpp"
-#include "glm/gtc/type_ptr.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include <algorithm>
-#include <cfloat>
 
 namespace Corvus::Editor {
 
 SceneViewport::SceneViewport(Core::Project& project, Graphics::GraphicsContext& ctx)
-    : project(project), ctx(ctx), editorCamera(), editorGizmo(ctx), currentSize({ 1.0f, 1.0f }) {
+    : project(project), ctx(ctx), editorGizmo(ctx), currentSize({ 1.0f, 1.0f }) {
 
     // Camera defaults
     editorCamera.setTarget(glm::vec3(0.0f));
@@ -30,8 +27,8 @@ SceneViewport::SceneViewport(Core::Project& project, Graphics::GraphicsContext& 
 
     auto vsBytes = Core::StaticResourceFile::create("engine/shaders/grid.vert")->readAllBytes();
     auto fsBytes = Core::StaticResourceFile::create("engine/shaders/grid.frag")->readAllBytes();
-    std::string vsSrc(vsBytes.begin(), vsBytes.end());
-    std::string fsSrc(fsBytes.begin(), fsBytes.end());
+    const std::string vsSrc(vsBytes.begin(), vsBytes.end());
+    const std::string fsSrc(fsBytes.begin(), fsBytes.end());
     gridShader = ctx.createShader(vsSrc, fsSrc);
 
     struct GridVertex {
@@ -40,15 +37,15 @@ SceneViewport::SceneViewport(Core::Project& project, Graphics::GraphicsContext& 
     };
 
     float      halfSize = 500.0f;
-    GridVertex verts[]  = {
+    const GridVertex vertices[]  = {
         { { -halfSize, 0.f, -halfSize }, { 0, 0 } },
         { { halfSize, 0.f, -halfSize }, { 1, 0 } },
         { { halfSize, 0.f, halfSize }, { 1, 1 } },
         { { -halfSize, 0.f, halfSize }, { 0, 1 } },
     };
-    uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
+    const uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
 
-    gridVBO = ctx.createVertexBuffer(verts, sizeof(verts));
+    gridVBO = ctx.createVertexBuffer(vertices, sizeof(vertices));
     gridIBO = ctx.createIndexBuffer(indices, 6, true);
     gridVAO = ctx.createVertexArray();
 
@@ -81,13 +78,19 @@ SceneViewport::~SceneViewport() {
         gridIBO.release();
 }
 
+void SceneViewport::setGridEnabled(const bool enabled){
+    gridEnabled = enabled;
+}
+
+bool SceneViewport::isGridEnabled() const { return gridEnabled; }
+
 void SceneViewport::manageFramebuffer(const ImVec2& size) {
     if (size.x <= 0 || size.y <= 0)
         return;
 
-    int  width  = static_cast<int>(size.x);
-    int  height = static_cast<int>(size.y);
-    bool recreate
+    const int  width  = static_cast<int>(size.x);
+    const int  height = static_cast<int>(size.y);
+    const bool recreate
         = !framebuffer.valid() || colorTexture.width != width || colorTexture.height != height;
 
     if (!recreate)
@@ -113,29 +116,29 @@ void SceneViewport::manageFramebuffer(const ImVec2& size) {
     colorTexture.height = height;
     currentSize         = size;
 
-    float aspectRatio = width / static_cast<float>(height);
+    const float aspectRatio = width / static_cast<float>(height);
     editorCamera.getCamera().setPerspective(45.0f, aspectRatio, 0.1f, 1000.0f);
 }
 
 void SceneViewport::renderSceneToFramebuffer(Core::Entity*    selectedEntity,
                                              const glm::vec2& mousePos,
-                                             bool             mousePressed,
-                                             bool             mouseDown,
-                                             bool             mouseInViewport) {
+                                             const bool             mousePressed,
+                                             const bool             mouseDown,
+                                             const bool             mouseInViewport) {
     if (!framebuffer.valid())
         return;
 
-    auto& camera = editorCamera.getCamera();
-    auto  view   = camera.getViewMatrix();
-    auto  proj   = camera.getProjectionMatrix();
-    auto  camPos = camera.getPosition();
+    const auto& camera = editorCamera.getCamera();
+    const auto  view   = camera.getViewMatrix();
+    const auto  proj   = camera.getProjectionMatrix();
+    const auto  camPos = camera.getPosition();
 
     // Grid Pass
     {
         Graphics::CommandBuffer cmd = ctx.createCommandBuffer();
         cmd.begin();
         cmd.bindFramebuffer(framebuffer);
-        cmd.setViewport(0, 0, (uint32_t)currentSize.x, (uint32_t)currentSize.y);
+        cmd.setViewport(0, 0, static_cast<uint32_t>(currentSize.x), static_cast<uint32_t>(currentSize.y));
         cmd.executeCallback([]() { glFrontFace(GL_CCW); });
         cmd.enableScissor(false);
         cmd.clear(64.f / 255.0f, 64.f / 255.0f, 64.f / 255.0f, 1.f, true, true);
@@ -156,7 +159,7 @@ void SceneViewport::renderSceneToFramebuffer(Core::Entity*    selectedEntity,
         Graphics::CommandBuffer cmd = ctx.createCommandBuffer();
         cmd.begin();
         cmd.bindFramebuffer(framebuffer);
-        cmd.setViewport(0, 0, (uint32_t)currentSize.x, (uint32_t)currentSize.y);
+        cmd.setViewport(0, 0, static_cast<uint32_t>(currentSize.x), static_cast<uint32_t>(currentSize.y));
         editorGizmo.render(cmd,
                            tr,
                            mousePos,
@@ -180,7 +183,7 @@ void SceneViewport::renderGrid(Graphics::CommandBuffer& cmd,
     if (!gridEnabled || !gridShader.valid())
         return;
 
-    glm::mat4 vp = proj * view;
+    const glm::mat4 vp = proj * view;
     gridShader.setMat4(cmd, "viewProjection", vp);
     gridShader.setVec3(cmd, "cameraPos", camPos);
     gridShader.setFloat(cmd, "gridSize", 1000.0f);
@@ -197,8 +200,8 @@ void SceneViewport::renderGrid(Graphics::CommandBuffer& cmd,
     cmd.setDepthMask(true);
 }
 
-void SceneViewport::updateCamera(const ImGuiIO& io, bool allowInput) {
-    editorCamera.update(io, allowInput);
+void SceneViewport::updateCamera(const ImGuiIO& io, const bool inputAllowed) {
+    editorCamera.update(io, inputAllowed);
 }
 
 Core::Entity SceneViewport::pickEntity(const glm::vec2& mousePos) {
@@ -218,11 +221,11 @@ Core::Entity SceneViewport::pickEntity(const glm::vec2& mousePos) {
             || !e.hasComponent<Core::Components::TransformComponent>())
             continue;
 
-        auto& tr = e.getComponent<Core::Components::TransformComponent>();
+        auto& [position, rotation, scale] = e.getComponent<Core::Components::TransformComponent>();
         auto& mr = e.getComponent<Core::Components::MeshRendererComponent>();
 
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), tr.position) * glm::toMat4(tr.rotation)
-            * glm::scale(glm::mat4(1.0f), tr.scale);
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), position) * glm::toMat4(rotation)
+            * glm::scale(glm::mat4(1.0f), scale);
 
         Geometry::RaycastHit hit;
 
@@ -248,11 +251,11 @@ Core::Entity SceneViewport::pickEntity(const glm::vec2& mousePos) {
 void SceneViewport::render(const ImVec2&    size,
                            Core::Entity*    selectedEntity,
                            const glm::vec2& mousePos,
-                           bool             mousePressed,
-                           bool             mouseDown,
-                           bool             mouseInViewport) {
-    ImVec2 valid = { std::max(1.f, size.x), std::max(1.f, size.y) };
-    if (valid.x != currentSize.x || valid.y != currentSize.y)
+                           const bool             mousePressed,
+                           const bool             mouseDown,
+                           const bool             mouseInViewport) {
+    if (const ImVec2 valid = { std::max(1.f, size.x), std::max(1.f, size.y) };
+        valid.x != currentSize.x || valid.y != currentSize.y)
         manageFramebuffer(valid);
 
     renderSceneToFramebuffer(selectedEntity, mousePos, mousePressed, mouseDown, mouseInViewport);

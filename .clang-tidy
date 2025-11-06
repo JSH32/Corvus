@@ -1,0 +1,1 @@
+Checks: '-modernize-use-nodiscard,-hicpp-use-nodiscard,-cppcoreguidelines-nodiscard'

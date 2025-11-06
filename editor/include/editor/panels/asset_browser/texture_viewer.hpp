@@ -7,19 +7,16 @@
 
 namespace Corvus::Editor {
 
-class TextureViewer : public AssetViewer {
+class TextureViewer final : public AssetViewer {
 public:
     TextureViewer(const Core::UUID&          id,
                   Core::AssetManager*        manager,
                   Graphics::GraphicsContext& ctx);
-    ~TextureViewer();
+    ~TextureViewer() override;
 
     void render() override;
 
 private:
-    void initPreview();
-    void cleanupPreview();
-
     void handleZoomAndPan();
     void renderTexturePreview();
     void renderTextureInfo(Graphics::Texture2D* tex);
@@ -31,14 +28,13 @@ private:
     Graphics::Texture2D   previewColorTex;
     Graphics::Texture2D   previewDepthTex;
 
-    float  zoom               = 1.0f;
-    ImVec2 panOffset          = { 0, 0 };
-    ImVec2 lastMousePos       = { 0, 0 };
-    bool   isPanning          = false;
-    bool   showAlpha          = true;
-    bool   showGrid           = true;
-    bool   fitToWindow        = false;
-    bool   previewInitialized = false;
+    float  zoom         = 1.0f;
+    ImVec2 panOffset    = { 0, 0 };
+    ImVec2 lastMousePos = { 0, 0 };
+    bool   isPanning    = false;
+    bool   showAlpha    = true;
+    bool   showGrid     = true;
+    bool   fitToWindow  = false;
 
     const uint32_t previewResolution = 512;
 };

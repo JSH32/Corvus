@@ -9,25 +9,25 @@
 
 namespace Corvus::Editor {
 
-class EditorLayer : public Core::Layer {
+class EditorLayer final : public Core::Layer {
 public:
     EditorLayer(Core::Application* application, std::unique_ptr<Core::Project> project);
 
-    ~EditorLayer();
+    ~EditorLayer() override;
     void onImGuiRender() override;
     void recreatePanels();
 
     template <typename T>
     T* getPanel() {
-        for (auto& panelInstance : panels) {
-            if (auto* panel = dynamic_cast<T*>(panelInstance.panel.get())) {
+        for (auto& [panelPtr, _] : panels) {
+            if (auto* panel = dynamic_cast<T*>(panelPtr.get())) {
                 return panel;
             }
         }
         return nullptr;
     }
 
-    Core::Application* getApplication() { return application; }
+    Core::Application* getApplication() const { return application; }
 
 private:
     struct PanelDefinition {
@@ -50,8 +50,8 @@ private:
     Core::Entity                   selectedEntity;
     Core::Application*             application;
 
-    void startDockspace();
-    void renderMenuBar();
+    static void startDockSpace();
+    void        renderMenuBar();
 
     void returnToProjectSelector();
 

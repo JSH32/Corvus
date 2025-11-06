@@ -39,7 +39,7 @@ const std::vector<EditorLayer::PanelDefinition> EditorLayer::PANEL_REGISTRY
           } },
         { "Asset Browser",
           true,
-          [](EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
+          [](const EditorLayer* editor) -> std::unique_ptr<EditorPanel> {
               return std::make_unique<AssetBrowserPanel>(editor->currentProject->getAssetManager(),
                                                          editor->currentProject.get(),
                                                          editor->getApplication()->getGraphics());
@@ -49,7 +49,7 @@ const std::vector<EditorLayer::PanelDefinition> EditorLayer::PANEL_REGISTRY
          } } };
 
 EditorLayer::EditorLayer(Core::Application* application, std::unique_ptr<Core::Project> project)
-    : Core::Layer("Editor"), application(application), currentProject(std::move(project)) {
+    : Layer("Editor"), currentProject(std::move(project)), application(application) {
 
     if (currentProject) {
         if (!currentProject->fileWatcherRunning()) {
@@ -76,7 +76,7 @@ void EditorLayer::recreatePanels() {
         return;
     }
 
-    // Create all panels from registry
+    // Create all panels from the registry
     panels.resize(PANEL_REGISTRY.size());
     for (size_t i = 0; i < PANEL_REGISTRY.size(); ++i) {
         panels[i].panel   = PANEL_REGISTRY[i].factory(this);
@@ -87,14 +87,14 @@ void EditorLayer::recreatePanels() {
 }
 
 void EditorLayer::onImGuiRender() {
-    startDockspace();
+    startDockSpace();
     renderMenuBar();
     ImGui::End();
 
     // Render panels based on visibility flags
-    for (auto& panelInstance : panels) {
-        if (panelInstance.panel && panelInstance.visible) {
-            panelInstance.panel->onUpdate();
+    for (auto& [panel, visible] : panels) {
+        if (panel && visible) {
+            panel->onUpdate();
         }
     }
 }
@@ -140,7 +140,7 @@ void EditorLayer::renderMenuBar() {
     }
 }
 
-void EditorLayer::startDockspace() {
+void EditorLayer::startDockSpace() {
     ImGuiWindowFlags     windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
     const ImGuiViewport* viewport    = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -157,15 +157,15 @@ void EditorLayer::startDockspace() {
     ImGui::PopStyleVar(2);
 
     if (ImGuiIO& io = ImGui::GetIO(); io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
-        const ImGuiID dockspaceId = ImGui::GetID("Dockspace");
-        ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+        const ImGuiID dockSpaceID = ImGui::GetID("Dockspace");
+        ImGui::DockSpace(dockSpaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
     }
 }
 
 void EditorLayer::returnToProjectSelector() {
     CORVUS_CORE_INFO("Returning to project selector");
 
-    // Stop file watcher and clean up project
+    // Stop file watcher and clean up the project
     if (currentProject)
         currentProject->stopFileWatcher();
     panels.clear();
@@ -176,8 +176,7 @@ void EditorLayer::returnToProjectSelector() {
 }
 
 void EditorLayer::openProject(const std::string& path) {
-    auto project = Core::Project::load(application->getGraphics(), path);
-    if (project) {
+    if (auto project = Core::Project::load(application->getGraphics(), path)) {
         if (currentProject) {
             currentProject->stopFileWatcher();
         }
@@ -191,8 +190,7 @@ void EditorLayer::openProject(const std::string& path) {
 }
 
 void EditorLayer::createNewProject(const std::string& path, const std::string& name) {
-    auto project = Core::Project::create(application->getGraphics(), path, name);
-    if (project) {
+    if (auto project = Core::Project::create(application->getGraphics(), path, name)) {
         if (currentProject) {
             currentProject->stopFileWatcher();
         }

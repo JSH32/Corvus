@@ -1025,6 +1025,7 @@ bool OpenGLContext::initialize(Window& window) {
 void OpenGLContext::flush() {
     endFrame();
     glFinish();
+    backend->performDeferredDeletes();
     beginFrame();
 }
 
@@ -1040,6 +1041,7 @@ void OpenGLBackend::clearCommandBuffers() {
 }
 
 void OpenGLContext::beginFrame() {
+    backend->performDeferredDeletes();
     backend->clearPendingSubmissions();
     backend->clearCommandBuffers();
 }
@@ -1047,20 +1049,9 @@ void OpenGLContext::beginFrame() {
 void OpenGLContext::endFrame() {
     const auto& submissions = backend->getPendingSubmissions();
 
-    // CORVUS_CORE_INFO("Submission order:");
-    // for (size_t i = 0; i < submissions.size(); ++i) {
-    // CORVUS_CORE_INFO("  [{}] Command buffer ID: {}", i, submissions[i]);
-    // }
-
-    // CORVUS_CORE_INFO("========================================");
-    // CORVUS_CORE_INFO("BEGIN FRAME EXECUTION ({} command buffers queued)", submissions.size());
-    // CORVUS_CORE_INFO("========================================");
-
     // Execute all queued command buffers in order
     for (size_t i = 0; i < submissions.size(); ++i) {
-        uint32_t cmdId = submissions[i];
-
-        // CORVUS_CORE_INFO("Command Buffer #{} (ID: {})", i, cmdId);
+        const uint32_t cmdId = submissions[i];
 
         backend->cmdExecute(cmdId);
 
@@ -1073,16 +1064,13 @@ void OpenGLContext::endFrame() {
 
         if (windowWidth > 0 && windowHeight > 0) {
             glViewport(0, 0, windowWidth, windowHeight);
-            // CORVUS_CORE_TRACE("Reset viewport to {}x{}", windowWidth, windowHeight);
         }
     }
 
-    // CORVUS_CORE_INFO("========================================");
-    // CORVUS_CORE_INFO("END FRAME EXECUTION");
-    // CORVUS_CORE_INFO("========================================\n");
+    backend->performDeferredDeletes();
 }
 
-void OpenGLContext::attachBackend(HandleBase& h) { h.be = backend.get(); }
+void OpenGLContext::attachBackend(HandleBase& h) const { h.be = backend.get(); }
 
 // Factories
 VertexBuffer OpenGLContext::createVertexBuffer(const void* data, uint32_t size) {
@@ -1148,5 +1136,46 @@ void OpenGLBackend::cmdSetDepthMask(uint32_t id, bool enable) {
     cmd.type = Command::Type::SetDepthMask;
     cmd.data = Command::StateData { enable };
     it->second.commands.push_back(cmd);
+}
+
+void OpenGLBackend::enqueueDelete(ResourceType type, uint32_t id) {
+    if (!id)
+        return;
+    deletionQueue.push_back(PendingDelete { type, id });
+}
+
+void OpenGLBackend::performDeferredDeletes() {
+    for (auto& [type, id] : deletionQueue)
+        destroyNow(type, id);
+    deletionQueue.clear();
+}
+
+void OpenGLBackend::destroyNow(const ResourceType type, const uint32_t id) {
+    if (!id)
+        return;
+
+    switch (type) {
+        case ResourceType::VBO:
+            vbDestroy(id);
+            break;
+        case ResourceType::IBO:
+            ibDestroy(id);
+            break;
+        case ResourceType::VAO:
+            vaoDestroy(id);
+            break;
+        case ResourceType::Shader:
+            shaderDestroy(id);
+            break;
+        case ResourceType::Tex2D:
+            tex2DDestroy(id);
+            break;
+        case ResourceType::TexCube:
+            texCubeDestroy(id);
+            break;
+        case ResourceType::FBO:
+            fbDestroy(id);
+            break;
+    }
 }
 }

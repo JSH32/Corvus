@@ -3,7 +3,7 @@
 
 namespace Corvus::Core::Events {
 
-void InputProducer::update() {
+void InputProducer::update() const {
     if (!window)
         return;
 

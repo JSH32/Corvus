@@ -15,7 +15,7 @@ namespace Corvus::Renderer {
  */
 class MaterialRenderer {
 public:
-    MaterialRenderer(Graphics::GraphicsContext& ctx);
+    explicit MaterialRenderer(Graphics::GraphicsContext& ctx);
     ~MaterialRenderer();
 
     MaterialRenderer(const MaterialRenderer&)            = delete;
@@ -28,9 +28,9 @@ public:
      *
      * @param material The renderer material to apply
      * @param cmd Command buffer to record commands to
-     * @return The shader that was bound, or nullptr if no valid shader
+     * @return The shader that was bound or nullptr if no valid shader
      */
-    Graphics::Shader* apply(Material& material, Graphics::CommandBuffer& cmd);
+    Shader* apply(Material& material, CommandBuffer& cmd);
 
     /**
      * Apply a MaterialAsset by converting it to a Material first.
@@ -39,11 +39,11 @@ public:
      * @param materialAsset The asset material (data) to convert and apply
      * @param cmd Command buffer to record commands to
      * @param assetMgr Asset manager for loading shader/textures
-     * @return The shader that was bound, or nullptr if no valid shader
+     * @return The shader that was bound or nullptr if no valid shader
      */
-    Graphics::Shader* apply(const Core::MaterialAsset& materialAsset,
-                            Graphics::CommandBuffer&   cmd,
-                            Core::AssetManager*        assetMgr);
+    Shader* apply(const Core::MaterialAsset& materialAsset,
+                  CommandBuffer&             cmd,
+                  Core::AssetManager*        assetMgr);
 
     /**
      * Get or create a Material from a MaterialAsset.
@@ -53,34 +53,34 @@ public:
                                    Core::AssetManager*        assetMgr);
 
     /**
-     * Clear all cached materials (call when scene changes)
+     * Clear all cached materials (call when a scene changes)
      */
     void clearCache();
 
     /**
      * Get default resources
      */
-    Graphics::Shader&    getDefaultShader();
-    Graphics::Texture2D& getDefaultTexture();
+    Shader&    getDefaultShader();
+    Texture2D& getDefaultTexture();
 
 private:
-    Graphics::GraphicsContext& context_;
+    Graphics::GraphicsContext& context;
 
     // Default resources
-    Graphics::Shader    defaultShader_;
-    Graphics::Texture2D defaultTexture_;
-    bool                defaultsInitialized_ = false;
-    void                initializeDefaults();
+    Shader    defaultShader;
+    Texture2D defaultTexture;
+    bool      defaultsInitialized = false;
+    void      initializeDefaults();
 
     // Cache for MaterialAsset to Material conversion
     struct AssetMaterialCache {
-        std::optional<Material>                                                 material;
-        std::unordered_map<std::string, Core::AssetHandle<Graphics::Texture2D>> textureHandles;
-        Core::UUID                                                              shaderID;
-        bool                                                                    needsUpdate = true;
+        std::optional<Material>                                       material;
+        std::unordered_map<std::string, Core::AssetHandle<Texture2D>> textureHandles;
+        Core::UUID                                                    shaderID;
+        bool                                                          needsUpdate = true;
     };
 
-    std::unordered_map<const Core::MaterialAsset*, AssetMaterialCache> assetMaterialCache_;
+    std::unordered_map<const Core::MaterialAsset*, AssetMaterialCache> assetMaterialCache;
 
     // Convert MaterialAsset to Material
     Material* convertAssetToMaterial(const Core::MaterialAsset& materialAsset,

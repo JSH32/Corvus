@@ -2,13 +2,10 @@
 
 #include "corvus/asset/asset_manager.hpp"
 #include "corvus/components/light.hpp"
-#include <IconsFontAwesome6.h>
 #include <concepts>
 #include <corvus/components/entity_info.hpp>
 #include <corvus/components/mesh_renderer.hpp>
 #include <corvus/components/transform.hpp>
-#include <corvus/entity.hpp>
-#include <imgui.h>
 
 namespace Corvus::Editor {
 

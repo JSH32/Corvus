@@ -20,7 +20,7 @@ public:
           graphics(graphics) { }
 
     void           onUpdate() override;
-    std::string    title() { return ICON_FA_CIRCLE_INFO " Inspector"; }
+    std::string    title() override { return ICON_FA_CIRCLE_INFO " Inspector"; }
     Core::Project& project;
 
 private:

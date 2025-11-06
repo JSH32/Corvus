@@ -4,8 +4,10 @@
 #include "corvus/asset/asset_manager.hpp"
 #include "corvus/graphics/graphics.hpp"
 #include "corvus/project/project.hpp"
-#include "editor/editor.hpp"
 #include "editor/panels/asset_browser/asset_viewer.hpp"
+#include "editor/panels/asset_browser/material_viewer.hpp"
+#include "editor/panels/asset_browser/model_viewer.hpp"
+#include "editor/panels/asset_browser/texture_viewer.hpp"
 #include "editor/panels/editor_panel.hpp"
 
 #include <imgui.h>
@@ -16,15 +18,15 @@
 
 namespace Corvus::Editor {
 
-class AssetBrowserPanel : public EditorPanel {
+class AssetBrowserPanel final : public EditorPanel {
 public:
     explicit AssetBrowserPanel(Core::AssetManager*        manager,
                                Core::Project*             project,
                                Graphics::GraphicsContext* graphics);
-    ~AssetBrowserPanel();
+    ~AssetBrowserPanel() override;
 
     void        onUpdate() override;
-    std::string title() { return ICON_FA_FOLDER_OPEN " Asset Browser"; };
+    std::string title() override { return ICON_FA_FOLDER_OPEN " Asset Browser"; };
 
 private:
     Core::AssetManager*        assetManager;

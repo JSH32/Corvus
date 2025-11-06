@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 namespace Corvus::Graphics {
+class OpenGLContext;
 
 class OpenGLBackend final : public IGraphicsBackend {
 public:
@@ -132,11 +133,25 @@ public:
                                  const float* vec2) override;
     void cmdSetDepthMask(uint32_t id, bool enable) override;
 
+    void enqueueDelete(ResourceType type, uint32_t id) override;
+
 private:
+    friend OpenGLContext;
+
     struct CommandBufferData {
         std::vector<Command> commands;
         bool                 recording = false;
     };
+
+    struct PendingDelete {
+        ResourceType type;
+        uint32_t     id;
+    };
+
+    // For queueing deletion of resources
+    std::vector<PendingDelete> deletionQueue;
+    void                       destroyNow(ResourceType type, uint32_t id);
+    void                       performDeferredDeletes();
 
     std::unordered_map<uint32_t, CommandBufferData> commandBuffers_;
     uint32_t                                        nextCmdBufferId_ = 1;
@@ -174,7 +189,7 @@ public:
 private:
     Window*                        window { nullptr };
     std::unique_ptr<OpenGLBackend> backend;
-    void                           attachBackend(HandleBase& h);
+    void                           attachBackend(HandleBase& h) const;
 };
 
 }

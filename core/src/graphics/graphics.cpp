@@ -88,7 +88,7 @@ void VertexBuffer::setData(CommandBuffer& cmd, const void* data, uint32_t size) 
 
 void VertexBuffer::release() {
     if (valid()) {
-        be->vbDestroy(id);
+        be->enqueueDelete(ResourceType::VBO, id);
         id        = 0;
         be        = nullptr;
         sizeBytes = 0;
@@ -106,7 +106,7 @@ void IndexBuffer::setData(CommandBuffer& cmd, const void* indices, uint32_t newC
 
 void IndexBuffer::release() {
     if (valid()) {
-        be->ibDestroy(id);
+        be->enqueueDelete(ResourceType::IBO, id);
         id    = 0;
         be    = nullptr;
         count = 0;
@@ -114,7 +114,7 @@ void IndexBuffer::release() {
 }
 
 // VertexArray implementation
-void VertexArray::addVertexBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout) {
+void VertexArray::addVertexBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout) const {
     if (!valid() || !vb.valid())
         return;
 
@@ -131,21 +131,21 @@ void VertexArray::addVertexBuffer(const VertexBuffer& vb, const VertexBufferLayo
     be->vaoAddVB(id, vb.id, comps, norms, layout.getStride());
 }
 
-void VertexArray::setIndexBuffer(const IndexBuffer& ib) {
+void VertexArray::setIndexBuffer(const IndexBuffer& ib) const {
     if (valid() && ib.valid())
         be->vaoSetIB(id, ib.id);
 }
 
 void VertexArray::release() {
-    if (!valid() || !be)
-        return;
-    be->vaoDestroy(id);
-    id = 0;
-    be = nullptr;
+    if (valid()) {
+        be->enqueueDelete(ResourceType::VAO, id);
+        id = 0;
+        be = nullptr;
+    }
 }
 
 // Shader implementation
-void Shader::setUniform(CommandBuffer& cmd, const char* name, const float* m16) {
+void Shader::setUniform(CommandBuffer& cmd, const char* name, const float* m16) const {
     if (valid())
         cmd.setShaderUniformMat4(*this, name, m16);
 }
@@ -187,7 +187,7 @@ void Shader::setVec2(CommandBuffer& cmd, const char* name, const glm::vec2& v) {
 
 void Shader::release() {
     if (valid()) {
-        be->shaderDestroy(id);
+        be->enqueueDelete(ResourceType::Shader, id);
         id = 0;
         be = nullptr;
     }
@@ -201,7 +201,7 @@ void Texture2D::setData(const void* data, uint32_t sizeBytes) {
 
 void Texture2D::release() {
     if (valid()) {
-        be->tex2DDestroy(id);
+        be->enqueueDelete(ResourceType::Tex2D, id);
         id    = 0;
         be    = nullptr;
         width = height = 0;
@@ -211,7 +211,7 @@ void Texture2D::release() {
 // TextureCube implementation
 void TextureCube::release() {
     if (valid()) {
-        be->texCubeDestroy(id);
+        be->enqueueDelete(ResourceType::TexCube, id);
         id         = 0;
         be         = nullptr;
         resolution = 0;
@@ -236,11 +236,10 @@ void Framebuffer::attachDepthTexture(const Texture2D& tex) {
 
 void Framebuffer::release() {
     if (valid()) {
-        be->fbDestroy(id);
-        id     = 0;
-        be     = nullptr;
-        width  = 0;
-        height = 0;
+        be->enqueueDelete(ResourceType::FBO, id);
+        id    = 0;
+        be    = nullptr;
+        width = height = 0;
     }
 }
 

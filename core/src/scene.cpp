@@ -1,17 +1,18 @@
-#include "corvus/scene.hpp"
+#include <ranges>
+
 #include "corvus/components/entity_info.hpp"
 #include "corvus/components/mesh_renderer.hpp"
 #include "corvus/components/transform.hpp"
 #include "corvus/entity.hpp"
 #include "corvus/log.hpp"
+#include "corvus/scene.hpp"
 
 namespace Corvus::Core {
 
 void Scene::destroyEntity(const Entity entity) {
-    rootOrderedEntities.erase(
-        std::remove(rootOrderedEntities.begin(), rootOrderedEntities.end(), entity),
-        rootOrderedEntities.end());
-    registry.destroy(entity);
+    rootOrderedEntities.erase(std::ranges::remove(rootOrderedEntities, entity).begin(),
+                              rootOrderedEntities.end());
+    registry.destroy(entity.entityHandle);
 }
 
 Scene& Scene::operator=(Scene&& other) noexcept {
@@ -64,8 +65,7 @@ void Scene::render(Graphics::GraphicsContext&   ctx,
                    const Graphics::Framebuffer* targetFB) {
 
     // Ensure all entities have EntityInfo component
-    for (auto it = rootOrderedEntities.rbegin(); it != rootOrderedEntities.rend(); ++it) {
-        auto& entity = *it;
+    for (auto& entity : std::ranges::reverse_view(rootOrderedEntities)) {
         if (!entity.hasComponent<Components::EntityInfoComponent>()) {
             CORVUS_ERROR("An Entity did not have a EntityInfo component, this should not happen. "
                          "It has been added automatically.");

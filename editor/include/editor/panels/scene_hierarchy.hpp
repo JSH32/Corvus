@@ -12,7 +12,7 @@ public:
         : project(project), selectedEntity(selectedEntity) { }
 
     void        onUpdate() override;
-    std::string title() { return ICON_FA_LIST_UL " Hierarchy"; }
+    std::string title() override { return ICON_FA_LIST_UL " Hierarchy"; }
 
     Core::Project& project;
     Core::Entity&  selectedEntity;
@@ -20,6 +20,6 @@ public:
 
 private:
     void drawEntity(Core::Entity entity) const;
-    bool windowFocused;
+    bool windowFocused = false;
 };
 }

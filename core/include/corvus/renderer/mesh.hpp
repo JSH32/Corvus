@@ -55,14 +55,14 @@ public:
     void draw(CommandBuffer& cmd, bool wireframe = false) const;
 
     // Metadata
-    bool               valid() const { return indexCount_ > 0 && vao_.valid(); }
-    uint32_t           getIndexCount() const { return indexCount_; }
-    uint32_t           getVertexCount() const { return static_cast<uint32_t>(vertices_.size()); }
-    PrimitiveType      getPrimitiveType() const { return primitiveType_; }
-    const VertexArray& getVAO() const { return vao_; }
+    bool               valid() const { return indexCount > 0 && vao.valid(); }
+    uint32_t           getIndexCount() const { return indexCount; }
+    uint32_t           getVertexCount() const { return static_cast<uint32_t>(vertices.size()); }
+    PrimitiveType      getPrimitiveType() const { return primitiveType; }
+    const VertexArray& getVAO() const { return vao; }
 
-    const std::vector<Vertex>&   getVertices() const { return vertices_; }
-    const std::vector<uint32_t>& getIndices() const { return indices_; }
+    const std::vector<Vertex>&   getVertices() const { return vertices; }
+    const std::vector<uint32_t>& getIndices() const { return indices; }
 
     // Bounding info
     float     getBoundingRadius() const;
@@ -70,26 +70,26 @@ public:
     glm::vec3 getBoundingBoxMax() const;
 
     // Layout access
-    const VertexBufferLayout& getLayout() const { return layout_; }
+    const VertexBufferLayout& getLayout() const { return layout; }
 
     // Attribute presence flags (for ImGui/info panels)
     bool hasNormals() const;
-    bool hasTexcoords() const;
+    bool hasTextureCoords() const;
     bool hasColors() const;
 
     void release();
 
 private:
-    VertexBuffer       vbo_;
-    IndexBuffer        ibo_;
-    VertexArray        vao_;
-    uint32_t           indexCount_    = 0;
-    bool               index16_       = false;
-    PrimitiveType      primitiveType_ = PrimitiveType::Triangles;
-    VertexBufferLayout layout_;
+    VertexBuffer       vbo;
+    IndexBuffer        ibo;
+    VertexArray        vao;
+    uint32_t           indexCount    = 0;
+    bool               index16       = false;
+    PrimitiveType      primitiveType = PrimitiveType::Triangles;
+    VertexBufferLayout layout;
 
-    std::vector<Vertex>   vertices_;
-    std::vector<uint32_t> indices_;
+    std::vector<Vertex>   vertices;
+    std::vector<uint32_t> indices;
 };
 
 }

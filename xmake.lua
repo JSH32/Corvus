@@ -50,6 +50,7 @@ add_requires("glad")
 add_requires("glm")
 add_requires("cereal")
 add_requires("spdlog v1.11.0")
+add_requires("fmt")
 add_requires("entt v3.9.0")
 add_requires("imgui v1.91.9b-docking")
 add_requires("boost")
@@ -104,6 +105,7 @@ target("corvus-core")
     add_packages("entt", { public = true })
     add_packages("spdlog", { public = true })
     add_packages("cereal", { public = true })
+    add_packages("fmt", { public = true })
     -- Manual packages
     add_deps("tinyobjloader", { public = true })
     add_deps("physfs", { public = true })
@@ -152,7 +154,5 @@ target("corvus-editor")
     )
     add_files(
         "editor/src/**.cpp",
-        "editor/src/**.c",
-        "editor/src/**/**.cpp",
-        "editor/src/**/**.c"
+        "editor/src/**/**.cpp"
     )

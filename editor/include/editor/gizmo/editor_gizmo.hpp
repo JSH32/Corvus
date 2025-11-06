@@ -90,7 +90,7 @@ private:
     };
 
     void syncFromTransform(const Core::Components::TransformComponent& transform);
-    void syncToTransform(Core::Components::TransformComponent& transform);
+    void syncToTransform(Core::Components::TransformComponent& transform) const;
 
     void computeAxisOrientation(const glm::mat4& view, const glm::vec3& camPos);
 
@@ -105,57 +105,55 @@ private:
                         std::vector<GizmoVertex>& lineVerts,
                         std::vector<uint16_t>&    lineIndices,
                         int                       axis);
-    void buildRotateCircle(std::vector<GizmoVertex>& lineVerts,
+    void buildRotateCircle(std::vector<GizmoVertex>& lineVertices,
                            std::vector<uint16_t>&    lineIndices,
-                           int                       axis);
-    void buildPlane(std::vector<GizmoVertex>& triVerts,
+                           int                       axis) const;
+    void buildPlane(std::vector<GizmoVertex>& triVertices,
                     std::vector<uint16_t>&    triIndices,
-                    std::vector<GizmoVertex>& lineVerts,
+                    std::vector<GizmoVertex>& lineVertices,
                     std::vector<uint16_t>&    lineIndices,
-                    int                       lockedAxis);
-    void buildCenter(std::vector<GizmoVertex>& lineVerts, std::vector<uint16_t>& lineIndices);
+                    int                       lockedAxis) const;
+    void buildCenter(std::vector<GizmoVertex>& lineVertices,
+                     std::vector<uint16_t>&    lineIndices) const;
 
     // Collision detection
     bool checkOrientedBoundingBox(const glm::vec3& rayOrigin,
                                   const glm::vec3& rayDir,
                                   const glm::vec3& obbCenter,
-                                  const glm::vec3& obbHalfSize);
+                                  const glm::vec3& obbHalfSize) const;
     bool checkAxis(int axis, const glm::vec3& rayOrigin, const glm::vec3& rayDir, Mode type);
-    bool checkPlane(int lockedAxis, const glm::vec3& rayOrigin, const glm::vec3& rayDir);
-    bool checkCircle(int axis, const glm::vec3& rayOrigin, const glm::vec3& rayDir);
-    bool checkCenter(const glm::vec3& rayOrigin, const glm::vec3& rayDir);
-    bool checkRayQuad(const glm::vec3& rayOrigin,
-                      const glm::vec3& rayDir,
-                      const glm::vec3& a,
-                      const glm::vec3& b,
-                      const glm::vec3& c,
-                      const glm::vec3& d);
-    bool checkRaySphere(const glm::vec3& rayOrigin,
-                        const glm::vec3& rayDir,
-                        const glm::vec3& center,
-                        float            radius);
+    bool checkPlane(int lockedAxis, const glm::vec3& rayOrigin, const glm::vec3& rayDir) const;
+    bool checkCircle(int axis, const glm::vec3& rayOrigin, const glm::vec3& rayDir) const;
+    bool checkCenter(const glm::vec3& rayOrigin, const glm::vec3& rayDir) const;
+    static bool checkRayQuad(const glm::vec3& rayOrigin,
+                             const glm::vec3& rayDir,
+                             const glm::vec3& a,
+                             const glm::vec3& b,
+                             const glm::vec3& c,
+                             const glm::vec3& d);
+    static bool checkRaySphere(const glm::vec3& rayOrigin,
+                               const glm::vec3& rayDir,
+                               const glm::vec3& center,
+                               float            radius);
 
     // Input handling
     void handleInput(const glm::vec2& mousePos, bool mousePressed, bool mouseDown);
-    void beginTransform(Action           action,
-                        uint8_t          axis,
-                        const glm::vec3& rayOrigin,
-                        const glm::vec3& rayDir);
-    void applyTransform(const glm::vec3& rayOrigin, const glm::vec3& rayDir);
+    void beginTransform(Corvus::Editor::EditorGizmo::Action action, unsigned char axis);
+    void applyTransform();
     void endTransform();
 
     // Ray utilities
-    void      computeRay(const glm::vec2& mousePos,
-                         const glm::mat4& invViewProj,
-                         float            w,
-                         float            h,
-                         glm::vec3&       outOrigin,
-                         glm::vec3&       outDir);
-    glm::vec3 getWorldMouse(const glm::vec2& mousePos);
+    static void computeRay(const glm::vec2& mousePos,
+                           const glm::mat4& invViewProj,
+                           float            w,
+                           float            h,
+                           glm::vec3&       outOrigin,
+                           glm::vec3&       outDir);
+    glm::vec3   getWorldMouse(const glm::vec2& mousePos) const;
 
     // Helper utilities
-    bool      isAxisActive(int axis) const;
-    glm::vec3 projectOntoAxis(const glm::vec3& vec, const glm::vec3& axis);
+    bool             isAxisActive(int axis) const;
+    static glm::vec3 projectOntoAxis(const glm::vec3& vec, const glm::vec3& axis);
 
     Graphics::GraphicsContext& ctx;
 
@@ -200,8 +198,8 @@ private:
     uint8_t   hoveredAxis   = None;
     glm::vec3 dragStartWorld { 0.0f };
 
-    glm::mat4 lastViewProj;
-    glm::vec2 lastMousePos;
+    glm::mat4 lastViewProj {};
+    glm::vec2 lastMousePos {};
     float     viewportW = 0.0f;
     float     viewportH = 0.0f;
     glm::vec3 cameraPosition { 0.0f };

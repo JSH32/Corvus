@@ -1,8 +1,7 @@
-// scene_renderer.hpp
 #pragma once
+
 #include "corvus/asset/asset_manager.hpp"
 #include "corvus/components/entity_info.hpp"
-#include "corvus/components/light.hpp"
 #include "corvus/components/mesh_renderer.hpp"
 #include "corvus/components/transform.hpp"
 #include "corvus/graphics/graphics.hpp"
@@ -34,7 +33,7 @@ struct RenderStats {
  */
 class SceneRenderer {
 public:
-    explicit SceneRenderer(Graphics::GraphicsContext& context);
+    explicit SceneRenderer(GraphicsContext& context);
 
     /**
      * Render a collection of renderables (low-level, fully manual)
@@ -98,7 +97,7 @@ public:
      */
     void clear(const glm::vec4&             color      = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f),
                bool                         clearDepth = true,
-               const Graphics::Framebuffer* targetFB   = nullptr);
+               const Graphics::Framebuffer* targetFB   = nullptr) const;
 
     /**
      * Get rendering statistics
@@ -109,19 +108,19 @@ public:
     /**
      * Direct access to graphics context (use sparingly)
      */
-    Graphics::GraphicsContext& getContext() { return context_; }
+    GraphicsContext& getContext() const { return context_; }
 
     MaterialRenderer& getMaterialRenderer() { return materialRenderer_; };
 
 private:
-    void setupStandardUniforms(Graphics::CommandBuffer& cmd,
-                               Graphics::Shader&        shader,
+    static void setupStandardUniforms(CommandBuffer& cmd,
+                               Shader&        shader,
                                const glm::mat4&         model,
                                const glm::mat4&         view,
                                const glm::mat4&         proj);
 
-    void setupLightingUniforms(Graphics::CommandBuffer& cmd,
-                               Graphics::Shader&        shader,
+    void setupLightingUniforms(CommandBuffer& cmd,
+                               Shader&        shader,
                                const glm::vec3&         objectPos,
                                float                    objectRadius,
                                const glm::vec3&         cameraPos);
@@ -131,19 +130,16 @@ private:
      */
     void renderShadowMaps(const std::vector<Renderable>& renderables);
 
-    void renderDirectionalShadowMap(ShadowMap&                     shadowMap,
-                                    const Light&                   light,
+    void renderDirectionalShadowMap(const ShadowMap&                     shadowMap,
                                     const glm::mat4&               lightSpaceMatrix,
                                     const std::vector<Renderable>& renderables,
-                                    Graphics::Shader&              shadowShader);
+                                    Shader&                        shadowShader) const;
 
     void renderPointShadowMap(CubemapShadow&                  cubemap,
                               const Light&                    light,
                               const std::array<glm::mat4, 6>& lightMatrices,
                               const std::vector<Renderable>&  renderables,
-                              Graphics::Shader&               shadowShader);
-
-    // ECS CONVERSION HELPERS
+                              Shader&               shadowShader) const;
 
     /**
      * Collect lights from ECS registry and add them to our lighting system
@@ -156,10 +152,10 @@ private:
     std::vector<Renderable> collectRenderables(entt::registry&     registry,
                                                Core::AssetManager* assetManager);
 
-    Graphics::GraphicsContext& context_;
+    GraphicsContext& context_;
     RenderStats                stats_;
     MaterialRenderer           materialRenderer_;
-    LightingSystem             lighting_; // Integrated lighting system
+    LightingSystem             lighting_;
 };
 
 }

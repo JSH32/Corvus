@@ -12,8 +12,7 @@
 
 namespace Corvus::Editor {
 
-class MaterialViewer : public AssetViewer {
-private:
+class MaterialViewer final : public AssetViewer {
     Core::AssetHandle<Core::MaterialAsset> materialHandle;
 
     // Graphics context and rendering
@@ -33,7 +32,6 @@ private:
     Graphics::Texture2D   depthTexture;
     uint32_t              previewResolution = 512;
 
-    bool previewInitialized = false;
     bool needsPreviewUpdate = true;
 
     // Camera rotation
@@ -47,25 +45,23 @@ private:
     std::array<char, 256> propertyNameBuffer;
     bool                  showAddPropertyPopup = false;
 
-    void initPreview();
-    void cleanupPreview();
     void renderPreview();
     void updatePreview();
     void handleCameraControls();
     void setupPreviewLights();
     void updateCameraPosition();
 
-    bool renderColorProperty(const std::string& name, Core::MaterialProperty& prop);
-    bool renderFloatProperty(const std::string& name, Core::MaterialProperty& prop);
-    bool renderTextureProperty(const std::string& name, Core::MaterialProperty& prop);
-    bool renderVectorProperty(const std::string& name, Core::MaterialProperty& prop);
-    void renderAddPropertyPopup();
+    static bool renderColorProperty(const std::string& name, Core::MaterialProperty& prop);
+    static bool renderFloatProperty(const std::string& name, Core::MaterialProperty& prop);
+    bool renderTextureProperty(const std::string& name, const Core::MaterialProperty& prop) const;
+    static bool renderVectorProperty(const std::string& name, Core::MaterialProperty& prop);
+    void        renderAddPropertyPopup();
 
 public:
     MaterialViewer(const Core::UUID&          id,
                    Core::AssetManager*        manager,
                    Graphics::GraphicsContext& context);
-    ~MaterialViewer();
+    ~MaterialViewer() override;
 
     void render() override;
 };

@@ -75,9 +75,9 @@ glm::vec3 Transform::getUp() const {
 }
 
 void Transform::updateMatrix() const {
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), position_);
-    glm::mat4 rotation    = glm::toMat4(rotation_);
-    glm::mat4 scale       = glm::scale(glm::mat4(1.0f), scale_);
+    const glm::mat4 translation = glm::translate(glm::mat4(1.0f), position_);
+    const glm::mat4 rotation    = glm::toMat4(rotation_);
+    const glm::mat4 scale       = glm::scale(glm::mat4(1.0f), scale_);
 
     matrix_ = translation * rotation * scale;
 }

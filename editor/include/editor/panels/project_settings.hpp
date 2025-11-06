@@ -8,13 +8,13 @@
 
 namespace Corvus::Editor {
 
-class ProjectSettingsPanel : public EditorPanel {
+class ProjectSettingsPanel final : public EditorPanel {
 public:
     explicit ProjectSettingsPanel(Core::Project* project);
     ~ProjectSettingsPanel() override = default;
 
     void        onUpdate() override;
-    std::string title() { return ICON_FA_GEAR " Project Settings"; };
+    std::string title() override { return ICON_FA_GEAR " Project Settings"; };
 
 private:
     Core::Project* project;
@@ -27,10 +27,10 @@ private:
     } editState;
 
     // UI constants
-    static constexpr float  labelWidth   = 150.0f;
-    static constexpr float  inputWidth   = 300.0f;
-    static constexpr ImVec4 unsavedColor = ImVec4(1.0f, 0.7f, 0.3f, 1.0f);
-    static constexpr ImVec4 savedColor   = ImVec4(0.3f, 0.8f, 0.4f, 1.0f);
+    static constexpr float labelWidth   = 150.0f;
+    static constexpr float inputWidth   = 300.0f;
+    static constexpr auto  unsavedColor = ImVec4(1.0f, 0.7f, 0.3f, 1.0f);
+    static constexpr auto  savedColor   = ImVec4(0.3f, 0.8f, 0.4f, 1.0f);
 
     // UI drawing methods
     void drawProjectNameSetting();

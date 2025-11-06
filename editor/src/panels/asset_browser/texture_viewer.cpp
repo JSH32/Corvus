@@ -11,34 +11,21 @@ TextureViewer::TextureViewer(const Core::UUID&          id,
                              Core::AssetManager*        manager,
                              Graphics::GraphicsContext& context)
     : AssetViewer(id, manager, "Texture Viewer"), context_(&context) {
-    textureHandle = assetManager->loadByID<Graphics::Texture2D>(id);
-    initPreview();
-}
-
-TextureViewer::~TextureViewer() { cleanupPreview(); }
-
-void TextureViewer::initPreview() {
-    if (previewInitialized)
-        return;
-
+    textureHandle      = assetManager->loadByID<Graphics::Texture2D>(id);
     previewFramebuffer = context_->createFramebuffer(previewResolution, previewResolution);
     previewColorTex    = context_->createTexture2D(previewResolution, previewResolution);
     previewDepthTex    = context_->createDepthTexture(previewResolution, previewResolution);
 
     previewFramebuffer.attachTexture2D(previewColorTex, 0);
     previewFramebuffer.attachDepthTexture(previewDepthTex);
-
-    previewInitialized = true;
+    CORVUS_CORE_INFO("Texture viewer preview initialized for {}", textureHandle.getPath());
 }
 
-void TextureViewer::cleanupPreview() {
-    if (!previewInitialized)
-        return;
-
+TextureViewer::~TextureViewer() {
     previewColorTex.release();
     previewDepthTex.release();
     previewFramebuffer.release();
-    previewInitialized = false;
+    CORVUS_CORE_INFO("Texture viewer preview shutdown for {}", textureHandle.getPath());
 }
 
 void TextureViewer::handleZoomAndPan() {
@@ -68,8 +55,8 @@ void TextureViewer::handleZoomAndPan() {
 }
 
 void TextureViewer::renderTexturePreview() {
-    auto tex = textureHandle.get();
-    if (!tex || !previewInitialized)
+    const auto tex = textureHandle.get();
+    if (!tex)
         return;
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -179,7 +166,7 @@ void TextureViewer::render() {
     std::string windowTitle = "";
     if (textureHandle.isValid()) {
         auto meta   = assetManager->getMetadata(textureHandle.getID());
-        windowTitle = std::format(
+        windowTitle = fmt::format(
             "{} Texture: {}", ICON_FA_IMAGE, meta.path.substr(meta.path.find_last_of('/') + 1));
     }
 

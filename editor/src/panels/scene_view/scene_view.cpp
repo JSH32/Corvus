@@ -43,7 +43,7 @@ void SceneViewPanel::handleEntityPicking() {
 }
 
 void SceneViewPanel::renderGizmoTooltip() {
-    ImVec2 pos = ImVec2(ImGui::GetItemRectMin().x + 5.f, ImGui::GetItemRectMin().y + 5.f);
+    const auto pos = ImVec2(ImGui::GetItemRectMin().x + 5.f, ImGui::GetItemRectMin().y + 5.f);
     ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6);
@@ -162,15 +162,16 @@ void SceneViewPanel::onUpdate() {
         bool imgHovered = ImGui::IsItemHovered();
         updateMouseState(pos, imgHovered);
 
-        // Handle entity picking (before gizmo, since gizmo blocks picking)
-        handleEntityPicking();
-
+        // First render the viewport (updates gizmo hover/active state for current frame)
         viewport.render(currentViewportSize,
                         selectedEntity,
                         currentMousePos,
                         mousePressed,
                         mouseDown,
                         mouseInViewport);
+
+        // Handle entity picking AFTER gizmo updated hover/active state to avoid background selection
+        handleEntityPicking();
     }
 
     if (sceneHierarchyPanel && sceneHierarchyPanel->selectedEntity)

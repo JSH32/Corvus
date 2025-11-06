@@ -1,5 +1,7 @@
 #include "corvus/components/component_registry.hpp"
 
+#include <ranges>
+
 namespace Corvus::Core::Components {
 ComponentRegistry* ComponentRegistry::instance = nullptr;
 
@@ -11,8 +13,8 @@ ComponentRegistry& ComponentRegistry::get() {
 }
 
 std::string ComponentRegistry::getTypeName(std::type_index typeIdx) const {
-    auto it = typeToName.find(typeIdx);
-    return (it != typeToName.end()) ? it->second : "";
+    const auto it = typeToName.find(typeIdx);
+    return it != typeToName.end() ? it->second : "";
 }
 
 std::type_index ComponentRegistry::getTypeIndex(const std::string& typeName) const {
@@ -25,8 +27,7 @@ void ComponentRegistry::serializeComponent(std::type_index            typeIdx,
                                            entt::registry&            registry,
                                            cereal::JSONOutputArchive& ar,
                                            const std::string&         componentName) {
-    auto it = serializers.find(typeIdx);
-    if (it != serializers.end()) {
+    if (const auto it = serializers.find(typeIdx); it != serializers.end()) {
         it->second(entity, registry, ar, componentName);
     }
 }
@@ -35,8 +36,7 @@ void ComponentRegistry::deserializeComponent(const std::string&        typeName,
                                              entt::entity              entity,
                                              entt::registry&           registry,
                                              cereal::JSONInputArchive& ar) {
-    auto it = deserializers.find(typeName);
-    if (it != deserializers.end()) {
+    if (const auto it = deserializers.find(typeName); it != deserializers.end()) {
         it->second(entity, registry, ar);
     }
 }
@@ -44,8 +44,7 @@ void ComponentRegistry::deserializeComponent(const std::string&        typeName,
 bool ComponentRegistry::hasComponent(std::type_index typeIdx,
                                      entt::entity    entity,
                                      entt::registry& registry) {
-    auto it = checkers.find(typeIdx);
-    if (it != checkers.end()) {
+    if (const auto it = checkers.find(typeIdx); it != checkers.end()) {
         return it->second(entity, registry);
     }
     return false;
@@ -53,16 +52,16 @@ bool ComponentRegistry::hasComponent(std::type_index typeIdx,
 
 std::vector<std::string> ComponentRegistry::getRegisteredTypes() const {
     std::vector<std::string> types;
-    for (const auto& pair : nameToType) {
-        types.push_back(pair.first);
+    for (const auto& key : nameToType | std::views::keys) {
+        types.push_back(key);
     }
     return types;
 }
 
 std::vector<std::type_index> ComponentRegistry::getRegisteredTypeIndices() const {
     std::vector<std::type_index> indices;
-    for (const auto& pair : typeToName) {
-        indices.push_back(pair.first);
+    for (const auto& key : typeToName | std::views::keys) {
+        indices.push_back(key);
     }
     return indices;
 }

@@ -1,20 +1,16 @@
 #pragma once
 #include "asset_viewer.hpp"
 #include "corvus/asset/asset_handle.hpp"
-#include "corvus/asset/asset_manager.hpp"
 #include "corvus/graphics/graphics.hpp"
 #include "corvus/renderer/camera.hpp"
-#include "corvus/renderer/lighting.hpp"
 #include "corvus/renderer/model.hpp"
 #include "corvus/renderer/scene_renderer.hpp"
 #include "imgui.h"
-#include <array>
 #include <glm/glm.hpp>
 
 namespace Corvus::Editor {
 
-class ModelViewer : public AssetViewer {
-private:
+class ModelViewer final : public AssetViewer {
     Core::AssetHandle<Renderer::Model> modelHandle;
     Graphics::GraphicsContext*         context_ = nullptr;
 
@@ -26,7 +22,6 @@ private:
     Graphics::Texture2D   depthTexture;
     uint32_t              previewResolution = 512;
 
-    bool previewInitialized = false;
     bool needsPreviewUpdate = true;
 
     // Camera controls
@@ -48,8 +43,6 @@ private:
     glm::vec3 boundsMax { 0.0f };
     glm::vec3 modelCenter { 0.0f };
 
-    void initPreview();
-    void cleanupPreview();
     void renderPreview();
     void updatePreview();
     void handleCameraControls();
@@ -64,7 +57,7 @@ public:
     ModelViewer(const Core::UUID&          id,
                 Core::AssetManager*        manager,
                 Graphics::GraphicsContext& context);
-    ~ModelViewer();
+    ~ModelViewer() override;
 
     void render() override;
 };

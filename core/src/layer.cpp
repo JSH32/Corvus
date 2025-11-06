@@ -15,7 +15,7 @@ void LayerStack::pushOverlay(std::unique_ptr<Layer> overlay) {
 }
 
 void LayerStack::popLayer(Layer* layer) {
-    auto it
+    const auto it
         = std::find_if(layers.begin(),
                        layers.begin() + layerInsertIndex,
                        [layer](const std::unique_ptr<Layer>& ptr) { return ptr.get() == layer; });
@@ -28,7 +28,7 @@ void LayerStack::popLayer(Layer* layer) {
 }
 
 void LayerStack::popOverlay(Layer* overlay) {
-    auto it = std::find_if(
+    const auto it = std::find_if(
         layers.begin() + layerInsertIndex,
         layers.end(),
         [overlay](const std::unique_ptr<Layer>& ptr) { return ptr.get() == overlay; });
@@ -38,7 +38,7 @@ void LayerStack::popOverlay(Layer* overlay) {
 }
 
 void LayerStack::clear() {
-    for (auto& layer : layers)
+    for (const auto& layer : layers)
         layer->onDetach();
 
     layers.clear();

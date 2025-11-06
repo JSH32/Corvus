@@ -27,6 +27,11 @@ public:
     /**
      * @brief Renders the active scene into the viewport's framebuffer.
      * @param size The size (in pixels) of the viewport region in ImGui.
+     * @param selectedEntity current selected entity for gizmo rendering
+     * @param mousePos mouse position
+     * @param mousePressed is mouse currently being pressed
+     * @param mouseDown is the mouse being held down
+     * @param mouseInViewport is the mouse within the viewport
      */
     void render(const ImVec2&    size,
                 Core::Entity*    selectedEntity,
@@ -48,24 +53,6 @@ public:
      * @return The entity under the mouse, or an empty handle if none.
      */
     Core::Entity pickEntity(const glm::vec2& mousePos);
-
-    /**
-     * @brief Updates and renders the gizmo for a given entity transform.
-     * @param entity Entity to manipulate
-     * @param mousePos Mouse position relative to viewport
-     * @param mousePressed Whether the mouse was pressed this frame
-     * @param mouseDown Whether the mouse is currently down
-     * @param mouseInViewport Whether the cursor is inside the viewport
-     * @param viewportWidth Width of the viewport (in pixels)
-     * @param viewportHeight Height of the viewport (in pixels)
-     */
-    void updateGizmo(Core::Entity&    entity,
-                     const glm::vec2& mousePos,
-                     bool             mousePressed,
-                     bool             mouseDown,
-                     bool             mouseInViewport,
-                     float            viewportWidth,
-                     float            viewportHeight);
 
     /**
      * @brief Gets the framebuffer for rendering.
@@ -97,8 +84,8 @@ public:
     /**
      * @brief Toggles the grid overlay.
      */
-    void setGridEnabled(bool enabled) { gridEnabled = enabled; }
-    bool isGridEnabled() const { return gridEnabled; }
+    void setGridEnabled(bool enabled);
+    bool isGridEnabled() const;
 
 private:
     /**

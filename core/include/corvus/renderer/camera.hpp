@@ -25,9 +25,9 @@ public:
 
     void             setTarget(const glm::vec3& target);
     void             setUp(const glm::vec3& up);
-    const glm::vec3& getPosition() const { return position_; }
-    const glm::vec3& getTarget() const { return target_; }
-    const glm::vec3& getUp() const { return up_; }
+    const glm::vec3& getPosition() const { return position; }
+    const glm::vec3& getTarget() const { return target; }
+    const glm::vec3& getUp() const { return up; }
 
     glm::vec3 getForward() const;
     glm::vec3 getRight() const;
@@ -38,12 +38,12 @@ public:
     void setOrthographic(
         float left, float right, float bottom, float top, float nearPlane, float farPlane);
 
-    ProjectionType getProjectionType() const { return projectionType_; }
-    float          getFOV() const { return fov_; }
-    float          getAspectRatio() const { return aspectRatio_; }
-    float          getNearPlane() const { return nearPlane_; }
-    float          getFarPlane() const { return farPlane_; }
-    float          getOrthoSize() const { return orthoSize_; }
+    ProjectionType getProjectionType() const { return projectionType; }
+    float          getFOV() const { return fov; }
+    float          getAspectRatio() const { return aspectRatio; }
+    float          getNearPlane() const { return nearPlane; }
+    float          getFarPlane() const { return farPlane; }
+    float          getOrthoSize() const { return orthoSize; }
 
     // Matrices
     const glm::mat4& getViewMatrix() const;
@@ -61,35 +61,37 @@ private:
     void updateProjectionMatrix() const;
     void updateFrustum() const;
 
-    glm::vec3 position_;
-    glm::vec3 target_;
-    glm::vec3 up_;
-    glm::quat rotation_;
-    bool      useLookAt_ = true;
+    glm::vec3 position;
+    glm::vec3 target;
+    glm::vec3 up;
+    glm::quat rotation;
+    bool      useLookAt = true;
 
-    ProjectionType projectionType_;
+    ProjectionType projectionType;
 
     // Perspective params
-    float fov_;
-    float aspectRatio_;
+    float fov;
+    float aspectRatio;
 
     // Orthographic params
-    float orthoLeft_, orthoRight_;
-    float orthoBottom_, orthoTop_;
-    float orthoSize_;
+    float orthoLeft   = 0;
+    float orthoRight  = 0;
+    float orthoBottom = 0;
+    float orthoTop    = 0;
+    float orthoSize;
 
     // Common params
-    float nearPlane_;
-    float farPlane_;
+    float nearPlane;
+    float farPlane;
 
     // Cached matrices
-    mutable glm::mat4 viewMatrix_;
-    mutable glm::mat4 projectionMatrix_;
-    mutable Frustum   frustum_;
+    mutable glm::mat4 viewMatrix {};
+    mutable glm::mat4 projectionMatrix {};
+    mutable Frustum   frustum {};
 
-    mutable bool viewDirty_       = true;
-    mutable bool projectionDirty_ = true;
-    mutable bool frustumDirty_    = true;
+    mutable bool viewDirty       = true;
+    mutable bool projectionDirty = true;
+    mutable bool frustumDirty    = true;
 };
 
 }

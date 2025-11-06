@@ -4,21 +4,20 @@
 #include "corvus/components/light.hpp"
 #include "editor/imguiutils.hpp"
 #include "editor/panels/inspector/inspector_panel.hpp"
-#include "imgui_internal.h"
 #include <imgui.h>
 
 namespace Corvus::Editor {
 
 template <>
-struct ComponentInfo<Corvus::Core::Components::LightComponent> {
-    using ComponentType                         = Corvus::Core::Components::LightComponent;
+struct ComponentInfo<Core::Components::LightComponent> {
+    using ComponentType                         = Core::Components::LightComponent;
     static constexpr std::string_view name      = ICON_FA_LIGHTBULB " Light";
     static constexpr bool             removable = true;
     static constexpr bool             flat      = false;
 
-    static void draw(Corvus::Core::Components::LightComponent& light,
-                     Corvus::Core::AssetManager*,
-                     Graphics::GraphicsContext* ctx) {
+    static void draw(Core::Components::LightComponent& light,
+                     Core::AssetManager*,
+                     Graphics::GraphicsContext* _) {
         ImGui::PushID(&light);
 
         // Enabled checkbox
@@ -138,9 +137,9 @@ struct ComponentInfo<Corvus::Core::Components::LightComponent> {
             ImGui::TextUnformatted("Shadow Res");
             ImGui::NextColumn();
             {
-                static const char* resolutions[] = { "512", "1024", "2048", "4096" };
-                static const int   resValues[]   = { 512, 1024, 2048, 4096 };
-                int                currentIdx    = 1; // default 1024
+                static const char*   resolutions[] = { "512", "1024", "2048", "4096" };
+                static constexpr int resValues[]   = { 512, 1024, 2048, 4096 };
+                int                  currentIdx    = 1; // default 1024
                 for (int i = 0; i < 4; ++i) {
                     if (light.shadowMapResolution == resValues[i]) {
                         currentIdx = i;
@@ -167,7 +166,7 @@ struct ComponentInfo<Corvus::Core::Components::LightComponent> {
                 ImGui::SetTooltip("How dark the shadows are");
             }
 
-            if (light.type == Corvus::Core::Components::LightType::Directional) {
+            if (light.type == Core::Components::LightType::Directional) {
                 ImGui::FloatEditor("Shadow Distance", light.shadowDistance, 5.0f, 1.0f, 200.0f);
                 if (ImGui::IsItemHovered()) {
                     ImGui::SetTooltip("How far shadows render from center");
@@ -182,32 +181,32 @@ struct ComponentInfo<Corvus::Core::Components::LightComponent> {
         ImGui::Spacing();
 
         // Draw a small preview of the light
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImVec2      p        = ImGui::GetCursorScreenPos();
-        float       radius   = 20.0f;
-        ImVec2      center   = ImVec2(p.x + radius + 5, p.y + radius + 5);
+        ImDrawList*     drawList = ImGui::GetWindowDrawList();
+        const ImVec2    p        = ImGui::GetCursorScreenPos();
+        constexpr float radius   = 20.0f;
+        const auto      center   = ImVec2(p.x + radius + 5, p.y + radius + 5);
 
         // Clamp color values
-        int   r             = std::min(255, static_cast<int>(light.color.r * light.intensity));
-        int   g             = std::min(255, static_cast<int>(light.color.g * light.intensity));
-        int   b             = std::min(255, static_cast<int>(light.color.b * light.intensity));
-        ImU32 lightColorU32 = IM_COL32(r, g, b, 255);
+        const int   r = std::min(255, static_cast<int>(light.color.r * light.intensity));
+        const int   g = std::min(255, static_cast<int>(light.color.g * light.intensity));
+        const int   b = std::min(255, static_cast<int>(light.color.b * light.intensity));
+        const ImU32 lightColorU32 = IM_COL32(r, g, b, 255);
 
         switch (light.type) {
-            case Corvus::Core::Components::LightType::Directional:
+            case Core::Components::LightType::Directional:
                 // Draw sun icon
                 drawList->AddCircleFilled(center, radius * 0.6f, lightColorU32);
                 for (int i = 0; i < 8; ++i) {
-                    float  angle = (i / 8.0f) * 2.0f * 3.14159f;
-                    ImVec2 start = ImVec2(center.x + cosf(angle) * radius * 0.7f,
-                                          center.y + sinf(angle) * radius * 0.7f);
-                    ImVec2 end
+                    const float angle = (i / 8.0f) * 2.0f * 3.14159f;
+                    auto        start = ImVec2(center.x + cosf(angle) * radius * 0.7f,
+                                        center.y + sinf(angle) * radius * 0.7f);
+                    auto        end
                         = ImVec2(center.x + cosf(angle) * radius, center.y + sinf(angle) * radius);
                     drawList->AddLine(start, end, lightColorU32, 2.0f);
                 }
                 break;
 
-            case Corvus::Core::Components::LightType::Point:
+            case Core::Components::LightType::Point:
                 // Draw point light with falloff
                 drawList->AddCircleFilled(center, radius * 0.4f, lightColorU32);
                 drawList->AddCircle(
@@ -215,11 +214,11 @@ struct ComponentInfo<Corvus::Core::Components::LightComponent> {
                 drawList->AddCircle(center, radius, IM_COL32(r / 4, g / 4, b / 4, 64), 0, 1.0f);
                 break;
 
-            case Corvus::Core::Components::LightType::Spot:
+            case Core::Components::LightType::Spot:
                 // Draw cone shape
                 drawList->AddCircleFilled(center, radius * 0.3f, lightColorU32);
-                ImVec2 p1 = ImVec2(center.x - radius * 0.5f, center.y + radius);
-                ImVec2 p2 = ImVec2(center.x + radius * 0.5f, center.y + radius);
+                const auto p1 = ImVec2(center.x - radius * 0.5f, center.y + radius);
+                const auto p2 = ImVec2(center.x + radius * 0.5f, center.y + radius);
                 drawList->AddTriangleFilled(center, p1, p2, IM_COL32(r / 2, g / 2, b / 2, 128));
                 break;
         }

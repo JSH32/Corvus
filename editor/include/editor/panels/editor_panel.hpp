@@ -1,8 +1,6 @@
 #pragma once
 
 #include "IconsFontAwesome6.h"
-#include "corvus/entity.hpp"
-#include <format>
 #include <string>
 
 namespace Corvus::Editor {
@@ -11,6 +9,6 @@ public:
     virtual ~EditorPanel() = default;
     virtual void onUpdate() { }
 
-    std::string title() { return std::format("{} Panel", ICON_FA_PAPERCLIP); };
+    virtual std::string title() { return fmt::format("{} Panel", ICON_FA_PAPERCLIP); };
 };
 }

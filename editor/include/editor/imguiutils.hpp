@@ -2,7 +2,6 @@
 
 #include "corvus/graphics/graphics.hpp"
 #include <imgui.h>
-#include <vector>
 
 /**
  * Things inserted into the ImGui namespace, addon functions or utilities
@@ -18,23 +17,23 @@ bool FloatEditor(const std::string& label,
                  float              min        = 0.0f,
                  float              max        = 0.0f,
                  float              resetValue = 0.0f,
-                 const float        labelWidth = 100.0f);
+                 float              labelWidth = 100.0f);
 bool IntEditor(const std::string& label,
                int&               value,
                int                speed      = 1,
                int                min        = 0,
                int                max        = 0,
                int                resetValue = 0,
-               const float        labelWidth = 100.0f);
+               float              labelWidth = 100.0f);
 
 /**
  * @brief Renders a framebuffer's color texture to ImGui.
  *
- * @param framebuffer The framebuffer to render
- * @param colorTexture The color texture attached to the framebuffer
+ * @param fb The framebuffer to render
+ * @param colorTex The color texture attached to the framebuffer
  * @param size Size to display the texture
  * @param flipY Whether to flip the Y axis
- * @return true if rendered successfully, false if framebuffer is invalid
+ * @return true if rendered successfully, false if the framebuffer is invalid
  */
 bool RenderFramebuffer(const Corvus::Graphics::Framebuffer& fb,
                        const Corvus::Graphics::Texture2D&   colorTex,

@@ -9,7 +9,7 @@
 
 namespace Corvus::Core::Im {
 
-static inline ImGuiKey translateKeyToImGuiKey(Corvus::Core::Input::Key key) {
+static ImGuiKey translateKeyToImGuiKey(Corvus::Core::Input::Key key) {
     using namespace Corvus::Core::Input;
     switch (key) {
         case Key::Tab:
@@ -89,8 +89,8 @@ bool ImGuiRenderer::initialize(Graphics::GraphicsContext& ctx) {
     auto vsBytes = StaticResourceFile::create("engine/shaders/imgui/imgui.vert")->readAllBytes();
     auto fsBytes = StaticResourceFile::create("engine/shaders/imgui/imgui.frag")->readAllBytes();
 
-    std::string vsSource(vsBytes.begin(), vsBytes.end());
-    std::string fsSource(fsBytes.begin(), fsBytes.end());
+    const std::string vsSource(vsBytes.begin(), vsBytes.end());
+    const std::string fsSource(fsBytes.begin(), fsBytes.end());
     shader = context->createShader(vsSource, fsSource);
 
     // Vertex layout
@@ -106,14 +106,14 @@ bool ImGuiRenderer::initialize(Graphics::GraphicsContext& ctx) {
     vao.setIndexBuffer(ibo);
 
     // Upload font texture
-    ImGuiIO&       io     = ImGui::GetIO();
+    const ImGuiIO& io     = ImGui::GetIO();
     unsigned char* pixels = nullptr;
     int            w = 0, h = 0;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &w, &h);
 
     fontTexture = context->createTexture2D(w, h);
     fontTexture.setData(pixels, w * h * 4);
-    io.Fonts->TexID = (ImTextureID)(uintptr_t)fontTexture.getNativeHandle();
+    io.Fonts->TexID = static_cast<ImTextureID>(fontTexture.getNativeHandle());
 
     CORVUS_CORE_INFO("ImGui initialized (font texture: {}x{})", w, h);
     return true;
@@ -123,16 +123,18 @@ void ImGuiRenderer::onEvent(const Events::InputEvent& e) {
     ImGuiIO& io = ImGui::GetIO();
     matchEvent(
         e,
-        [&](const Events::MouseMoveEvent& evt) { io.AddMousePosEvent((float)evt.x, (float)evt.y); },
+        [&](const Events::MouseMoveEvent& evt) {
+            io.AddMousePosEvent(static_cast<float>(evt.x), static_cast<float>(evt.y));
+        },
         [&](const Events::MouseButtonEvent& evt) {
             io.AddMouseButtonEvent(evt.button, evt.pressed);
         },
         [&](const Events::MouseScrollEvent& evt) {
-            io.AddMouseWheelEvent((float)evt.xoffset, (float)evt.yoffset);
+            io.AddMouseWheelEvent(static_cast<float>(evt.xoffset), static_cast<float>(evt.yoffset));
         },
         [&](const Events::KeyEvent& evt) {
-            ImGuiKey key = translateKeyToImGuiKey(static_cast<Core::Input::Key>(evt.key));
-            if (key != ImGuiKey_None)
+            if (const ImGuiKey key = translateKeyToImGuiKey(static_cast<Input::Key>(evt.key));
+                key != ImGuiKey_None)
                 io.AddKeyEvent(key, evt.pressed);
 
             io.AddKeyEvent(ImGuiMod_Ctrl, Input::hasModifier(evt.mods, Input::Modifier::Mod_Ctrl));
@@ -143,15 +145,17 @@ void ImGuiRenderer::onEvent(const Events::InputEvent& e) {
                            Input::hasModifier(evt.mods, Input::Modifier::Mod_Super));
         },
         [&](const Events::WindowResizeEvent& evt) {
-            io.DisplaySize = ImVec2((float)evt.width, (float)evt.height);
+            io.DisplaySize = ImVec2(static_cast<float>(evt.width), static_cast<float>(evt.height));
         },
         [&](const Events::TextInputEvent& evt) {
             char utf8[5] = { 0 };
             ImTextCharToUtf8(utf8, evt.codepoint);
             io.AddInputCharactersUTF8(utf8);
-        });
+        },
+        [](auto const&) {});
 }
 
+// ReSharper disable once CppMemberFunctionMayBeStatic
 void ImGuiRenderer::newFrame() { ImGui::NewFrame(); }
 
 void ImGuiRenderer::renderDrawData(ImDrawData* drawData) {
@@ -164,7 +168,7 @@ void ImGuiRenderer::renderDrawData(ImDrawData* drawData) {
         return;
     }
 
-    // Create command buffer for all ImGui rendering
+    // Create a command buffer for all ImGui rendering
     auto cmd = context->createCommandBuffer();
     cmd.begin();
 
@@ -176,17 +180,19 @@ void ImGuiRenderer::renderDrawData(ImDrawData* drawData) {
     cmd.setCullFace(false, false);
     cmd.enableScissor(true);
 
-    const uint32_t fbW = (uint32_t)(drawData->DisplaySize.x * drawData->FramebufferScale.x);
-    const uint32_t fbH = (uint32_t)(drawData->DisplaySize.y * drawData->FramebufferScale.y);
+    const uint32_t fbW
+        = static_cast<uint32_t>(drawData->DisplaySize.x * drawData->FramebufferScale.x);
+    const uint32_t fbH
+        = static_cast<uint32_t>(drawData->DisplaySize.y * drawData->FramebufferScale.y);
     cmd.setViewport(0, 0, fbW, fbH);
 
     cmd.setShader(shader);
 
     // Setup orthographic projection matrix
-    float L = drawData->DisplayPos.x;
-    float R = drawData->DisplayPos.x + drawData->DisplaySize.x;
-    float T = drawData->DisplayPos.y;
-    float B = drawData->DisplayPos.y + drawData->DisplaySize.y;
+    const float L = drawData->DisplayPos.x;
+    const float R = drawData->DisplayPos.x + drawData->DisplaySize.x;
+    const float T = drawData->DisplayPos.y;
+    const float B = drawData->DisplayPos.y + drawData->DisplaySize.y;
 
     const float ortho[4][4] = {
         { 2.0f / (R - L), 0.0f, 0.0f, 0.0f },
@@ -197,8 +203,8 @@ void ImGuiRenderer::renderDrawData(ImDrawData* drawData) {
     shader.setUniform(cmd, "u_ProjectionMatrix", &ortho[0][0]);
     shader.setInt(cmd, "u_Texture", 0);
 
-    ImVec2 clip_off   = drawData->DisplayPos;
-    ImVec2 clip_scale = drawData->FramebufferScale;
+    const ImVec2 clipOff   = drawData->DisplayPos;
+    const ImVec2 clipScale = drawData->FramebufferScale;
 
     // Render all command lists
     for (int n = 0; n < drawData->CmdListsCount; n++) {
@@ -231,23 +237,23 @@ void ImGuiRenderer::renderDrawData(ImDrawData* drawData) {
             }
 
             // Calculate scissor rectangle
-            ImVec2 clip_min((pcmd.ClipRect.x - clip_off.x) * clip_scale.x,
-                            (pcmd.ClipRect.y - clip_off.y) * clip_scale.y);
-            ImVec2 clip_max((pcmd.ClipRect.z - clip_off.x) * clip_scale.x,
-                            (pcmd.ClipRect.w - clip_off.y) * clip_scale.y);
+            const ImVec2 clip_min((pcmd.ClipRect.x - clipOff.x) * clipScale.x,
+                                  (pcmd.ClipRect.y - clipOff.y) * clipScale.y);
+            const ImVec2 clip_max((pcmd.ClipRect.z - clipOff.x) * clipScale.x,
+                                  (pcmd.ClipRect.w - clipOff.y) * clipScale.y);
 
             // Skip if clipped
             if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                 continue;
 
             // Set scissor rectangle
-            cmd.setScissor((uint32_t)clip_min.x,
-                           (uint32_t)(fbH - clip_max.y),
-                           (uint32_t)(clip_max.x - clip_min.x),
-                           (uint32_t)(clip_max.y - clip_min.y));
+            cmd.setScissor(static_cast<uint32_t>(clip_min.x),
+                           static_cast<uint32_t>(fbH - clip_max.y),
+                           static_cast<uint32_t>(clip_max.x - clip_min.x),
+                           static_cast<uint32_t>(clip_max.y - clip_min.y));
 
             // Bind texture
-            uintptr_t                   texHandle     = (uintptr_t)pcmd.GetTexID();
+            const uintptr_t             texHandle     = pcmd.GetTexID();
             Corvus::Graphics::Texture2D textureToBind = fontTexture;
             if (texHandle != 0) {
                 textureToBind.id = static_cast<uint32_t>(texHandle);

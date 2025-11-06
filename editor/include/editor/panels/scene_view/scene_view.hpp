@@ -22,6 +22,7 @@ public:
     /**
      * @brief Constructs a SceneViewPanel.
      * @param scene A reference to the main scene object.
+     * @param ctx graphics context
      * @param sceneHierarchy A pointer to the SceneHierarchyPanel for selection synchronization.
      */
     SceneViewPanel(Core::Project&             scene,
@@ -34,7 +35,7 @@ public:
      * Manages ImGui window, viewport display, mouse interaction, and entity selection.
      */
     void        onUpdate() override;
-    std::string title() { return ICON_FA_CUBES " Scene View"; }
+    std::string title() override { return ICON_FA_CUBES " Scene View"; }
 
     /**
      * @brief Gets the scene viewport for external access.

@@ -19,15 +19,15 @@ StaticResourceFile::~StaticResourceFile() {
     }
 }
 
-std::vector<char> StaticResourceFile::readBytes(size_t byteCount) {
+std::vector<char> StaticResourceFile::readBytes(size_t byteCount) const {
     std::vector<char> buffer(byteCount);
     PHYSFS_readBytes(file, buffer.data(), byteCount);
     return buffer;
 }
 
-std::vector<char> StaticResourceFile::readAllBytes() {
-    PHYSFS_sint64     fileLength = PHYSFS_fileLength(file);
-    std::vector<char> buffer(fileLength + 1);
+std::vector<char> StaticResourceFile::readAllBytes() const {
+    const PHYSFS_sint64 fileLength = PHYSFS_fileLength(file);
+    std::vector<char>   buffer(fileLength + 1);
     PHYSFS_readBytes(file, buffer.data(), fileLength);
     buffer[fileLength] = '\0';
     return buffer;

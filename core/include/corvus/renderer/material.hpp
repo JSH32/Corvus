@@ -31,7 +31,7 @@ struct RenderState {
 
 class Material {
 public:
-    Material(const Shader& shader);
+    explicit Material(const Shader& shader);
 
     // Uniform setters
     void setInt(const std::string& name, int value);
@@ -47,25 +47,25 @@ public:
 
     // Render state
     void               setRenderState(const RenderState& state);
-    const RenderState& getRenderState() const { return renderState_; }
+    const RenderState& getRenderState() const { return renderState; }
 
-    // Bind all state and uniforms to command buffer
+    // Bind all state and uniforms to the command buffer
     void bind(CommandBuffer& cmd);
 
     // Shader access
-    Shader& getShader() { return shader_; }
+    Shader& getShader() { return shader; }
 
     // For sorting/batching
-    uint32_t getShaderId() const { return shader_.id; }
+    uint32_t getShaderId() const { return shader.id; }
 
-    const std::unordered_map<uint32_t, Texture2D>& getTextures() const { return textures_; }
+    const std::unordered_map<uint32_t, Texture2D>& getTextures() const { return textures; }
 
 private:
-    Shader                                        shader_;
-    std::unordered_map<std::string, UniformValue> uniforms_;
-    std::unordered_map<uint32_t, Texture2D>       textures_;
-    std::unordered_map<uint32_t, TextureCube>     textureCubes_;
-    RenderState                                   renderState_;
+    Shader                                        shader;
+    std::unordered_map<std::string, UniformValue> uniforms;
+    std::unordered_map<uint32_t, Texture2D>       textures;
+    std::unordered_map<uint32_t, TextureCube>     textureCubes;
+    RenderState                                   renderState;
 };
 
 using MaterialRef = std::shared_ptr<Material>;

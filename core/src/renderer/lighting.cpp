@@ -7,7 +7,7 @@
 namespace Corvus::Renderer {
 
 // ShadowMap
-void ShadowMap::initialize(Graphics::GraphicsContext& ctx, uint32_t res) {
+void ShadowMap::initialize(Graphics::GraphicsContext& ctx, const uint32_t res) {
     if (initialized && resolution == res) {
         return;
     }

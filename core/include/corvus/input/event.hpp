@@ -31,6 +31,9 @@ struct WindowResizeEvent {
     int height;
 };
 
+struct WindowCloseEvent {
+};
+
 struct TextInputEvent {
     unsigned int codepoint;
 };
@@ -40,6 +43,7 @@ using InputEvent = std::variant<MouseMoveEvent,
                                 MouseButtonEvent,
                                 KeyEvent,
                                 WindowResizeEvent,
+                                WindowCloseEvent,
                                 TextInputEvent>;
 
 }

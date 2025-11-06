@@ -47,7 +47,7 @@ Project::create(Graphics::GraphicsContext* ctx, const std::string& path, const s
     std::filesystem::path assetPath
         = std::filesystem::path(project->projectPath) / project->settings.assetsDirectory;
 
-    // Create project directory structure
+    // Create a project directory structure
     std::filesystem::create_directories(assetPath / "scenes");
     std::filesystem::create_directories(assetPath / "textures");
     std::filesystem::create_directories(assetPath / "models");
@@ -57,8 +57,8 @@ Project::create(Graphics::GraphicsContext* ctx, const std::string& path, const s
     project->assetManager = std::make_unique<AssetManager>(ctx, assetPath, "project");
     project->assetManager->scanAssets();
 
-    // Create default scene
-    auto sceneHandle
+    // Create a default scene
+    const auto sceneHandle
         = project->assetManager->createAsset<Scene>("scenes/Untitled.scene", "Untitled");
     if (!sceneHandle.isValid()) {
         CORVUS_CORE_ERROR("Failed to create default scene for new project");
@@ -91,7 +91,7 @@ std::unique_ptr<Project> Project::load(Graphics::GraphicsContext* ctx, const std
     project->assetManager = std::make_unique<AssetManager>(ctx, assetPath, "project");
     project->assetManager->scanAssets();
 
-    // Try to load main scene, fallback to a new one if missing
+    // Try to load the main scene, fallback to a new one if missing
     if (!project->settings.mainSceneID.is_nil()) {
         project->currentSceneHandle
             = project->assetManager->loadByID<Scene>(project->settings.mainSceneID);
@@ -166,9 +166,9 @@ bool Project::saveCurrentScene() {
     }
 
     try {
-        currentSceneHandle.save();
+        const bool saved = currentSceneHandle.save();
         CORVUS_CORE_INFO("Saved current scene: {}", currentSceneHandle->name);
-        return true;
+        return saved;
     } catch (const std::exception& e) {
         CORVUS_CORE_ERROR("Failed to save scene: {}", e.what());
         return false;
@@ -176,7 +176,7 @@ bool Project::saveCurrentScene() {
 }
 
 bool Project::loadSceneByID(const UUID& sceneID) {
-    auto handle = assetManager->loadByID<Scene>(sceneID);
+    const auto handle = assetManager->loadByID<Scene>(sceneID);
     if (!handle.isValid()) {
         CORVUS_CORE_ERROR("Failed to load scene by ID: {}", boost::uuids::to_string(sceneID));
         return false;
@@ -193,7 +193,7 @@ void Project::setMainScene(const UUID& sceneID) {
 }
 
 AssetHandle<Scene> Project::createNewScene(const std::string& name) {
-    // Create scene in scenes/ directory
+    // Create a scene in a scenes/directory
     auto handle = assetManager->createAsset<Scene>("scenes/" + name + ".scene", name);
     if (handle.isValid()) {
         currentSceneHandle   = handle;
@@ -205,7 +205,7 @@ AssetHandle<Scene> Project::createNewScene(const std::string& name) {
 
 void Project::setProjectName(const std::string& name) { settings.projectName = name; }
 
-std::vector<AssetHandle<Scene>> Project::getAllScenes() {
+std::vector<AssetHandle<Scene>> Project::getAllScenes() const {
     return assetManager->getAllOfType<Scene>();
 }
 
@@ -213,12 +213,12 @@ AssetHandle<Scene> Project::getCurrentScene() { return currentSceneHandle; }
 
 UUID Project::getCurrentSceneID() const { return currentSceneHandle.getID(); }
 
-void Project::startFileWatcher(int pollIntervalMs) {
+void Project::startFileWatcher(int pollIntervalMs) const {
     if (assetManager)
         assetManager->startFileWatcher(pollIntervalMs);
 }
 
-void Project::stopFileWatcher() {
+void Project::stopFileWatcher() const {
     if (assetManager)
         assetManager->stopFileWatcher();
 }

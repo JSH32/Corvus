@@ -1,4 +1,6 @@
 #include "editor/gizmo/editor_gizmo.hpp"
+
+#include "corvus/application.hpp"
 #include "corvus/files/static_resource_file.hpp"
 #include "corvus/log.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -17,15 +19,15 @@ void EditorGizmo::initialize() {
 
     auto vsBytes = StaticResourceFile::create("engine/shaders/gizmo/gizmo.vert")->readAllBytes();
     auto fsBytes = StaticResourceFile::create("engine/shaders/gizmo/gizmo.frag")->readAllBytes();
-    std::string vsSrc(vsBytes.begin(), vsBytes.end());
-    std::string fsSrc(fsBytes.begin(), fsBytes.end());
+    const std::string vsSrc(vsBytes.begin(), vsBytes.end());
+    const std::string fsSrc(fsBytes.begin(), fsBytes.end());
     shader = ctx.createShader(vsSrc, fsSrc);
 
     // Pre-allocate large buffers for dynamic geometry
-    std::vector<GizmoVertex> emptyVerts(10000);
-    std::vector<uint16_t>    emptyIndices(30000);
+    const std::vector<GizmoVertex> emptyVertices(10000);
+    const std::vector<uint16_t>    emptyIndices(30000);
 
-    vbo = ctx.createVertexBuffer(emptyVerts.data(), emptyVerts.size() * sizeof(GizmoVertex));
+    vbo = ctx.createVertexBuffer(emptyVertices.data(), emptyVertices.size() * sizeof(GizmoVertex));
     ibo = ctx.createIndexBuffer(emptyIndices.data(), emptyIndices.size(), true);
     vao = ctx.createVertexArray();
 
@@ -70,9 +72,8 @@ void EditorGizmo::computeAxisOrientation(const glm::mat4& view, const glm::vec3&
     cameraUp      = glm::vec3(view[0][1], view[1][1], view[2][1]);
     cameraForward = glm::normalize(position - camPos);
 
-    Mode activeMode = currentMode;
-
-    if (static_cast<uint8_t>(activeMode) & static_cast<uint8_t>(Mode::Scale)) {
+    if (Mode activeMode = currentMode;
+        static_cast<uint8_t>(activeMode) & static_cast<uint8_t>(Mode::Scale)) {
         orientation = Orientation::Local;
     }
 
@@ -86,8 +87,8 @@ void EditorGizmo::computeAxisOrientation(const glm::mat4& view, const glm::vec3&
         currentAxes[2] = globalAxes[2];
 
         if (orientation == Orientation::Local) {
-            for (int i = 0; i < 3; ++i) {
-                currentAxes[i] = glm::normalize(rotation * currentAxes[i]);
+            for (auto& currentAxe : currentAxes) {
+                currentAxe = glm::normalize(rotation * currentAxe);
             }
         }
     }
@@ -99,7 +100,7 @@ void EditorGizmo::computeRay(const glm::vec2& mousePos,
                              float            h,
                              glm::vec3&       outOrigin,
                              glm::vec3&       outDir) {
-    glm::vec2 ndc = { (2.0f * mousePos.x) / w - 1.0f, 1.0f - (2.0f * mousePos.y) / h };
+    const glm::vec2 ndc = { 2.0f * mousePos.x / w - 1.0f, 1.0f - 2.0f * mousePos.y / h };
 
     // Near and far points for direction
     glm::vec4 nearP = invViewProj * glm::vec4(ndc, 0.0f, 1.0f);
@@ -115,8 +116,8 @@ void EditorGizmo::computeRay(const glm::vec2& mousePos,
     outOrigin = glm::vec3(camPlaneP);
     outDir    = glm::normalize(glm::vec3(farP - nearP));
 }
-glm::vec3 EditorGizmo::getWorldMouse(const glm::vec2& mousePos) {
-    float dist = glm::distance(cameraPosition, position);
+glm::vec3 EditorGizmo::getWorldMouse(const glm::vec2& mousePos) const {
+    const float dist = glm::distance(cameraPosition, position);
 
     glm::vec3 rayOrigin, rayDir;
     computeRay(mousePos, glm::inverse(lastViewProj), viewportW, viewportH, rayOrigin, rayDir);
@@ -128,16 +129,16 @@ bool EditorGizmo::checkRaySphere(const glm::vec3& rayOrigin,
                                  const glm::vec3& rayDir,
                                  const glm::vec3& center,
                                  float            radius) {
-    glm::vec3 oc           = rayOrigin - center;
-    float     a            = glm::dot(rayDir, rayDir);
-    float     b            = 2.0f * glm::dot(oc, rayDir);
-    float     c            = glm::dot(oc, oc) - radius * radius;
-    float     discriminant = b * b - 4 * a * c;
+    const glm::vec3 oc           = rayOrigin - center;
+    const float     a            = glm::dot(rayDir, rayDir);
+    const float     b            = 2.0f * glm::dot(oc, rayDir);
+    const float     c            = glm::dot(oc, oc) - radius * radius;
+    const float     discriminant = b * b - 4 * a * c;
 
     if (discriminant < 0)
         return false;
 
-    float t = (-b - sqrt(discriminant)) / (2.0f * a);
+    const float t = (-b - sqrt(discriminant)) / (2.0f * a);
     return t >= 0;
 }
 
@@ -149,28 +150,27 @@ bool EditorGizmo::checkRayQuad(const glm::vec3& rayOrigin,
                                const glm::vec3& d) {
     auto checkTriangle
         = [&](const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2) -> bool {
-        glm::vec3 e1  = v1 - v0;
-        glm::vec3 e2  = v2 - v0;
-        glm::vec3 h   = glm::cross(rayDir, e2);
-        float     det = glm::dot(e1, h);
+        const glm::vec3 e1  = v1 - v0;
+        const glm::vec3 e2  = v2 - v0;
+        const glm::vec3 h   = glm::cross(rayDir, e2);
+        const float     det = glm::dot(e1, h);
 
         if (abs(det) < 1e-8f)
             return false;
 
-        float     invDet = 1.0f / det;
-        glm::vec3 s      = rayOrigin - v0;
-        float     u      = invDet * glm::dot(s, h);
+        const float     invDet = 1.0f / det;
+        const glm::vec3 s      = rayOrigin - v0;
+        const float     u      = invDet * glm::dot(s, h);
 
         if (u < 0.0f || u > 1.0f)
             return false;
 
-        glm::vec3 q = glm::cross(s, e1);
-        float     v = invDet * glm::dot(rayDir, q);
+        const glm::vec3 q = glm::cross(s, e1);
 
-        if (v < 0.0f || u + v > 1.0f)
+        if (const float v = invDet * glm::dot(rayDir, q); v < 0.0f || u + v > 1.0f)
             return false;
 
-        float t = invDet * glm::dot(e2, q);
+        const float t = invDet * glm::dot(e2, q);
         return t > 1e-8f;
     };
 
@@ -180,7 +180,7 @@ bool EditorGizmo::checkRayQuad(const glm::vec3& rayOrigin,
 bool EditorGizmo::checkOrientedBoundingBox(const glm::vec3& rayOrigin,
                                            const glm::vec3& rayDir,
                                            const glm::vec3& obbCenter,
-                                           const glm::vec3& obbHalfSize) {
+                                           const glm::vec3& obbHalfSize) const {
     glm::vec3 oLocal = rayOrigin - obbCenter;
 
     glm::vec3 localRayOrigin;
@@ -211,22 +211,22 @@ bool EditorGizmo::checkOrientedBoundingBox(const glm::vec3& rayOrigin,
     return tNear <= tFar && tFar >= 0;
 }
 
-bool EditorGizmo::checkAxis(int              axis,
+bool EditorGizmo::checkAxis(const int        axis,
                             const glm::vec3& rayOrigin,
                             const glm::vec3& rayDir,
-                            Mode             type) {
+                            const Mode       type) {
     // The OBB should span the ENTIRE arrow from base to tip (giggity)
     float lengthHalf = actualGizmoSize * 0.5f; // Half the full length
 
     // Width/height of the arrow shaft
-    float widthHalf = actualGizmoSize * arrowWidthFactor * 0.5f;
+    const float widthHalf = actualGizmoSize * arrowWidthFactor * 0.5f;
 
     glm::vec3 halfDim;
     halfDim[axis]           = lengthHalf;
     halfDim[(axis + 1) % 3] = widthHalf * 2.0f; // Make 2x wider for easier selection
     halfDim[(axis + 2) % 3] = widthHalf * 2.0f;
 
-    bool hasBothScaleTranslate
+    const bool hasBothScaleTranslate
         = (static_cast<uint8_t>(currentMode) & static_cast<uint8_t>(Mode::Translate))
         && (static_cast<uint8_t>(currentMode) & static_cast<uint8_t>(Mode::Scale));
 
@@ -235,37 +235,42 @@ bool EditorGizmo::checkAxis(int              axis,
         lengthHalf *= 0.5f;
     }
 
-    glm::vec3 obbCenter = position + currentAxes[axis] * lengthHalf;
+    const glm::vec3 obbCenter = position + currentAxes[axis] * lengthHalf;
 
     return checkOrientedBoundingBox(rayOrigin, rayDir, obbCenter, halfDim);
 }
 
-bool EditorGizmo::checkPlane(int lockedAxis, const glm::vec3& rayOrigin, const glm::vec3& rayDir) {
-    glm::vec3 dir1 = currentAxes[(lockedAxis + 1) % 3];
-    glm::vec3 dir2 = currentAxes[(lockedAxis + 2) % 3];
+bool EditorGizmo::checkPlane(const int        lockedAxis,
+                             const glm::vec3& rayOrigin,
+                             const glm::vec3& rayDir) const {
+    const glm::vec3 dir1 = currentAxes[(lockedAxis + 1) % 3];
+    const glm::vec3 dir2 = currentAxes[(lockedAxis + 2) % 3];
 
-    float offset = planeOffsetFactor * actualGizmoSize;
-    float size   = planeSizeFactor * actualGizmoSize;
+    const float offset = planeOffsetFactor * actualGizmoSize;
+    const float size   = planeSizeFactor * actualGizmoSize;
 
-    glm::vec3 a = position + dir1 * offset + dir2 * offset;
-    glm::vec3 b = a + dir1 * size;
-    glm::vec3 c = b + dir2 * size;
-    glm::vec3 d = a + dir2 * size;
+    const glm::vec3 a = position + dir1 * offset + dir2 * offset;
+    const glm::vec3 b = a + dir1 * size;
+    const glm::vec3 c = b + dir2 * size;
+    const glm::vec3 d = a + dir2 * size;
 
     return checkRayQuad(rayOrigin, rayDir, a, b, c, d);
 }
 
-bool EditorGizmo::checkCircle(int axis, const glm::vec3& rayOrigin, const glm::vec3& rayDir) {
-    glm::vec3 dir1 = currentAxes[(axis + 1) % 3];
-    glm::vec3 dir2 = currentAxes[(axis + 2) % 3];
+bool EditorGizmo::checkCircle(const int        axis,
+                              const glm::vec3& rayOrigin,
+                              const glm::vec3& rayDir) const {
+    const glm::vec3 dir1 = currentAxes[(axis + 1) % 3];
+    const glm::vec3 dir2 = currentAxes[(axis + 2) % 3];
 
-    float circleRadius = actualGizmoSize;
-    int   angleStep    = 10;
-    float sphereRadius = circleRadius * sin(glm::radians((float)angleStep / 2.0f));
+    const float   circleRadius = actualGizmoSize;
+    constexpr int angleStep    = 10;
+    const float   sphereRadius
+        = circleRadius * sin(glm::radians(static_cast<float>(angleStep) / 2.0f));
 
     for (int i = 0; i < 360; i += angleStep) {
-        float     angle = glm::radians((float)i);
-        glm::vec3 p     = position + dir1 * glm::sin(angle) * circleRadius
+        const float angle = glm::radians(static_cast<float>(i));
+        glm::vec3   p     = position + dir1 * glm::sin(angle) * circleRadius
             + dir2 * glm::cos(angle) * circleRadius;
 
         if (checkRaySphere(rayOrigin, rayDir, p, sphereRadius)) {
@@ -276,7 +281,7 @@ bool EditorGizmo::checkCircle(int axis, const glm::vec3& rayOrigin, const glm::v
     return false;
 }
 
-bool EditorGizmo::checkCenter(const glm::vec3& rayOrigin, const glm::vec3& rayDir) {
+bool EditorGizmo::checkCenter(const glm::vec3& rayOrigin, const glm::vec3& rayDir) const {
     return checkRaySphere(rayOrigin, rayDir, position, actualGizmoSize * circleRadiusFactor);
 }
 
@@ -284,15 +289,12 @@ glm::vec3 EditorGizmo::projectOntoAxis(const glm::vec3& vec, const glm::vec3& ax
     return axis * glm::dot(vec, axis);
 }
 
-bool EditorGizmo::isAxisActive(int axis) const {
+bool EditorGizmo::isAxisActive(const int axis) const {
     return (axis == 0 && (activeAxis & X)) || (axis == 1 && (activeAxis & Y))
         || (axis == 2 && (activeAxis & Z));
 }
 
-void EditorGizmo::beginTransform(Action           action,
-                                 uint8_t          axis,
-                                 const glm::vec3& rayOrigin,
-                                 const glm::vec3& rayDir) {
+void EditorGizmo::beginTransform(const Action action, const unsigned char axis) {
     currentAction = action;
     activeAxis    = axis;
 
@@ -303,9 +305,9 @@ void EditorGizmo::beginTransform(Action           action,
     dragStartWorld = getWorldMouse(lastMousePos);
 }
 
-void EditorGizmo::applyTransform(const glm::vec3& rayOrigin, const glm::vec3& rayDir) {
-    glm::vec3 currentWorldMouse = getWorldMouse(lastMousePos);
-    glm::vec3 delta             = currentWorldMouse - dragStartWorld;
+void EditorGizmo::applyTransform() {
+    const glm::vec3 currentWorldMouse = getWorldMouse(lastMousePos);
+    const glm::vec3 delta             = currentWorldMouse - dragStartWorld;
 
     switch (currentAction) {
         case Action::Translate: {
@@ -329,7 +331,7 @@ void EditorGizmo::applyTransform(const glm::vec3& rayOrigin, const glm::vec3& ra
             scale = startScale;
 
             if (activeAxis == XYZ) {
-                float scaleDelta = glm::dot(delta, globalAxes[0]);
+                const float scaleDelta = glm::dot(delta, globalAxes[0]);
                 scale += glm::vec3(scaleDelta);
             } else {
                 if (activeAxis & X)
@@ -347,9 +349,9 @@ void EditorGizmo::applyTransform(const glm::vec3& rayOrigin, const glm::vec3& ra
         case Action::Rotate: {
             rotation = startRotation;
 
-            float deltaAngle = glm::clamp(glm::dot(delta, cameraRight + cameraUp),
-                                          -2.0f * glm::pi<float>(),
-                                          2.0f * glm::pi<float>());
+            const float deltaAngle = glm::clamp(glm::dot(delta, cameraRight + cameraUp),
+                                                -2.0f * glm::pi<float>(),
+                                                2.0f * glm::pi<float>());
 
             if (activeAxis & X)
                 rotation = glm::angleAxis(deltaAngle, currentAxes[0]) * rotation;
@@ -374,7 +376,9 @@ void EditorGizmo::endTransform() {
     activeTransform = nullptr;
 }
 
-void EditorGizmo::handleInput(const glm::vec2& mousePos, bool mousePressed, bool mouseDown) {
+void EditorGizmo::handleInput(const glm::vec2& mousePos,
+                              const bool       mousePressed,
+                              const bool       mouseDown) {
     if (currentAction != Action::None) {
         if (!mouseDown) {
             endTransform();
@@ -382,7 +386,7 @@ void EditorGizmo::handleInput(const glm::vec2& mousePos, bool mousePressed, bool
             glm::vec3 rayOrigin, rayDir;
             computeRay(
                 mousePos, glm::inverse(lastViewProj), viewportW, viewportH, rayOrigin, rayDir);
-            applyTransform(rayOrigin, rayDir);
+            applyTransform();
         }
     } else {
         hoveredAxis = None;
@@ -392,12 +396,12 @@ void EditorGizmo::handleInput(const glm::vec2& mousePos, bool mousePressed, bool
             computeRay(
                 mousePos, glm::inverse(lastViewProj), viewportW, viewportH, rayOrigin, rayDir);
 
-            int    hit    = -1;
-            Action action = Action::None;
+            int  hit    = -1;
+            auto action = Action::None;
 
             for (int k = 0; hit == -1 && k < 2; ++k) {
-                Mode   gizmoMode   = k == 0 ? Mode::Scale : Mode::Translate;
-                Action gizmoAction = k == 0 ? Action::Scale : Action::Translate;
+                Mode         gizmoMode   = k == 0 ? Mode::Scale : Mode::Translate;
+                const Action gizmoAction = k == 0 ? Action::Scale : Action::Translate;
 
                 if (static_cast<uint8_t>(currentMode) & static_cast<uint8_t>(gizmoMode)) {
                     if (checkCenter(rayOrigin, rayDir)) {
@@ -413,8 +417,8 @@ void EditorGizmo::handleInput(const glm::vec2& mousePos, bool mousePressed, bool
                             break;
                         }
                         if (checkPlane(i, rayOrigin, rayDir)) {
-                            bool hasBoth = (static_cast<uint8_t>(currentMode)
-                                            & static_cast<uint8_t>(Mode::Scale))
+                            const bool hasBoth = (static_cast<uint8_t>(currentMode)
+                                                  & static_cast<uint8_t>(Mode::Scale))
                                 && (static_cast<uint8_t>(currentMode)
                                     & static_cast<uint8_t>(Mode::Translate));
                             action = hasBoth ? Action::Translate : gizmoAction;
@@ -426,7 +430,7 @@ void EditorGizmo::handleInput(const glm::vec2& mousePos, bool mousePressed, bool
             }
 
             if (hit == -1
-                && (static_cast<uint8_t>(currentMode) & static_cast<uint8_t>(Mode::Rotate))) {
+                && static_cast<uint8_t>(currentMode) & static_cast<uint8_t>(Mode::Rotate)) {
                 for (int i = 0; i < 3; ++i) {
                     if (checkCircle(i, rayOrigin, rayDir)) {
                         action = Action::Rotate;
@@ -460,9 +464,10 @@ void EditorGizmo::handleInput(const glm::vec2& mousePos, bool mousePressed, bool
                     case 6:
                         axis = XYZ;
                         break;
+                    default:;
                 }
 
-                beginTransform(action, axis, rayOrigin, rayDir);
+                beginTransform(action, axis);
             }
         }
     }
@@ -589,7 +594,7 @@ void EditorGizmo::buildScaleCube(std::vector<GizmoVertex>& triVerts,
     triVerts.push_back({ h, color });
 
     // 6 faces of cube
-    auto addQuad = [&](uint16_t i0, uint16_t i1, uint16_t i2, uint16_t i3) {
+    auto addQuad = [&](const uint16_t i0, const uint16_t i1, const uint16_t i2, const uint16_t i3) {
         triIndices.push_back(triBaseIdx + i0);
         triIndices.push_back(triBaseIdx + i1);
         triIndices.push_back(triBaseIdx + i2);
@@ -606,33 +611,33 @@ void EditorGizmo::buildScaleCube(std::vector<GizmoVertex>& triVerts,
     addQuad(3, 7, 4, 0);
 }
 
-void EditorGizmo::buildRotateCircle(std::vector<GizmoVertex>& lineVerts,
+void EditorGizmo::buildRotateCircle(std::vector<GizmoVertex>& lineVertices,
                                     std::vector<uint16_t>&    lineIndices,
-                                    int                       axis) {
+                                    const int                 axis) const {
     if (currentAction != Action::None && (!isAxisActive(axis) || currentAction != Action::Rotate)) {
         return;
     }
 
-    uint16_t baseIdx = lineVerts.size();
+    const uint16_t baseIdx = lineVertices.size();
 
-    glm::vec4 color = axisColors[axis];
-    glm::vec3 dir1  = currentAxes[(axis + 1) % 3];
-    glm::vec3 dir2  = currentAxes[(axis + 2) % 3];
+    const glm::vec4 color = axisColors[axis];
+    const glm::vec3 dir1  = currentAxes[(axis + 1) % 3];
+    const glm::vec3 dir2  = currentAxes[(axis + 2) % 3];
 
-    float radius    = actualGizmoSize;
-    int   angleStep = 10;
+    const float   radius    = actualGizmoSize;
+    constexpr int angleStep = 10;
 
     for (int i = 0; i < 360; i += angleStep) {
-        float angle1 = glm::radians((float)i);
-        float angle2 = glm::radians((float)(i + angleStep));
+        const float angle1 = glm::radians(static_cast<float>(i));
+        const float angle2 = glm::radians(static_cast<float>(i + angleStep));
 
-        glm::vec3 p1
+        const glm::vec3 p1
             = position + dir1 * glm::sin(angle1) * radius + dir2 * glm::cos(angle1) * radius;
-        glm::vec3 p2
+        const glm::vec3 p2
             = position + dir1 * glm::sin(angle2) * radius + dir2 * glm::cos(angle2) * radius;
 
-        lineVerts.push_back({ p1, color });
-        lineVerts.push_back({ p2, color });
+        lineVertices.push_back({ p1, color });
+        lineVertices.push_back({ p2, color });
 
         uint16_t idx = baseIdx + (i / angleStep) * 2;
         lineIndices.push_back(idx);
@@ -640,11 +645,11 @@ void EditorGizmo::buildRotateCircle(std::vector<GizmoVertex>& lineVerts,
     }
 }
 
-void EditorGizmo::buildPlane(std::vector<GizmoVertex>& triVerts,
+void EditorGizmo::buildPlane(std::vector<GizmoVertex>& triVertices,
                              std::vector<uint16_t>&    triIndices,
-                             std::vector<GizmoVertex>& lineVerts,
+                             std::vector<GizmoVertex>& lineVertices,
                              std::vector<uint16_t>&    lineIndices,
-                             int                       lockedAxis) {
+                             int                       lockedAxis) const {
     if (currentAction != Action::None) {
         return;
     }
@@ -663,11 +668,11 @@ void EditorGizmo::buildPlane(std::vector<GizmoVertex>& triVerts,
     glm::vec3 d = a + dir2 * size;
 
     // Filled quad (TRIANGLES)
-    uint16_t triBaseIdx = triVerts.size();
-    triVerts.push_back({ a, color });
-    triVerts.push_back({ b, color });
-    triVerts.push_back({ c, color });
-    triVerts.push_back({ d, color });
+    uint16_t triBaseIdx = triVertices.size();
+    triVertices.push_back({ a, color });
+    triVertices.push_back({ b, color });
+    triVertices.push_back({ c, color });
+    triVertices.push_back({ d, color });
 
     triIndices.push_back(triBaseIdx + 0);
     triIndices.push_back(triBaseIdx + 1);
@@ -678,12 +683,12 @@ void EditorGizmo::buildPlane(std::vector<GizmoVertex>& triVerts,
 
     // Outline (LINES)
     color.a              = 1.0f;
-    uint16_t lineBaseIdx = lineVerts.size();
+    uint16_t lineBaseIdx = lineVertices.size();
 
-    lineVerts.push_back({ a, color });
-    lineVerts.push_back({ b, color });
-    lineVerts.push_back({ c, color });
-    lineVerts.push_back({ d, color });
+    lineVertices.push_back({ a, color });
+    lineVertices.push_back({ b, color });
+    lineVertices.push_back({ c, color });
+    lineVertices.push_back({ d, color });
 
     lineIndices.push_back(lineBaseIdx + 0);
     lineIndices.push_back(lineBaseIdx + 1);
@@ -695,24 +700,24 @@ void EditorGizmo::buildPlane(std::vector<GizmoVertex>& triVerts,
     lineIndices.push_back(lineBaseIdx + 0);
 }
 
-void EditorGizmo::buildCenter(std::vector<GizmoVertex>& lineVerts,
-                              std::vector<uint16_t>&    lineIndices) {
-    uint16_t baseIdx = lineVerts.size();
+void EditorGizmo::buildCenter(std::vector<GizmoVertex>& lineVertices,
+                              std::vector<uint16_t>&    lineIndices) const {
+    const uint16_t baseIdx = lineVertices.size();
 
-    float radius    = actualGizmoSize * circleRadiusFactor;
-    int   angleStep = 15;
+    const float   radius    = actualGizmoSize * circleRadiusFactor;
+    constexpr int angleStep = 15;
 
     for (int i = 0; i < 360; i += angleStep) {
-        float angle1 = glm::radians((float)i);
-        float angle2 = glm::radians((float)(i + angleStep));
+        const float angle1 = glm::radians(static_cast<float>(i));
+        const float angle2 = glm::radians(static_cast<float>(i + angleStep));
 
-        glm::vec3 p1 = position + cameraRight * glm::sin(angle1) * radius
+        const glm::vec3 p1 = position + cameraRight * glm::sin(angle1) * radius
             + cameraUp * glm::cos(angle1) * radius;
-        glm::vec3 p2 = position + cameraRight * glm::sin(angle2) * radius
+        const glm::vec3 p2 = position + cameraRight * glm::sin(angle2) * radius
             + cameraUp * glm::cos(angle2) * radius;
 
-        lineVerts.push_back({ p1, centerColor });
-        lineVerts.push_back({ p2, centerColor });
+        lineVertices.push_back({ p1, centerColor });
+        lineVertices.push_back({ p2, centerColor });
 
         uint16_t idx = baseIdx + (i / angleStep) * 2;
         lineIndices.push_back(idx);
@@ -726,7 +731,7 @@ void EditorGizmo::syncFromTransform(const Core::Components::TransformComponent& 
     scale    = transform.scale;
 }
 
-void EditorGizmo::syncToTransform(Core::Components::TransformComponent& transform) {
+void EditorGizmo::syncToTransform(Core::Components::TransformComponent& transform) const {
     transform.position = position;
     transform.rotation = rotation;
     transform.scale    = scale;
@@ -736,10 +741,10 @@ void EditorGizmo::syncToTransform(Core::Components::TransformComponent& transfor
 bool EditorGizmo::render(Graphics::CommandBuffer&              cmd,
                          Core::Components::TransformComponent& transform,
                          const glm::vec2&                      mousePos,
-                         bool                                  mousePressed,
-                         bool                                  mouseDown,
-                         float                                 vw,
-                         float                                 vh,
+                         const bool                            mousePressed,
+                         const bool                            mouseDown,
+                         const float                           vw,
+                         const float                           vh,
                          const glm::mat4&                      view,
                          const glm::mat4&                      proj,
                          const glm::vec3&                      camPos) {
@@ -816,7 +821,7 @@ bool EditorGizmo::render(Graphics::CommandBuffer&              cmd,
     syncToTransform(transform);
 
     // Return true if this gizmo is currently transforming
-    return (currentAction != Action::None) && (activeTransform == &transform);
+    return currentAction != Action::None && activeTransform == &transform;
 }
 
 }

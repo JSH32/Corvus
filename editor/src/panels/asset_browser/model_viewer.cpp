@@ -19,15 +19,6 @@ ModelViewer::ModelViewer(const Core::UUID&          id,
 
     modelHandle = assetManager->loadByID<Renderer::Model>(id);
 
-    initPreview();
-}
-
-ModelViewer::~ModelViewer() { cleanupPreview(); }
-
-void ModelViewer::initPreview() {
-    if (previewInitialized)
-        return;
-
     colorTexture = context_->createTexture2D(previewResolution, previewResolution);
     depthTexture = context_->createDepthTexture(previewResolution, previewResolution);
 
@@ -40,15 +31,10 @@ void ModelViewer::initPreview() {
     previewCamera.setPerspective(45.0f, 1.0f, 0.1f, 100.0f);
 
     setupPreviewLights();
-
-    previewInitialized = true;
-    CORVUS_CORE_INFO("Model viewer preview initialized");
+    CORVUS_CORE_INFO("Model viewer preview initialized for {}", modelHandle.getPath());
 }
 
-void ModelViewer::cleanupPreview() {
-    if (!previewInitialized)
-        return;
-
+ModelViewer::~ModelViewer() {
     sceneRenderer.getLighting().shutdown();
     context_->flush();
 
@@ -56,7 +42,7 @@ void ModelViewer::cleanupPreview() {
     depthTexture.release();
     framebuffer.release();
 
-    previewInitialized = false;
+    CORVUS_CORE_INFO("Model viewer preview shutdown for {}", modelHandle.getPath());
 }
 
 void ModelViewer::setupPreviewLights() {
@@ -118,7 +104,7 @@ void ModelViewer::updateCameraPosition() {
 }
 
 void ModelViewer::updatePreview() {
-    if (!modelHandle.isValid() || !previewInitialized)
+    if (!modelHandle.isValid())
         return;
 
     if (needsPreviewUpdate) {
@@ -163,12 +149,9 @@ void ModelViewer::handleCameraControls() {
 }
 
 void ModelViewer::renderPreview() {
-    if (!previewInitialized)
-        return;
-
     updatePreview();
 
-    auto model = modelHandle.get();
+    const auto model = modelHandle.get();
     if (!model || !model->valid())
         return;
 
@@ -190,7 +173,7 @@ void ModelViewer::renderPreview() {
     state.cullFace   = true;
     whiteMaterial.setRenderState(state);
 
-    glm::mat4 transform = glm::translate(glm::mat4(1.0f), -modelCenter);
+    const glm::mat4 transform = glm::translate(glm::mat4(1.0f), -modelCenter);
 
     std::vector<Renderer::Renderable> renderables;
     Renderer::Renderable              renderable;
@@ -253,7 +236,7 @@ void ModelViewer::renderModelInfo(const Renderer::Model& model) {
                             max.z);
 
                 ImGui::Text("Has Normals: %s", mesh->hasNormals() ? "Yes" : "No");
-                ImGui::Text("Has UVs:     %s", mesh->hasTexcoords() ? "Yes" : "No");
+                ImGui::Text("Has UVs:     %s", mesh->hasTextureCoords() ? "Yes" : "No");
                 ImGui::Text("Has Colors:  %s", mesh->hasColors() ? "Yes" : "No");
 
                 ImGui::TreePop();
@@ -292,7 +275,7 @@ void ModelViewer::render() {
         return;
     }
 
-    auto model = modelHandle.get();
+    const auto model = modelHandle.get();
     if (!model) {
         isOpen = false;
         return;
@@ -303,7 +286,7 @@ void ModelViewer::render() {
     std::string title;
     if (modelHandle.isValid()) {
         auto meta = assetManager->getMetadata(modelHandle.getID());
-        title     = std::format(
+        title     = fmt::format(
             "{} Model: {}", ICON_FA_CUBE, meta.path.substr(meta.path.find_last_of('/') + 1));
     }
 

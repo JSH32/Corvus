@@ -25,6 +25,16 @@ enum class PrimitiveType {
     Points
 };
 
+enum class ResourceType {
+    VBO,
+    IBO,
+    VAO,
+    Shader,
+    Tex2D,
+    TexCube,
+    FBO
+};
+
 // Forward declarations
 class Window;
 struct VertexBuffer;
@@ -330,6 +340,14 @@ public:
     virtual void cmdSetDepthMask(uint32_t id, bool enable) = 0;
 
     virtual void cmdSetLineWidth(uint32_t cmdId, float width) = 0;
+
+    /**
+     * Enqueue a deferred deletion task, done to prevent deferred commands from using deleted
+     * resources.
+     * @param type resource type
+     * @param id resource ID.
+     */
+    virtual void enqueueDelete(ResourceType type, uint32_t id) = 0;
 };
 
 // Vertex layout helpers
@@ -396,13 +414,13 @@ struct IndexBuffer : HandleBase {
 };
 
 struct VertexArray : HandleBase {
-    void addVertexBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout);
-    void setIndexBuffer(const IndexBuffer& ib);
+    void addVertexBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout) const;
+    void setIndexBuffer(const IndexBuffer& ib) const;
     void release();
 };
 
 struct Shader : HandleBase {
-    void setUniform(CommandBuffer& cmd, const char* name, const float* m16);
+    void setUniform(CommandBuffer& cmd, const char* name, const float* m16) const;
     void setMat4(CommandBuffer& cmd, const char* name, const float* m16);
     void setMat4(CommandBuffer& cmd, const char* name, const glm::mat4& m);
     void setInt(CommandBuffer& cmd, const char* name, int value);

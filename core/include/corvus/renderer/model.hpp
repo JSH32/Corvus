@@ -20,19 +20,19 @@ public:
     ~Model()                           = default;
 
     // Add a mesh to this model
-    void addMesh(Mesh&& mesh) { meshes_.push_back(std::make_shared<Mesh>(std::move(mesh))); }
+    void addMesh(Mesh&& mesh) { meshes.push_back(std::make_shared<Mesh>(std::move(mesh))); }
 
     // Get all meshes
-    const std::vector<std::shared_ptr<Mesh>>& getMeshes() const { return meshes_; }
+    const std::vector<std::shared_ptr<Mesh>>& getMeshes() const { return meshes; }
 
-    std::vector<std::shared_ptr<Mesh>>& getMeshes() { return meshes_; }
+    std::vector<std::shared_ptr<Mesh>>& getMeshes() { return meshes; }
 
-    // Check if model has any meshes
-    bool valid() const { return !meshes_.empty(); }
+    // Check if the model has any meshes
+    bool valid() const { return !meshes.empty(); }
 
     // Draw all meshes
-    void draw(Graphics::CommandBuffer& cmd, bool wireframe = false) const {
-        for (const auto& mesh : meshes_) {
+    void draw(CommandBuffer& cmd, bool wireframe = false) const {
+        for (const auto& mesh : meshes) {
             if (mesh && mesh->valid()) {
                 mesh->draw(cmd, wireframe);
             }
@@ -42,7 +42,7 @@ public:
     // Calculate bounding radius for all meshes
     float getBoundingRadius() const {
         float maxRadius = 0.0f;
-        for (const auto& mesh : meshes_) {
+        for (const auto& mesh : meshes) {
             if (mesh) {
                 maxRadius = std::max(maxRadius, mesh->getBoundingRadius());
             }
@@ -51,16 +51,16 @@ public:
     }
 
     void release() {
-        for (auto& mesh : meshes_) {
+        for (auto& mesh : meshes) {
             if (mesh) {
                 mesh->release();
             }
         }
-        meshes_.clear();
+        meshes.clear();
     }
 
 private:
-    std::vector<std::shared_ptr<Mesh>> meshes_;
+    std::vector<std::shared_ptr<Mesh>> meshes;
 };
 
 }

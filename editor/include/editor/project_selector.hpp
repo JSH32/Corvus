@@ -1,11 +1,8 @@
 #pragma once
 
 #include "cereal/cereal.hpp"
-#include "cereal/types/string.hpp"
-#include "cereal/types/vector.hpp"
 #include "corvus/application.hpp"
 #include "corvus/layer.hpp"
-#include "corvus/project/project.hpp"
 #include <optional>
 #include <string>
 #include <vector>

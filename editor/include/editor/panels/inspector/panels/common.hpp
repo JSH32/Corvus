@@ -14,14 +14,13 @@
 namespace Corvus::Editor {
 
 template <>
-struct ComponentInfo<Corvus::Core::Components::EntityInfoComponent> {
-    using ComponentType                         = Corvus::Core::Components::EntityInfoComponent;
+struct ComponentInfo<Core::Components::EntityInfoComponent> {
+    using ComponentType                         = Core::Components::EntityInfoComponent;
     static constexpr std::string_view name      = ICON_FA_CIRCLE_INFO " Entity Info";
     static constexpr bool             removable = false;
     static constexpr bool             flat      = true;
 
-    static void
-    draw(ComponentType& entityInfo, Corvus::Core::AssetManager*, Graphics::GraphicsContext* ctx) {
+    static void draw(ComponentType& entityInfo, Core::AssetManager*, Graphics::GraphicsContext* _) {
         char buffer[256] = {};
         if (!entityInfo.tag.empty()) {
             strncpy(buffer, entityInfo.tag.c_str(), sizeof(buffer) - 1);
@@ -46,41 +45,38 @@ struct ComponentInfo<Corvus::Core::Components::EntityInfoComponent> {
 };
 
 template <>
-struct ComponentInfo<Corvus::Core::Components::TransformComponent> {
-    using ComponentType                         = Corvus::Core::Components::TransformComponent;
+struct ComponentInfo<Core::Components::TransformComponent> {
+    using ComponentType                         = Core::Components::TransformComponent;
     static constexpr std::string_view name      = ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE " Transform";
     static constexpr bool             removable = false;
     static constexpr bool             flat      = false;
 
-    static void
-    draw(ComponentType& transform, Corvus::Core::AssetManager*, Graphics::GraphicsContext* ctx) {
+    static void draw(ComponentType& transform, Core::AssetManager*, Graphics::GraphicsContext* _) {
         // Position
-        glm::vec3 position = transform.position;
-        if (ImGui::Vector3Editor("Position", position))
+        if (glm::vec3 position = transform.position; ImGui::Vector3Editor("Position", position))
             transform.position = position;
 
         // Scale
-        glm::vec3 scale = transform.scale;
-        if (ImGui::Vector3Editor("Scale", scale))
+        if (glm::vec3 scale = transform.scale; ImGui::Vector3Editor("Scale", scale))
             transform.scale = scale;
 
         // Rotation
-        glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(transform.rotation));
-        if (ImGui::Vector3Editor("Rotation", eulerAngles))
+        if (glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(transform.rotation));
+            ImGui::Vector3Editor("Rotation", eulerAngles))
             transform.rotation = glm::quat(glm::radians(eulerAngles));
     }
 };
 
 template <>
-struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
-    using ComponentType                         = Corvus::Core::Components::MeshRendererComponent;
+struct ComponentInfo<Core::Components::MeshRendererComponent> {
+    using ComponentType                         = Core::Components::MeshRendererComponent;
     static constexpr std::string_view name      = ICON_FA_CUBE " Mesh Renderer";
     static constexpr bool             removable = true;
     static constexpr bool             flat      = false;
 
-    static void draw(Corvus::Core::Components::MeshRendererComponent& renderer,
-                     Corvus::Core::AssetManager*                      assetMgr,
-                     Graphics::GraphicsContext*                       ctx) {
+    static void draw(Core::Components::MeshRendererComponent& renderer,
+                     Core::AssetManager*                      assetMgr,
+                     Graphics::GraphicsContext*               ctx) {
         using namespace Corvus::Core;
         using namespace Corvus::Core::Components;
 
@@ -102,7 +98,8 @@ struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
                       names.push_back(std::move(n));
                   }
 
-                  const char* currentLabel = (selected >= 0 && selected < (int)names.size())
+                  const char* currentLabel
+                      = selected >= 0 && selected < static_cast<int>(names.size())
                       ? names[selected].c_str()
                       : "None";
 
@@ -111,14 +108,14 @@ struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
                   ImGui::PushID(label);
                   ImGui::PushItemWidth(-1);
                   if (ImGui::BeginCombo("##Combo", currentLabel)) {
-                      bool noneSel = (selected == -1);
+                      const bool noneSel = selected == -1;
                       if (ImGui::Selectable("None", noneSel))
                           handle = {};
                       if (noneSel)
                           ImGui::SetItemDefaultFocus();
 
-                      for (int i = 0; i < (int)names.size(); ++i) {
-                          bool sel = (i == selected);
+                      for (int i = 0; i < static_cast<int>(names.size()); ++i) {
+                          const bool sel = i == selected;
                           if (ImGui::Selectable(names[i].c_str(), sel))
                               handle = assets[i];
                           if (sel)
@@ -175,7 +172,7 @@ struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
                 break;
             case PrimitiveType::Model: {
                 if (assetMgr) {
-                    auto models = assetMgr->getAllOfType<Corvus::Renderer::Model>();
+                    const auto models = assetMgr->getAllOfType<Renderer::Model>();
                     buildAssetDropdown(
                         "Model", renderer.modelHandle, models, [](const AssetMetadata& m) {
                             return m.path.empty() ? boost::uuids::to_string(m.id)
@@ -196,7 +193,7 @@ struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
             ImGui::Columns(2, "##MaterialColumns", false);
             ImGui::SetColumnWidth(0, 100);
 
-            auto materials = assetMgr->getAllOfType<Corvus::Core::MaterialAsset>();
+            const auto materials = assetMgr->getAllOfType<Corvus::Core::MaterialAsset>();
             buildAssetDropdown(
                 "Material", renderer.materialHandle, materials, [](const AssetMetadata& m) {
                     return m.path.empty() ? boost::uuids::to_string(m.id)
@@ -214,15 +211,15 @@ struct ComponentInfo<Corvus::Core::Components::MeshRendererComponent> {
             ImGui::NextColumn();
 
             // Try to extract model mesh info from your internal mesh data
-            int verts = 0, tris = 0;
-            for (auto& meshPtr : model->getMeshes()) {
+            int vertices = 0, tris = 0;
+            for (const auto& meshPtr : model->getMeshes()) {
                 if (!meshPtr)
                     continue;
-                verts += static_cast<int>(meshPtr->getVertexCount());
+                vertices += static_cast<int>(meshPtr->getVertexCount());
                 tris += static_cast<int>(meshPtr->getIndexCount() / 3);
             }
 
-            ImGui::Text("%d vertices, %d triangles", verts, tris);
+            ImGui::Text("%d vertices, %d triangles", vertices, tris);
             ImGui::Columns(1);
         }
 

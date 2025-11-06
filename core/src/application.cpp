@@ -4,6 +4,7 @@
 #include "corvus/files/static_resource_file.hpp"
 #include "corvus/graphics/graphics.hpp"
 #include "corvus/graphics/opengl_context.hpp"
+#include "corvus/log.hpp"
 #include "imgui.h"
 #include "physfs.h"
 
@@ -14,8 +15,8 @@ Application::Application(unsigned int width, unsigned int height, const std::str
     PHYSFS_init(nullptr);
     PHYSFS_mount("engine.zip", nullptr, 1);
 
-    auto windowAPI   = Graphics::WindowAPI::GLFW;
-    auto graphicsAPI = Graphics::GraphicsAPI::OpenGL;
+    constexpr auto windowAPI   = Graphics::WindowAPI::GLFW;
+    constexpr auto graphicsAPI = Graphics::GraphicsAPI::OpenGL;
 
     window = Graphics::Window::create(windowAPI, graphicsAPI, width, height, title);
     if (!window) {
@@ -46,6 +47,10 @@ Application::Application(unsigned int width, unsigned int height, const std::str
     }
 
     inputProducer->bus.attachConsumer(imguiRenderer);
+
+    // Listen for window close events to stop the application loop
+    closeConsumer = std::make_unique<WindowCloseListener>(*this);
+    inputProducer->bus.attachConsumer(*closeConsumer);
 }
 
 Application::~Application() {
@@ -93,8 +98,8 @@ void Application::run() {
 
         // ImGui Frame
         ImGuiIO& io                = ImGui::GetIO();
-        io.DeltaTime               = (float)window->getDeltaTime();
-        io.DisplaySize             = ImVec2((float)fbw, (float)fbh);
+        io.DeltaTime               = static_cast<float>(window->getDeltaTime());
+        io.DisplaySize             = ImVec2(static_cast<float>(fbw), static_cast<float>(fbh));
         io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
         imguiRenderer.newFrame();
 
@@ -185,11 +190,8 @@ void Application::setupImgui() {
 
     fontConfig.MergeMode            = true;
     fontConfig.FontDataOwnedByAtlas = false;
-    io.Fonts->AddFontFromMemoryCompressedTTF((void*)fa_solid_900_compressed_data,
-                                             fa_solid_900_compressed_size,
-                                             14.f,
-                                             &fontConfig,
-                                             iconRanges);
+    io.Fonts->AddFontFromMemoryCompressedTTF(
+        fa_solid_900_compressed_data, fa_solid_900_compressed_size, 14.f, &fontConfig, iconRanges);
     io.Fonts->Build();
 }
 

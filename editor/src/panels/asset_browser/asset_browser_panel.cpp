@@ -506,7 +506,7 @@ void AssetBrowserPanel::drawCreateAssetMenu() {
     ImGui::SeparatorText("Create");
 
     for (const auto& [name, type] : creatable) {
-        std::string label = std::format("{} New {}", ICON_FA_FILE, name);
+        std::string label = fmt::format("{} New {}", ICON_FA_FILE, name);
 
         if (ImGui::MenuItem(label.c_str())) {
             createNewAsset(name, type);

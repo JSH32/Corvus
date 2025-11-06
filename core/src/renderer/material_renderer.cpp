@@ -5,23 +5,23 @@
 
 namespace Corvus::Renderer {
 
-MaterialRenderer::MaterialRenderer(Graphics::GraphicsContext& ctx) : context_(ctx) {
+MaterialRenderer::MaterialRenderer(Graphics::GraphicsContext& ctx) : context(ctx) {
     initializeDefaults();
 }
 
 MaterialRenderer::~MaterialRenderer() {
     // Clear caches first to release asset handles while AssetManager still exists
-    assetMaterialCache_.clear();
+    assetMaterialCache.clear();
 
     // Release default resources
-    if (defaultsInitialized_) {
-        defaultShader_.release();
-        defaultTexture_.release();
+    if (defaultsInitialized) {
+        defaultShader.release();
+        defaultTexture.release();
     }
 }
 
 void MaterialRenderer::initializeDefaults() {
-    if (defaultsInitialized_)
+    if (defaultsInitialized)
         return;
 
     // Load default shader
@@ -29,46 +29,46 @@ void MaterialRenderer::initializeDefaults() {
         = Core::StaticResourceFile::create("engine/shaders/default_lit.vert")->readAllBytes();
     auto fsBytes
         = Core::StaticResourceFile::create("engine/shaders/default_lit.frag")->readAllBytes();
-    std::string vsSrc(vsBytes.begin(), vsBytes.end());
-    std::string fsSrc(fsBytes.begin(), fsBytes.end());
+    const std::string vsSrc(vsBytes.begin(), vsBytes.end());
+    const std::string fsSrc(fsBytes.begin(), fsBytes.end());
 
-    defaultShader_ = context_.createShader(vsSrc, fsSrc);
+    defaultShader = context.createShader(vsSrc, fsSrc);
 
-    if (defaultShader_.valid()) {
+    if (defaultShader.valid()) {
         CORVUS_CORE_INFO("Loaded default shader");
     } else {
         CORVUS_CORE_ERROR("Failed to load default shader");
     }
 
     // Create 1x1 white texture
-    defaultTexture_  = context_.createTexture2D(1, 1);
-    uint8_t pixel[4] = { 255, 255, 255, 255 };
-    defaultTexture_.setData(pixel, sizeof(pixel));
+    defaultTexture             = context.createTexture2D(1, 1);
+    constexpr uint8_t pixel[4] = { 255, 255, 255, 255 };
+    defaultTexture.setData(pixel, sizeof(pixel));
 
     CORVUS_CORE_INFO("Created default white texture");
 
-    defaultsInitialized_ = true;
+    defaultsInitialized = true;
 }
 
-Graphics::Shader& MaterialRenderer::getDefaultShader() {
-    if (!defaultsInitialized_)
+Shader& MaterialRenderer::getDefaultShader() {
+    if (!defaultsInitialized)
         initializeDefaults();
-    return defaultShader_;
+    return defaultShader;
 }
 
-Graphics::Texture2D& MaterialRenderer::getDefaultTexture() {
-    if (!defaultsInitialized_)
+Texture2D& MaterialRenderer::getDefaultTexture() {
+    if (!defaultsInitialized)
         initializeDefaults();
-    return defaultTexture_;
+    return defaultTexture;
 }
 
-void MaterialRenderer::clearCache() { assetMaterialCache_.clear(); }
+void MaterialRenderer::clearCache() { assetMaterialCache.clear(); }
 
 // Apply low-level Material
-Graphics::Shader* MaterialRenderer::apply(Material& material, Graphics::CommandBuffer& cmd) {
+Shader* MaterialRenderer::apply(Material& material, CommandBuffer& cmd) {
 
     // Get shader from material
-    Graphics::Shader* shader = &material.getShader();
+    Shader* shader = &material.getShader();
 
     if (!shader || !shader->valid()) {
         CORVUS_CORE_WARN("Material has invalid shader, using default");
@@ -81,10 +81,10 @@ Graphics::Shader* MaterialRenderer::apply(Material& material, Graphics::CommandB
     }
 
     const auto& textures = material.getTextures();
-    bool        hasSlot0 = textures.find(0) != textures.end();
+    const bool  hasSlot0 = textures.contains(0);
 
     // Apply the material
-    const_cast<Material&>(material).bind(cmd);
+    material.bind(cmd);
 
     // Always apply a default texture to slot 0 if not provided when converting.
     if (!hasSlot0) {
@@ -95,9 +95,9 @@ Graphics::Shader* MaterialRenderer::apply(Material& material, Graphics::CommandB
 }
 
 // Convert MaterialAsset and apply
-Graphics::Shader* MaterialRenderer::apply(const Core::MaterialAsset& materialAsset,
-                                          Graphics::CommandBuffer&   cmd,
-                                          Core::AssetManager*        assetMgr) {
+Shader* MaterialRenderer::apply(const Core::MaterialAsset& materialAsset,
+                                CommandBuffer&             cmd,
+                                Core::AssetManager*        assetMgr) {
 
     // Convert asset to material (or get from cache)
     Material* material = convertAssetToMaterial(materialAsset, assetMgr);
@@ -120,28 +120,26 @@ Material* MaterialRenderer::getMaterialFromAsset(const Core::MaterialAsset& mate
 Material* MaterialRenderer::convertAssetToMaterial(const Core::MaterialAsset& materialAsset,
                                                    Core::AssetManager*        assetMgr) {
 
-    // Get or create cache entry
-    auto& cache = assetMaterialCache_[&materialAsset];
+    // Get or create a cache entry
+    auto& [material, textureHandles, shaderID, needsUpdate] = assetMaterialCache[&materialAsset];
 
     // Check if we need to rebuild the material
-    bool shaderChanged = cache.shaderID != materialAsset.shaderAsset;
-    bool needsRebuild  = shaderChanged || cache.needsUpdate || !cache.material.has_value();
-
-    if (needsRebuild) {
+    if (const bool shaderChanged = shaderID != materialAsset.shaderAsset;
+        shaderChanged || needsUpdate || !material.has_value()) {
         // Get shader
-        Graphics::Shader* shader = nullptr;
+        Shader* shader = nullptr;
 
         if (!materialAsset.shaderAsset.is_nil() && assetMgr) {
-            auto shaderHandle = assetMgr->loadByID<Graphics::Shader>(materialAsset.shaderAsset);
+            const auto shaderHandle = assetMgr->loadByID<Shader>(materialAsset.shaderAsset);
             if (shaderHandle.isValid()) {
-                auto shaderPtr = shaderHandle.get();
+                const auto shaderPtr = shaderHandle.get();
                 if (shaderPtr) {
                     shader = shaderPtr.get();
                 }
             }
         }
 
-        // Fall back to default shader
+        // Fall back to the default shader
         if (!shader || !shader->valid()) {
             shader = &getDefaultShader();
         }
@@ -152,8 +150,8 @@ Material* MaterialRenderer::convertAssetToMaterial(const Core::MaterialAsset& ma
         }
 
         // Create new Material with shader (use emplace to construct in-place)
-        cache.material.emplace(*shader);
-        cache.shaderID = materialAsset.shaderAsset;
+        material.emplace(*shader);
+        shaderID = materialAsset.shaderAsset;
 
         // Setup render state
         RenderState state;
@@ -161,42 +159,42 @@ Material* MaterialRenderer::convertAssetToMaterial(const Core::MaterialAsset& ma
         state.depthWrite = true;
         state.blend      = materialAsset.alphaBlend;
         state.cullFace   = !materialAsset.doubleSided;
-        cache.material->setRenderState(state);
+        material->setRenderState(state);
 
         // Apply all properties
         for (const auto& [name, prop] : materialAsset.properties) {
             switch (prop.value.type) {
                 case Core::MaterialPropertyType::Float:
-                    cache.material->setFloat(name, prop.value.floatValue);
+                    material->setFloat(name, prop.value.floatValue);
                     break;
 
                 case Core::MaterialPropertyType::Vector2:
-                    cache.material->setVec2(name, prop.value.vec2Value);
+                    material->setVec2(name, prop.value.vec2Value);
                     break;
 
                 case Core::MaterialPropertyType::Vector3:
-                    cache.material->setVec3(name, prop.value.vec3Value);
+                    material->setVec3(name, prop.value.vec3Value);
                     break;
 
                 case Core::MaterialPropertyType::Vector4:
-                    cache.material->setVec4(name, prop.value.vec4Value);
+                    material->setVec4(name, prop.value.vec4Value);
                     break;
 
                 case Core::MaterialPropertyType::Int:
-                    cache.material->setInt(name, prop.value.intValue);
+                    material->setInt(name, prop.value.intValue);
                     break;
 
                 case Core::MaterialPropertyType::Bool:
-                    cache.material->setInt(name, prop.value.boolValue ? 1 : 0);
+                    material->setInt(name, prop.value.boolValue ? 1 : 0);
                     break;
 
                 case Core::MaterialPropertyType::Texture: {
                     Core::UUID texId = prop.value.getTexture();
-                    int        slot  = prop.value.getTextureSlot();
+                    const int  slot  = prop.value.getTextureSlot();
 
                     if (texId.is_nil()) {
-                        // Use default white texture
-                        cache.material->setTexture(slot, getDefaultTexture());
+                        // Use the default white texture
+                        material->setTexture(slot, getDefaultTexture());
                         break;
                     }
 
@@ -204,32 +202,30 @@ Material* MaterialRenderer::convertAssetToMaterial(const Core::MaterialAsset& ma
                         break;
 
                     // Check if texture needs reload
-                    bool needsReload = cache.textureHandles.find(name) == cache.textureHandles.end()
-                        || !cache.textureHandles[name].isValid()
-                        || cache.textureHandles[name].getID() != texId;
+                    const bool needsReload = !textureHandles.contains(name)
+                        || !textureHandles[name].isValid() || textureHandles[name].getID() != texId;
 
                     if (needsReload) {
-                        cache.textureHandles[name] = assetMgr->loadByID<Graphics::Texture2D>(texId);
+                        textureHandles[name] = assetMgr->loadByID<Texture2D>(texId);
                     }
 
-                    if (cache.textureHandles[name].isValid()) {
-                        auto texPtr = cache.textureHandles[name].get();
-                        if (texPtr) {
-                            cache.material->setTexture(slot, *texPtr);
+                    if (textureHandles[name].isValid()) {
+                        if (auto texPtr = textureHandles[name].get()) {
+                            material->setTexture(slot, *texPtr);
                         }
                     } else {
                         // Fallback to default texture
-                        cache.material->setTexture(slot, getDefaultTexture());
+                        material->setTexture(slot, getDefaultTexture());
                     }
                     break;
                 }
             }
         }
 
-        cache.needsUpdate = false;
+        needsUpdate = false;
     }
 
-    return &(*cache.material);
+    return &(*material);
 }
 
 }

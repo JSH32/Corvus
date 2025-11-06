@@ -2,7 +2,6 @@
 
 #include "components/component_registry.hpp"
 #include "corvus/log.hpp"
-#include "entt/core/fwd.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
 
@@ -15,7 +14,7 @@ class Scene;
 class Entity {
 public:
     Entity() = default;
-    Entity(entt::entity handle, Scene* scene) : entityHandle(handle), scene(scene) { }
+    Entity(const entt::entity handle, Scene* scene) : entityHandle(handle), scene(scene) { }
 
     template <typename T, typename... Args>
     T& addComponent(Args&&... args) {
@@ -44,9 +43,9 @@ public:
 
     bool operator!=(const Entity& other) const { return !(*this == other); }
 
-    operator bool() const { return entityHandle != entt::null; }
-    operator uint32_t() const { return (uint32_t)entityHandle; }
-    operator entt::entity() const { return entityHandle; }
+    explicit operator bool() const { return entityHandle != entt::null; }
+    explicit operator uint32_t() const { return static_cast<uint32_t>(entityHandle); }
+    explicit operator entt::entity() const { return entityHandle; }
 
     template <class Archive>
     void serialize(Archive& ar) const {
@@ -61,7 +60,7 @@ public:
                 }
             }
         } else {
-            CORVUS_CORE_TRACE("Deserializing entity ({})", (uint32_t)entityHandle);
+            CORVUS_CORE_TRACE("Deserializing entity ({})", static_cast<uint32_t>(entityHandle));
 
             for (const auto& componentName : registry.getRegisteredTypes()) {
                 try {

@@ -23,6 +23,7 @@ public:
     using ScrollCallback      = std::function<void(double xoffset, double yoffset)>;
     using ResizeCallback      = std::function<void(int width, int height)>;
     using CharCallback        = std::function<void(unsigned int codepoint)>;
+    using CloseCallback       = std::function<void()>;
 
     virtual void setKeyCallback(KeyCallback callback)                 = 0;
     virtual void setMouseButtonCallback(MouseButtonCallback callback) = 0;
@@ -30,6 +31,7 @@ public:
     virtual void setScrollCallback(ScrollCallback cb)                 = 0;
     virtual void setResizeCallback(ResizeCallback cb)                 = 0;
     virtual void setCharCallback(CharCallback cb)                     = 0;
+    virtual void setCloseCallback(CloseCallback cb)                   = 0;
 
     virtual void pollEvents()        = 0;
     virtual bool shouldClose() const = 0;

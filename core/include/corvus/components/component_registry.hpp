@@ -30,11 +30,10 @@ using CheckerMap      = std::unordered_map<std::type_index, ComponentCheckerFunc
  * type mapping
  *
  * This singleton class maintains mappings between component types and their
- * names, and stores serialization functions for each registered component type.
- * Components are automatically registered statically.
+ * names and stores serialization functions for each registered component type.
+ * Components are automatically registered with REGISTER_COMPONENT
  */
 class ComponentRegistry {
-private:
     static ComponentRegistry* instance;
 
     // Type name mappings
@@ -64,12 +63,12 @@ public:
      */
     template <typename T>
     void registerComponent(const std::string& typeName) {
-        std::type_index typeIdx = std::type_index(typeid(T));
+        auto typeIdx = std::type_index(typeid(T));
         typeToName.insert({ typeIdx, typeName });
         nameToType.insert({ typeName, typeIdx });
 
         // Serializer writes component directly to JSON archive with proper name
-        serializers[typeIdx] = [](entt::entity               entity,
+        serializers[typeIdx] = [](const entt::entity         entity,
                                   entt::registry&            registry,
                                   cereal::JSONOutputArchive& ar,
                                   const std::string&         name) {
@@ -79,7 +78,7 @@ public:
             }
         };
 
-        // Deserializer reads component from JSON archive and adds to entity
+        // Deserializer reads component from the JSON archive and adds to entity
         deserializers[typeName] = [typeName](entt::entity              entity,
                                              entt::registry&           registry,
                                              cereal::JSONInputArchive& ar) {
@@ -88,8 +87,8 @@ public:
             registry.emplace<T>(entity, std::move(component));
         };
 
-        // Checker tests if entity has this component type
-        checkers[typeIdx] = [](entt::entity entity, entt::registry& registry) -> bool {
+        // Checker tests if an entity has this component type
+        checkers[typeIdx] = [](const entt::entity entity, const entt::registry& registry) -> bool {
             return registry.all_of<T>(entity);
         };
     }
@@ -123,7 +122,7 @@ public:
                             const std::string&         componentName);
 
     /**
-     * @brief Deserialize a component from JSON archive
+     * @brief Deserialize a component from the JSON archive
      * @param typeName The string name of the component type
      * @param entity The entity to add the component to
      * @param registry The registry to add the component to

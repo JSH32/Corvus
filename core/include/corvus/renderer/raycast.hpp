@@ -1,3 +1,5 @@
+#pragma once
+
 #include "corvus/renderer/mesh.hpp"
 #include "entt/entity/fwd.hpp"
 #include "glm/ext/matrix_float4x4.hpp"

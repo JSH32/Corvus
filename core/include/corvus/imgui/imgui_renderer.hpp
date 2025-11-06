@@ -8,14 +8,17 @@
 
 namespace Corvus::Core::Im {
 
-class ImGuiRenderer : public Events::EventConsumer<Events::InputEvent> {
+class ImGuiRenderer final : public Events::EventConsumer<Events::InputEvent> {
 public:
-    ImGuiRenderer()  = default;
-    ~ImGuiRenderer() = default;
+    ImGuiRenderer() = default;
 
     bool initialize(Graphics::GraphicsContext& ctx);
     void newFrame();
     void renderDrawData(ImDrawData* drawData);
+
+    /**
+     * Manual shutdown call
+     */
     void shutdown();
 
 protected:

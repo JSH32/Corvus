@@ -3,7 +3,6 @@
 #include "corvus/asset/asset_manager.hpp"
 #include "corvus/graphics/graphics.hpp"
 #include "corvus/scene.hpp"
-#include <cereal/archives/json.hpp>
 #include <memory>
 #include <string>
 
@@ -19,7 +18,6 @@ struct ProjectSettings {
 };
 
 class Project {
-private:
     std::string                   projectPath;
     ProjectSettings               settings;
     std::unique_ptr<AssetManager> assetManager;
@@ -34,7 +32,7 @@ public:
     create(Graphics::GraphicsContext* ctx, const std::string& path, const std::string& name);
     static std::unique_ptr<Project> load(Graphics::GraphicsContext* ctx, const std::string& path);
 
-    // Utility to check if project exists at path
+    // Utility to check if a project exists at a path
     static bool exists(const std::string& path);
 
     // Load if exists, otherwise create
@@ -47,7 +45,7 @@ public:
     void                            setMainScene(const UUID& sceneID);
     void                            setProjectName(const std::string& name);
     AssetHandle<Scene>              createNewScene(const std::string& name);
-    std::vector<AssetHandle<Scene>> getAllScenes();
+    std::vector<AssetHandle<Scene>> getAllScenes() const;
     AssetHandle<Scene>              getCurrentScene();
     UUID                            getCurrentSceneID() const;
 
@@ -55,8 +53,8 @@ public:
     bool loadProjectSettings();
 
     // File watching
-    void startFileWatcher(int pollIntervalMs = 1000);
-    void stopFileWatcher();
+    void startFileWatcher(int pollIntervalMs = 1000) const;
+    void stopFileWatcher() const;
     bool fileWatcherRunning() const;
 
     // Getters

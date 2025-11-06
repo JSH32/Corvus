@@ -48,12 +48,12 @@ struct Light {
 };
 
 /**
- * Shadow map for directional/spot lights
+ * Shadow map for directional/spotlights
  */
 struct ShadowMap {
     Graphics::Framebuffer framebuffer;
     Graphics::Texture2D   depthTexture;
-    glm::mat4             lightSpaceMatrix;
+    glm::mat4             lightSpaceMatrix{};
     uint32_t              resolution  = 1024;
     bool                  initialized = false;
 
@@ -173,7 +173,7 @@ public:
     glm::mat4 calculateDirectionalLightMatrix(const Light& light, const glm::vec3& sceneCenter);
 
     /**
-     * Calculate light space matrix for spot light
+     * Calculate light space matrix for spotlight
      */
     glm::mat4 calculateSpotLightMatrix(const Light& light);
 

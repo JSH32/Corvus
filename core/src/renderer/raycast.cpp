@@ -13,25 +13,24 @@ bool intersectTriangle(const Ray&       ray,
                        float&           outT,
                        glm::vec3&       outNormal) {
     constexpr float EPS = 1e-6f;
-    glm::vec3       e1  = v1 - v0;
-    glm::vec3       e2  = v2 - v0;
-    glm::vec3       p   = glm::cross(ray.direction, e2);
-    float           det = glm::dot(e1, p);
+    const glm::vec3 e1  = v1 - v0;
+    const glm::vec3 e2  = v2 - v0;
+    const glm::vec3 p   = glm::cross(ray.direction, e2);
+    const float     det = glm::dot(e1, p);
     if (fabs(det) < EPS)
         return false;
 
-    float     invDet = 1.0f / det;
-    glm::vec3 tvec   = ray.origin - v0;
-    float     u      = glm::dot(tvec, p) * invDet;
+    const float     invDet = 1.0f / det;
+    const glm::vec3 tvec   = ray.origin - v0;
+    const float     u      = glm::dot(tvec, p) * invDet;
     if (u < 0.0f || u > 1.0f)
         return false;
 
-    glm::vec3 q = glm::cross(tvec, e1);
-    float     v = glm::dot(ray.direction, q) * invDet;
-    if (v < 0.0f || u + v > 1.0f)
+    const glm::vec3 q = glm::cross(tvec, e1);
+    if (const float v = glm::dot(ray.direction, q) * invDet; v < 0.0f || u + v > 1.0f)
         return false;
 
-    float t = glm::dot(e2, q) * invDet;
+    const float t = glm::dot(e2, q) * invDet;
     if (t < EPS)
         return false;
 
@@ -44,10 +43,10 @@ Ray buildRay(const glm::vec2& mouse,
              const glm::vec2& size,
              const glm::mat4& view,
              const glm::mat4& proj) {
-    glm::vec2 ndc((2.f * mouse.x) / size.x - 1.f, 1.f - (2.f * mouse.y) / size.y);
-    glm::mat4 invVP = glm::inverse(proj * view);
-    glm::vec4 nearP = invVP * glm::vec4(ndc, 0.f, 1.f);
-    glm::vec4 farP  = invVP * glm::vec4(ndc, 1.f, 1.f);
+    const glm::vec2 ndc((2.f * mouse.x) / size.x - 1.f, 1.f - (2.f * mouse.y) / size.y);
+    const glm::mat4 invVP = glm::inverse(proj * view);
+    glm::vec4       nearP = invVP * glm::vec4(ndc, 0.f, 1.f);
+    glm::vec4       farP  = invVP * glm::vec4(ndc, 1.f, 1.f);
     nearP /= nearP.w;
     farP /= farP.w;
     Ray ray;
@@ -65,14 +64,13 @@ bool intersectMesh(const Ray&                   rayLocal,
     float closest = outHit.distance;
 
     for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-        float     t;
         glm::vec3 n;
-        if (intersectTriangle(rayLocal,
-                              vertices[indices[i]].position,
-                              vertices[indices[i + 1]].position,
-                              vertices[indices[i + 2]].position,
-                              t,
-                              n)) {
+        if (float t = 0; intersectTriangle(rayLocal,
+                                           vertices[indices[i]].position,
+                                           vertices[indices[i + 1]].position,
+                                           vertices[indices[i + 2]].position,
+                                           t,
+                                           n)) {
             if (t < closest) {
                 closest           = t;
                 outHit.hit        = true;
@@ -108,11 +106,11 @@ bool intersectModel(const ModelT&    model,
         const auto& mesh = *meshes[m];
         if (!mesh.valid())
             continue;
-        auto& verts = mesh.getVertices();
-        auto& inds  = mesh.getIndices();
+        auto& vertices = mesh.getVertices();
+        auto& indices  = mesh.getIndices();
 
-        RaycastHit localHit;
-        if (intersectMesh(rayLocal, verts, inds, localHit) && localHit.distance < closest) {
+        if (RaycastHit localHit;
+            intersectMesh(rayLocal, vertices, indices, localHit) && localHit.distance < closest) {
             closest = localHit.distance;
             hitAny  = true;
 
@@ -143,11 +141,11 @@ bool intersectModel(const Renderer::Mesh& mesh,
     bool  hitAny  = false;
     float closest = outHit.distance;
 
-    const auto& verts = mesh.getVertices();
-    const auto& inds  = mesh.getIndices();
+    const auto& vertices = mesh.getVertices();
+    const auto& vector   = mesh.getIndices();
 
-    RaycastHit localHit;
-    if (intersectMesh(rayLocal, verts, inds, localHit) && localHit.distance < closest) {
+    if (RaycastHit localHit;
+        intersectMesh(rayLocal, vertices, vector, localHit) && localHit.distance < closest) {
         closest = localHit.distance;
         hitAny  = true;
 

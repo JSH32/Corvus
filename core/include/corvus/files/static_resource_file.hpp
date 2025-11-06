@@ -7,7 +7,6 @@
 
 namespace Corvus::Core {
 class StaticResourceFile {
-private:
     PHYSFS_File* file;
     std::string  fileName;
 
@@ -26,7 +25,7 @@ public:
      * @warning DO NOT USE!!
      * Use create
      */
-    StaticResourceFile(const std::string& fileName);
+    explicit StaticResourceFile(const std::string& fileName);
     ~StaticResourceFile();
 
     StaticResourceFile& operator=(const StaticResourceFile&) = delete;
@@ -37,7 +36,7 @@ public:
      * @param byteCount The number of bytes to read.
      * @return std::vector<char> Buffer with the read bytes.
      */
-    std::vector<char> readBytes(size_t byteCount);
+    std::vector<char> readBytes(size_t byteCount) const;
 
     /**
      * @brief Get the name of the file.
@@ -51,6 +50,6 @@ public:
      *
      * @return std::vector<char> Buffer with all the bytes from the file.
      */
-    std::vector<char> readAllBytes();
+    std::vector<char> readAllBytes() const;
 };
 }

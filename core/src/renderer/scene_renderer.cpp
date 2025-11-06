@@ -1,5 +1,8 @@
 // scene_renderer.cpp
 #include "corvus/renderer/scene_renderer.hpp"
+
+#include "corvus/application.hpp"
+#include "corvus/components/light.hpp"
 #include "corvus/log.hpp"
 
 namespace Corvus::Renderer {
@@ -12,7 +15,7 @@ SceneRenderer::SceneRenderer(Graphics::GraphicsContext& context)
 
 void SceneRenderer::clear(const glm::vec4&             color,
                           bool                         clearDepth,
-                          const Graphics::Framebuffer* targetFB) {
+                          const Graphics::Framebuffer* targetFB) const {
     auto cmd = context_.createCommandBuffer();
     cmd.begin();
 
@@ -133,16 +136,17 @@ void SceneRenderer::collectLightsFromRegistry(entt::registry& registry) {
     // Clear lights from previous frame
     lighting_.clear();
 
-    auto lightView
+    const auto lightView
         = registry.view<Core::Components::LightComponent, Core::Components::TransformComponent>();
 
-    for (auto entityHandle : lightView) {
-        auto& lightComp = lightView.get<Core::Components::LightComponent>(entityHandle);
-        auto& transform = lightView.get<Core::Components::TransformComponent>(entityHandle);
+    for (const auto entityHandle : lightView) {
+        const auto& lightComp = lightView.get<Core::Components::LightComponent>(entityHandle);
+        auto&       transform = lightView.get<Core::Components::TransformComponent>(entityHandle);
 
         // Check if entity is enabled
-        auto* entityInfo = registry.try_get<Core::Components::EntityInfoComponent>(entityHandle);
-        if (entityInfo && !entityInfo->enabled)
+        if (const auto* entityInfo
+            = registry.try_get<Core::Components::EntityInfoComponent>(entityHandle);
+            entityInfo && !entityInfo->enabled)
             continue;
 
         if (!lightComp.enabled)
@@ -187,16 +191,17 @@ std::vector<Renderable> SceneRenderer::collectRenderables(entt::registry&     re
 
     std::vector<Renderable> renderables;
 
-    auto meshView = registry.view<Core::Components::MeshRendererComponent,
-                                  Core::Components::TransformComponent>();
+    const auto meshView = registry.view<Core::Components::MeshRendererComponent,
+                                        Core::Components::TransformComponent>();
 
-    for (auto entityHandle : meshView) {
+    for (const auto entityHandle : meshView) {
         auto& meshRenderer = meshView.get<Core::Components::MeshRendererComponent>(entityHandle);
         auto& transform    = meshView.get<Core::Components::TransformComponent>(entityHandle);
 
         // Check if entity is enabled
-        auto* entityInfo = registry.try_get<Core::Components::EntityInfoComponent>(entityHandle);
-        if (entityInfo && !entityInfo->enabled)
+        if (const auto* entityInfo
+            = registry.try_get<Core::Components::EntityInfoComponent>(entityHandle);
+            entityInfo && !entityInfo->enabled)
             continue;
 
         // Get model
@@ -282,8 +287,7 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
             shadowBiases.push_back(light.shadowBias);
             shadowStrengths.push_back(light.shadowStrength);
 
-            renderDirectionalShadowMap(
-                shadowMap, light, lightSpaceMatrix, renderables, shadowShader);
+            renderDirectionalShadowMap(shadowMap, lightSpaceMatrix, renderables, shadowShader);
             shadowMapIndex++;
 
         } else if (light.type == LightType::Spot) {
@@ -301,8 +305,7 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
             shadowBiases.push_back(light.shadowBias);
             shadowStrengths.push_back(light.shadowStrength);
 
-            renderDirectionalShadowMap(
-                shadowMap, light, lightSpaceMatrix, renderables, shadowShader);
+            renderDirectionalShadowMap(shadowMap, lightSpaceMatrix, renderables, shadowShader);
 
             light.shadowMapIndex = static_cast<int>(shadowMapIndex);
 
@@ -329,11 +332,10 @@ void SceneRenderer::renderShadowMaps(const std::vector<Renderable>& renderables)
     }
 }
 
-void SceneRenderer::renderDirectionalShadowMap(ShadowMap&                     shadowMap,
-                                               const Light&                   light,
+void SceneRenderer::renderDirectionalShadowMap(const ShadowMap&               shadowMap,
                                                const glm::mat4&               lightSpaceMatrix,
                                                const std::vector<Renderable>& renderables,
-                                               Graphics::Shader&              shadowShader) {
+                                               Shader&                        shadowShader) const {
 
     if (!shadowShader.valid())
         return;
@@ -368,7 +370,7 @@ void SceneRenderer::renderPointShadowMap(CubemapShadow&                  cubemap
                                          const Light&                    light,
                                          const std::array<glm::mat4, 6>& lightMatrices,
                                          const std::vector<Renderable>&  renderables,
-                                         Graphics::Shader&               shadowShader) {
+                                         Shader&                         shadowShader) const {
 
     if (!shadowShader.valid())
         return;
@@ -402,14 +404,14 @@ void SceneRenderer::renderPointShadowMap(CubemapShadow&                  cubemap
     }
 }
 
-void SceneRenderer::setupStandardUniforms(Graphics::CommandBuffer& cmd,
-                                          Graphics::Shader&        shader,
-                                          const glm::mat4&         model,
-                                          const glm::mat4&         view,
-                                          const glm::mat4&         proj) {
+void SceneRenderer::setupStandardUniforms(CommandBuffer&   cmd,
+                                          Shader&          shader,
+                                          const glm::mat4& model,
+                                          const glm::mat4& view,
+                                          const glm::mat4& proj) {
 
-    glm::mat4 viewProj = proj * view;
-    glm::mat4 normal   = glm::transpose(glm::inverse(model));
+    const glm::mat4 viewProj = proj * view;
+    const glm::mat4 normal   = glm::transpose(glm::inverse(model));
 
     shader.setMat4(cmd, "u_Model", model);
     shader.setMat4(cmd, "u_View", view);
@@ -418,11 +420,11 @@ void SceneRenderer::setupStandardUniforms(Graphics::CommandBuffer& cmd,
     shader.setMat4(cmd, "u_NormalMatrix", normal);
 }
 
-void SceneRenderer::setupLightingUniforms(Graphics::CommandBuffer& cmd,
-                                          Graphics::Shader&        shader,
-                                          const glm::vec3&         objectPos,
-                                          float                    objectRadius,
-                                          const glm::vec3&         cameraPos) {
+void SceneRenderer::setupLightingUniforms(CommandBuffer&   cmd,
+                                          Shader&          shader,
+                                          const glm::vec3& objectPos,
+                                          float            objectRadius,
+                                          const glm::vec3& cameraPos) {
 
     lighting_.applyLightingUniforms(cmd, shader, objectPos, objectRadius, cameraPos);
 }

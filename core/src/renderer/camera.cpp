@@ -7,49 +7,49 @@
 namespace Corvus::Renderer {
 
 Camera::Camera()
-    : position_(0.0f, 0.0f, 5.0f), target_(0.0f), up_(0.0f, 1.0f, 0.0f),
-      rotation_(1.0f, 0.0f, 0.0f, 0.0f), projectionType_(ProjectionType::Perspective), fov_(45.0f),
-      aspectRatio_(16.0f / 9.0f), orthoSize_(10.0f), nearPlane_(0.1f), farPlane_(1000.0f) { }
+    : position(0.0f, 0.0f, 5.0f), target(0.0f), up(0.0f, 1.0f, 0.0f),
+      rotation(1.0f, 0.0f, 0.0f, 0.0f), projectionType(ProjectionType::Perspective), fov(45.0f),
+      aspectRatio(16.0f / 9.0f), orthoSize(10.0f), nearPlane(0.1f), farPlane(1000.0f) { }
 
 Camera::Camera(const glm::vec3& position, const glm::vec3& target, const glm::vec3& up)
-    : position_(position), target_(target), up_(up), rotation_(1.0f, 0.0f, 0.0f, 0.0f),
-      useLookAt_(true), projectionType_(ProjectionType::Perspective), fov_(45.0f),
-      aspectRatio_(16.0f / 9.0f), orthoSize_(10.0f), nearPlane_(0.1f), farPlane_(1000.0f) { }
+    : position(position), target(target), up(up), rotation(1.0f, 0.0f, 0.0f, 0.0f),
+      projectionType(ProjectionType::Perspective), fov(45.0f), aspectRatio(16.0f / 9.0f),
+      orthoSize(10.0f), nearPlane(0.1f), farPlane(1000.0f) { }
 
 void Camera::setPosition(const glm::vec3& position) {
-    position_     = position;
-    viewDirty_    = true;
-    frustumDirty_ = true;
+    this->position = position;
+    viewDirty      = true;
+    frustumDirty   = true;
 }
 
 void Camera::setRotation(const glm::vec3& euler) {
-    rotation_     = glm::quat(glm::radians(euler));
-    useLookAt_    = false;
-    viewDirty_    = true;
-    frustumDirty_ = true;
+    rotation     = glm::quat(glm::radians(euler));
+    useLookAt    = false;
+    viewDirty    = true;
+    frustumDirty = true;
 }
 
 void Camera::setRotation(const glm::quat& rotation) {
-    rotation_     = rotation;
-    useLookAt_    = false;
-    viewDirty_    = true;
-    frustumDirty_ = true;
+    this->rotation = rotation;
+    useLookAt      = false;
+    viewDirty      = true;
+    frustumDirty   = true;
 }
 
 void Camera::lookAt(const glm::vec3& target, const glm::vec3& up) {
-    target_       = target;
-    up_           = up;
-    useLookAt_    = true;
-    viewDirty_    = true;
-    frustumDirty_ = true;
+    this->target = target;
+    this->up     = up;
+    useLookAt    = true;
+    viewDirty    = true;
+    frustumDirty = true;
 }
 
 glm::vec3 Camera::getForward() const {
-    if (useLookAt_) {
-        return glm::normalize(target_ - position_);
-    } else {
-        return glm::normalize(rotation_ * glm::vec3(0, 0, -1));
+    if (useLookAt) {
+        return glm::normalize(target - position);
     }
+
+    return glm::normalize(rotation * glm::vec3(0, 0, -1));
 }
 
 glm::vec3 Camera::getRight() const {
@@ -61,43 +61,47 @@ glm::vec3 Camera::getUpDirection() const {
 }
 
 void Camera::setPerspective(float fov, float aspectRatio, float nearPlane, float farPlane) {
-    projectionType_  = ProjectionType::Perspective;
-    fov_             = fov;
-    aspectRatio_     = aspectRatio;
-    nearPlane_       = nearPlane;
-    farPlane_        = farPlane;
-    projectionDirty_ = true;
-    frustumDirty_    = true;
+    this->projectionType  = ProjectionType::Perspective;
+    this->fov             = fov;
+    this->aspectRatio     = aspectRatio;
+    this->nearPlane       = nearPlane;
+    this->farPlane        = farPlane;
+    this->projectionDirty = true;
+    this->frustumDirty    = true;
 }
 
-void Camera::setOrthographic(
-    float left, float right, float bottom, float top, float nearPlane, float farPlane) {
-    projectionType_  = ProjectionType::Orthographic;
-    orthoLeft_       = left;
-    orthoRight_      = right;
-    orthoBottom_     = bottom;
-    orthoTop_        = top;
-    nearPlane_       = nearPlane;
-    farPlane_        = farPlane;
-    orthoSize_       = (right - left) * 0.5f;
-    projectionDirty_ = true;
-    frustumDirty_    = true;
+void Camera::setOrthographic(const float left,
+                             const float right,
+                             const float bottom,
+                             const float top,
+                             float       nearPlane,
+                             float       farPlane) {
+    projectionType  = ProjectionType::Orthographic;
+    orthoLeft       = left;
+    orthoRight      = right;
+    orthoBottom     = bottom;
+    orthoTop        = top;
+    this->nearPlane = nearPlane;
+    this->farPlane  = farPlane;
+    orthoSize       = (right - left) * 0.5f;
+    projectionDirty = true;
+    frustumDirty    = true;
 }
 
 const glm::mat4& Camera::getViewMatrix() const {
-    if (viewDirty_) {
+    if (viewDirty) {
         updateViewMatrix();
-        viewDirty_ = false;
+        viewDirty = false;
     }
-    return viewMatrix_;
+    return viewMatrix;
 }
 
 const glm::mat4& Camera::getProjectionMatrix() const {
-    if (projectionDirty_) {
+    if (projectionDirty) {
         updateProjectionMatrix();
-        projectionDirty_ = false;
+        projectionDirty = false;
     }
-    return projectionMatrix_;
+    return projectionMatrix;
 }
 
 glm::mat4 Camera::getViewProjectionMatrix() const {
@@ -105,30 +109,29 @@ glm::mat4 Camera::getViewProjectionMatrix() const {
 }
 
 const Camera::Frustum& Camera::getFrustum() const {
-    if (frustumDirty_) {
+    if (frustumDirty) {
         updateFrustum();
-        frustumDirty_ = false;
+        frustumDirty = false;
     }
-    return frustum_;
+    return frustum;
 }
 
 void Camera::updateViewMatrix() const {
-    if (useLookAt_) {
-        viewMatrix_ = glm::lookAt(position_, target_, up_);
+    if (useLookAt) {
+        this->viewMatrix = glm::lookAt(position, target, up);
     } else {
-        glm::mat4 rotMat   = glm::toMat4(rotation_);
-        glm::mat4 transMat = glm::translate(glm::mat4(1.0f), -position_);
-        viewMatrix_        = rotMat * transMat;
+        const glm::mat4 rotMat   = glm::toMat4(rotation);
+        const glm::mat4 transMat = glm::translate(glm::mat4(1.0f), -position);
+        this->viewMatrix         = rotMat * transMat;
     }
 }
 
 void Camera::updateProjectionMatrix() const {
-    if (projectionType_ == ProjectionType::Perspective) {
-        projectionMatrix_
-            = glm::perspective(glm::radians(fov_), aspectRatio_, nearPlane_, farPlane_);
+    if (projectionType == ProjectionType::Perspective) {
+        projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
     } else {
-        projectionMatrix_
-            = glm::ortho(orthoLeft_, orthoRight_, orthoBottom_, orthoTop_, nearPlane_, farPlane_);
+        projectionMatrix
+            = glm::ortho(orthoLeft, orthoRight, orthoBottom, orthoTop, nearPlane, farPlane);
     }
 }
 
@@ -137,28 +140,28 @@ void Camera::updateFrustum() const {
 
     // Extract frustum planes
     for (int i = 0; i < 6; ++i) {
-        int   row  = i / 2;
-        float sign = (i % 2 == 0) ? 1.0f : -1.0f;
+        const int   row  = i / 2;
+        const float sign = (i % 2 == 0) ? 1.0f : -1.0f;
 
-        frustum_.planes[i] = glm::vec4(vp[0][3] + sign * vp[0][row],
-                                       vp[1][3] + sign * vp[1][row],
-                                       vp[2][3] + sign * vp[2][row],
-                                       vp[3][3] + sign * vp[3][row]);
+        frustum.planes[i] = glm::vec4(vp[0][3] + sign * vp[0][row],
+                                      vp[1][3] + sign * vp[1][row],
+                                      vp[2][3] + sign * vp[2][row],
+                                      vp[3][3] + sign * vp[3][row]);
 
-        float length = glm::length(glm::vec3(frustum_.planes[i]));
-        frustum_.planes[i] /= length;
+        const float length = glm::length(glm::vec3(frustum.planes[i]));
+        frustum.planes[i] /= length;
     }
 }
 
 void Camera::setTarget(const glm::vec3& target) {
-    target_    = target;
-    useLookAt_ = true;
-    viewDirty_ = true;
+    this->target    = target;
+    this->useLookAt = true;
+    this->viewDirty = true;
 }
 
 void Camera::setUp(const glm::vec3& up) {
-    up_        = up;
-    viewDirty_ = true;
+    this->up        = up;
+    this->viewDirty = true;
 }
 
 }

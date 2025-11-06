@@ -5,17 +5,13 @@
 
 namespace Corvus::Renderer::ModelGenerator {
 
-static inline glm::vec3 faceNormal(glm::vec3 a, glm::vec3 b, glm::vec3 c) {
-    return glm::normalize(glm::cross(b - a, c - a));
-}
-
-Model createCube(Graphics::GraphicsContext& ctx, float size) {
+Model createCube(GraphicsContext& ctx, const float size) {
     Model model;
 
     const float h = size * 0.5f;
 
     // Define cube vertices (positions + normals + texcoords)
-    std::vector<Vertex> vertices = {
+    const std::vector<Vertex> vertices = {
         // Front (+Z)
         { { -h, -h, h }, { 0, 0, 1 }, { 0, 0 } },
         { { h, -h, h }, { 0, 0, 1 }, { 1, 0 } },
@@ -49,7 +45,7 @@ Model createCube(Graphics::GraphicsContext& ctx, float size) {
     };
 
     // Reversed winding order (was 0,2,1 now 0,1,2)
-    std::vector<uint32_t> indices = {
+    const std::vector<uint32_t> indices = {
         0,  1,  2,  0,  2,  3,  // front
         4,  5,  6,  4,  6,  7,  // back
         8,  9,  10, 8,  10, 11, // left
@@ -68,7 +64,7 @@ Model createPlane(Graphics::GraphicsContext& ctx, float width, float length) {
     const float hw = width * 0.5f;
     const float hl = length * 0.5f;
 
-    std::vector<Vertex> vertices = {
+    const std::vector<Vertex> vertices = {
         { { -hw, 0, -hl }, { 0, 1, 0 }, { 0, 0 } },
         { { hw, 0, -hl }, { 0, 1, 0 }, { 1, 0 } },
         { { hw, 0, hl }, { 0, 1, 0 }, { 1, 1 } },
@@ -89,21 +85,20 @@ Model createSphere(Graphics::GraphicsContext& ctx, float radius, uint32_t rings,
     std::vector<Vertex>   vertices;
     std::vector<uint32_t> indices;
 
-    const float PI = 3.14159265359f;
-
     for (uint32_t r = 0; r <= rings; ++r) {
-        float v   = float(r) / float(rings);
-        float phi = v * PI;
+        constexpr float PI  = 3.14159265359f;
+        float           v   = static_cast<float>(r) / static_cast<float>(rings);
+        const float     phi = v * PI;
 
         for (uint32_t s = 0; s <= slices; ++s) {
-            float u     = float(s) / float(slices);
-            float theta = u * (PI * 2.0f);
+            float       u     = static_cast<float>(s) / static_cast<float>(slices);
+            const float theta = u * (PI * 2.0f);
 
             glm::vec3 pos(radius * std::sin(phi) * std::cos(theta),
                           radius * std::cos(phi),
                           radius * std::sin(phi) * std::sin(theta));
 
-            glm::vec3 n = glm::normalize(pos);
+            const glm::vec3 n = glm::normalize(pos);
             vertices.push_back({ pos, n, { u, v } });
         }
     }
@@ -135,12 +130,12 @@ Model createCylinder(Graphics::GraphicsContext& ctx, float radius, float height,
 
     // Side vertices
     for (uint32_t i = 0; i <= slices; ++i) {
-        float theta = step * i;
-        float x     = std::cos(theta) * radius;
-        float z     = std::sin(theta) * radius;
-        float u     = float(i) / slices;
+        const float theta = step * i;
+        float       x     = std::cos(theta) * radius;
+        float       z     = std::sin(theta) * radius;
+        float       u     = static_cast<float>(i) / slices;
 
-        glm::vec3 normal(std::cos(theta), 0, std::sin(theta));
+        const glm::vec3 normal(std::cos(theta), 0, std::sin(theta));
 
         vertices.push_back({ { x, -halfH, z }, normal, { u, 0.0f } });
         vertices.push_back({ { x, halfH, z }, normal, { u, 1.0f } });
@@ -154,11 +149,11 @@ Model createCylinder(Graphics::GraphicsContext& ctx, float radius, float height,
     uint32_t topCenterIndex = vertices.size();
     vertices.push_back({ { 0, halfH, 0 }, { 0, 1, 0 }, { 0.5f, 0.5f } });
     for (uint32_t i = 0; i <= slices; ++i) {
-        float theta = step * i;
-        float x     = std::cos(theta) * radius;
-        float z     = std::sin(theta) * radius;
-        float u     = (std::cos(theta) + 1.f) * 0.5f;
-        float v     = (std::sin(theta) + 1.f) * 0.5f;
+        const float theta = step * i;
+        float       x     = std::cos(theta) * radius;
+        float       z     = std::sin(theta) * radius;
+        float       u     = (std::cos(theta) + 1.f) * 0.5f;
+        float       v     = (std::sin(theta) + 1.f) * 0.5f;
         vertices.push_back({ { x, halfH, z }, { 0, 1, 0 }, { u, v } });
     }
     for (uint32_t i = 0; i < slices; ++i)
@@ -169,11 +164,11 @@ Model createCylinder(Graphics::GraphicsContext& ctx, float radius, float height,
     uint32_t bottomCenterIndex = vertices.size();
     vertices.push_back({ { 0, -halfH, 0 }, { 0, -1, 0 }, { 0.5f, 0.5f } });
     for (uint32_t i = 0; i <= slices; ++i) {
-        float theta = step * i;
-        float x     = std::cos(theta) * radius;
-        float z     = std::sin(theta) * radius;
-        float u     = (std::cos(theta) + 1.f) * 0.5f;
-        float v     = (std::sin(theta) + 1.f) * 0.5f;
+        const float theta = step * i;
+        float       x     = std::cos(theta) * radius;
+        float       z     = std::sin(theta) * radius;
+        float       u     = (std::cos(theta) + 1.f) * 0.5f;
+        float       v     = (std::sin(theta) + 1.f) * 0.5f;
         vertices.push_back({ { x, -halfH, z }, { 0, -1, 0 }, { u, v } });
     }
     for (uint32_t i = 0; i < slices; ++i)
