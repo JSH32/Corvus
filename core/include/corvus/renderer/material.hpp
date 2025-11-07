@@ -44,6 +44,7 @@ public:
     // Texture binding
     void setTexture(uint32_t slot, const Texture2D& texture);
     void setTextureCube(uint32_t slot, const TextureCube& texture);
+    void setShader(const Shader& shader, bool releaseOld);
 
     // Render state
     void               setRenderState(const RenderState& state);

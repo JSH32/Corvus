@@ -13,16 +13,15 @@ ProjectSettingsPanel::ProjectSettingsPanel(Core::Project* project) : project(pro
 
 void ProjectSettingsPanel::initializeEditState() {
     if (!editState.initialized) {
-        // Initialize project name buffer
-        std::string currentName = project->getProjectName();
+        // Initialize the project name buffer
+        const std::string currentName = project->getProjectName();
         strncpy(editState.projectNameBuffer,
                 currentName.c_str(),
                 sizeof(editState.projectNameBuffer) - 1);
         editState.projectNameBuffer[sizeof(editState.projectNameBuffer) - 1] = '\0';
 
-        // Initialize main scene handle
-        Core::UUID mainSceneID = project->getMainSceneID();
-        if (!mainSceneID.is_nil()) {
+        // Initialize a main scene handle
+        if (const Core::UUID mainSceneID = project->getMainSceneID(); !mainSceneID.is_nil()) {
             editState.selectedMainScene
                 = project->getAssetManager()->loadByID<Core::Scene>(mainSceneID);
         }
@@ -48,8 +47,8 @@ void ProjectSettingsPanel::onUpdate() {
 
 void ProjectSettingsPanel::drawProjectNameSetting() {
     // Check if this field has unsaved changes
-    std::string currentName = project->getProjectName();
-    bool        hasChanges  = (std::string(editState.projectNameBuffer) != currentName);
+    const std::string currentName = project->getProjectName();
+    const bool        hasChanges  = std::string(editState.projectNameBuffer) != currentName;
 
     // Label
     ImGui::AlignTextToFramePadding();
@@ -77,13 +76,13 @@ void ProjectSettingsPanel::drawProjectNameSetting() {
 
 void ProjectSettingsPanel::drawMainSceneSetting() {
     // Get all scenes
-    auto allScenes = project->getAllScenes();
+    const auto allScenes = project->getAllScenes();
 
-    // Get current main scene from project
-    Core::UUID currentMainSceneID = project->getMainSceneID();
+    // Get the current main scene from a project
+    const Core::UUID currentMainSceneID = project->getMainSceneID();
 
     // Check if this field has unsaved changes
-    bool hasChanges = (editState.selectedMainScene.getID() != currentMainSceneID);
+    const bool hasChanges = editState.selectedMainScene.getID() != currentMainSceneID;
 
     // Label
     ImGui::AlignTextToFramePadding();
@@ -108,12 +107,13 @@ void ProjectSettingsPanel::drawMainSceneSetting() {
 
     std::string currentSceneName = "None";
     if (editState.selectedMainScene.isValid()) {
-        auto meta = project->getAssetManager()->getMetadata(editState.selectedMainScene.getID());
+        const auto meta
+            = project->getAssetManager()->getMetadata(editState.selectedMainScene.getID());
         // Extract filename without extension
-        std::string path      = meta.path;
-        size_t      lastSlash = path.find_last_of('/');
-        size_t      lastDot   = path.find_last_of('.');
-        if (lastSlash != std::string::npos && lastDot != std::string::npos && lastDot > lastSlash) {
+        const std::string path      = meta.path;
+        const size_t      lastSlash = path.find_last_of('/');
+        if (const size_t lastDot = path.find_last_of('.');
+            lastSlash != std::string::npos && lastDot != std::string::npos && lastDot > lastSlash) {
             currentSceneName = path.substr(lastSlash + 1, lastDot - lastSlash - 1);
         } else if (lastSlash != std::string::npos) {
             currentSceneName = path.substr(lastSlash + 1);
@@ -127,15 +127,14 @@ void ProjectSettingsPanel::drawMainSceneSetting() {
             if (!sceneHandle.isValid())
                 continue;
 
-            auto meta = project->getAssetManager()->getMetadata(sceneHandle.getID());
+            const auto meta = project->getAssetManager()->getMetadata(sceneHandle.getID());
 
             // Extract filename without extension
-            std::string path = meta.path;
-            std::string sceneName;
-            size_t      lastSlash = path.find_last_of('/');
-            size_t      lastDot   = path.find_last_of('.');
-            if (lastSlash != std::string::npos && lastDot != std::string::npos
-                && lastDot > lastSlash) {
+            std::string  path = meta.path;
+            std::string  sceneName;
+            const size_t lastSlash = path.find_last_of('/');
+            if (const size_t lastDot = path.find_last_of('.'); lastSlash != std::string::npos
+                && lastDot != std::string::npos && lastDot > lastSlash) {
                 sceneName = path.substr(lastSlash + 1, lastDot - lastSlash - 1);
             } else if (lastSlash != std::string::npos) {
                 sceneName = path.substr(lastSlash + 1);
@@ -143,7 +142,7 @@ void ProjectSettingsPanel::drawMainSceneSetting() {
                 sceneName = path;
             }
 
-            bool isSelected = (editState.selectedMainScene.getID() == sceneHandle.getID());
+            const bool isSelected = editState.selectedMainScene.getID() == sceneHandle.getID();
 
             if (ImGui::Selectable(sceneName.c_str(), isSelected)) {
                 editState.selectedMainScene = sceneHandle;
@@ -165,11 +164,11 @@ void ProjectSettingsPanel::drawSaveButton() {
     }
 
     // Calculate button width
-    float availWidth            = ImGui::GetContentRegionAvail().x;
-    float minWidthForSideBySide = 300.0f;
+    const float     availWidth            = ImGui::GetContentRegionAvail().x;
+    constexpr float minWidthForSideBySide = 300.0f;
 
-    bool  sideBySide = availWidth >= minWidthForSideBySide;
-    float buttonWidth
+    const bool  sideBySide = availWidth >= minWidthForSideBySide;
+    const float buttonWidth
         = sideBySide ? (availWidth - ImGui::GetStyle().ItemSpacing.x) * 0.5f : availWidth;
 
     // Green save button
@@ -204,12 +203,12 @@ void ProjectSettingsPanel::drawSaveButton() {
 }
 
 bool ProjectSettingsPanel::hasUnsavedChanges() const {
-    // Check project name
+    // Check the project name
     if (std::string(editState.projectNameBuffer) != project->getProjectName()) {
         return true;
     }
 
-    // Check main scene
+    // Check the main scene
     if (editState.selectedMainScene.getID() != project->getMainSceneID()) {
         return true;
     }
@@ -238,14 +237,13 @@ void ProjectSettingsPanel::revertChanges() {
     // Reload from disk
     if (project->loadProjectSettings()) {
         // Reset edit state to match reloaded values
-        std::string currentName = project->getProjectName();
+        const std::string currentName = project->getProjectName();
         strncpy(editState.projectNameBuffer,
                 currentName.c_str(),
                 sizeof(editState.projectNameBuffer) - 1);
         editState.projectNameBuffer[sizeof(editState.projectNameBuffer) - 1] = '\0';
 
-        Core::UUID mainSceneID = project->getMainSceneID();
-        if (!mainSceneID.is_nil()) {
+        if (const Core::UUID mainSceneID = project->getMainSceneID(); !mainSceneID.is_nil()) {
             editState.selectedMainScene
                 = project->getAssetManager()->loadByID<Core::Scene>(mainSceneID);
         } else {

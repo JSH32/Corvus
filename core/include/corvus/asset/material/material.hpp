@@ -1,11 +1,18 @@
 #pragma once
+#include "cereal/types/vector.hpp"
 #include "corvus/asset/asset_handle.hpp"
 #include "corvus/graphics/graphics.hpp"
+#include "corvus/renderer/material.hpp"
+
 #include <cereal/cereal.hpp>
-#include <cereal/types/map.hpp>
 #include <glm/glm.hpp>
 #include <map>
+#include <ranges>
 #include <string>
+
+namespace Corvus::Renderer {
+class MaterialRenderer;
+}
 
 namespace Corvus::Core {
 
@@ -36,7 +43,7 @@ struct MaterialPropertyValue {
     int       textureSlot { 0 };
 
     MaterialPropertyValue() : floatValue(0.0f) { }
-    explicit MaterialPropertyValue(float v) : type(MaterialPropertyType::Float), floatValue(v) { }
+    explicit MaterialPropertyValue(float v) : floatValue(v) { }
     explicit MaterialPropertyValue(glm::vec2 v)
         : type(MaterialPropertyType::Vector2), vec2Value(v) { }
     explicit MaterialPropertyValue(glm::vec3 v)
@@ -127,28 +134,30 @@ struct MaterialProperty {
  * No rendering logic - just properties and serialization.
  * This is what gets saved to disk and managed by the asset system.
  */
-struct MaterialAsset {
-    UUID                                    shaderAsset;
-    std::map<std::string, MaterialProperty> properties;
-    bool                                    doubleSided { false };
-    bool                                    alphaBlend { false };
-
+class MaterialAsset {
+public:
     MaterialAsset() { setDefaultProperties(); }
 
-    MaterialAsset(const MaterialAsset&)                = delete;
-    MaterialAsset& operator=(const MaterialAsset&)     = delete;
-    MaterialAsset(MaterialAsset&&) noexcept            = default;
-    MaterialAsset& operator=(MaterialAsset&&) noexcept = default;
-    ~MaterialAsset()                                   = default;
+    MaterialAsset& operator=(const MaterialAsset&) = delete;
+    ~MaterialAsset()                               = default;
+    MaterialAsset(const MaterialAsset& other)      = delete;
 
-    // Default property setup
-    void setDefaultProperties() {
-        properties["_MainColor"]
-            = MaterialProperty("_MainColor", MaterialPropertyValue(glm::vec4(1.0f)));
-        properties["_MainTex"]    = MaterialProperty("_MainTex", MaterialPropertyValue(UUID(), 0));
-        properties["_Metallic"]   = MaterialProperty("_Metallic", MaterialPropertyValue(0.0f));
-        properties["_Smoothness"] = MaterialProperty("_Smoothness", MaterialPropertyValue(0.5f));
+    MaterialAsset(MaterialAsset&&) noexcept = default;
+    MaterialAsset& operator=(MaterialAsset&& other) noexcept {
+        if (this != &other) {
+            shaderAsset  = std::move(other.shaderAsset);
+            properties   = std::move(other.properties);
+            doubleSided  = other.doubleSided;
+            alphaBlend   = other.alphaBlend;
+            needsRebuild = true;
+        }
+        return *this;
     }
+
+    Renderer::Material* getRuntimeMaterial(Renderer::MaterialRenderer& renderer,
+                                           AssetManager&               assets) const;
+
+    void markDirty() const { needsRebuild = true; }
 
     // Serialization
     template <class Archive>
@@ -164,7 +173,7 @@ struct MaterialAsset {
 
         std::vector<MaterialProperty> props;
         if constexpr (Archive::is_saving::value) {
-            for (auto& [n, p] : properties)
+            for (auto& p : properties | std::views::values)
                 props.push_back(p);
             ar(cereal::make_nvp("properties", props));
         } else {
@@ -178,33 +187,49 @@ struct MaterialAsset {
         ar(CEREAL_NVP(alphaBlend));
     }
 
-    void setFloat(const std::string& name, float v) {
-        properties[name] = MaterialProperty(name, MaterialPropertyValue(v));
+    bool                    hasProperty(std::string_view name) const;
+    const MaterialProperty* getProperty(std::string_view name) const;
+    MaterialProperty*       getProperty(std::string_view name);
+    void                    setProperty(const MaterialProperty& prop);
+    void                    setProperty(std::string_view name, const MaterialPropertyValue& value);
+    const UUID&             getShaderAsset() const { return shaderAsset; }
+    size_t                  getPropertyCount() const { return properties.size(); }
+    bool                    removeProperty(std::string_view name);
+
+    template <typename Fn>
+    void forEachProperty(Fn&& fn) const {
+        for (const auto& [name, prop] : properties)
+            fn(name, prop);
     }
 
-    void setVector2(const std::string& name, const glm::vec2& v) {
-        properties[name] = MaterialProperty(name, MaterialPropertyValue(v));
+    template <typename Fn>
+    void forEachProperty(Fn&& fn) {
+        for (auto& [name, prop] : properties)
+            fn(name, prop);
     }
 
-    void setVector3(const std::string& name, const glm::vec3& v) {
-        properties[name] = MaterialProperty(name, MaterialPropertyValue(v));
+    template <typename T>
+    void setValue(const std::string_view name, const T& v) {
+        setProperty(std::string(name), MaterialPropertyValue(v));
     }
 
-    void setVector4(const std::string& name, const glm::vec4& v) {
-        properties[name] = MaterialProperty(name, MaterialPropertyValue(v));
+private:
+    UUID                                    shaderAsset;
+    std::map<std::string, MaterialProperty> properties;
+    bool                                    doubleSided { false };
+    bool                                    alphaBlend { false };
+
+    // Default property setup
+    void setDefaultProperties() {
+        properties["_MainColor"]
+            = MaterialProperty("_MainColor", MaterialPropertyValue(glm::vec4(1.0f)));
+        properties["_MainTex"]    = MaterialProperty("_MainTex", MaterialPropertyValue(UUID(), 0));
+        properties["_Metallic"]   = MaterialProperty("_Metallic", MaterialPropertyValue(0.0f));
+        properties["_Smoothness"] = MaterialProperty("_Smoothness", MaterialPropertyValue(0.5f));
     }
 
-    void setTexture(const std::string& name, const UUID& id, int slot = 0) {
-        properties[name] = MaterialProperty(name, MaterialPropertyValue(id, slot));
-    }
-
-    void setInt(const std::string& name, int v) {
-        properties[name] = MaterialProperty(name, MaterialPropertyValue(v));
-    }
-
-    void setBool(const std::string& name, bool v) {
-        properties[name] = MaterialProperty(name, MaterialPropertyValue(v));
-    }
+    mutable std::unique_ptr<Renderer::Material> runtimeMaterial;
+    mutable bool                                needsRebuild = true;
 };
 
 }

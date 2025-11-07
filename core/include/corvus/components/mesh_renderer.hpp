@@ -195,9 +195,9 @@ struct MeshRendererComponent {
         static MaterialAsset* fallbackMat = nullptr;
         if (!fallbackMat) {
             fallbackMat = new MaterialAsset();
-            fallbackMat->setVector4("_MainColor", glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
-            fallbackMat->setFloat("_Metallic", 0.0f);
-            fallbackMat->setFloat("_Smoothness", 0.5f);
+            fallbackMat->setValue("_MainColor", glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+            fallbackMat->setValue("_Metallic", 0.0f);
+            fallbackMat->setValue("_Smoothness", 0.5f);
             CORVUS_CORE_INFO("Created fallback material (magenta)");
         }
 
@@ -205,7 +205,7 @@ struct MeshRendererComponent {
             materialHandle.setAssetManager(mgr);
 
         if (materialHandle.isValid() && materialHandle.isLoaded()) {
-            auto matPtr = materialHandle.get();
+            const auto matPtr = materialHandle.get();
             if (matPtr)
                 return matPtr.get();
         }

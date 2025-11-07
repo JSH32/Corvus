@@ -10,8 +10,8 @@ namespace Corvus::Renderer {
 
 /**
  * Handles the rendering side of materials.
- * Primary interface: Apply low-level Renderer::Material
- * Utility interface: Convert and apply Core::MaterialAsset
+ * Apply low-level Renderer::Material
+ * Convert and apply Core::MaterialAsset
  */
 class MaterialRenderer {
 public:
@@ -53,11 +53,6 @@ public:
                                    Core::AssetManager*        assetMgr);
 
     /**
-     * Clear all cached materials (call when a scene changes)
-     */
-    void clearCache();
-
-    /**
      * Get default resources
      */
     Shader&    getDefaultShader();
@@ -71,20 +66,6 @@ private:
     Texture2D defaultTexture;
     bool      defaultsInitialized = false;
     void      initializeDefaults();
-
-    // Cache for MaterialAsset to Material conversion
-    struct AssetMaterialCache {
-        std::optional<Material>                                       material;
-        std::unordered_map<std::string, Core::AssetHandle<Texture2D>> textureHandles;
-        Core::UUID                                                    shaderID;
-        bool                                                          needsUpdate = true;
-    };
-
-    std::unordered_map<const Core::MaterialAsset*, AssetMaterialCache> assetMaterialCache;
-
-    // Convert MaterialAsset to Material
-    Material* convertAssetToMaterial(const Core::MaterialAsset& materialAsset,
-                                     Core::AssetManager*        assetMgr);
 };
 
 }

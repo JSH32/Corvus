@@ -51,11 +51,11 @@ class MaterialViewer final : public AssetViewer {
     void setupPreviewLights();
     void updateCameraPosition();
 
-    static bool renderColorProperty(const std::string& name, Core::MaterialProperty& prop);
-    static bool renderFloatProperty(const std::string& name, Core::MaterialProperty& prop);
+    bool renderColorProperty(const std::string& name, const Core::MaterialProperty& prop) const;
+    bool renderFloatProperty(const std::string& name, const Core::MaterialProperty& prop) const;
     bool renderTextureProperty(const std::string& name, const Core::MaterialProperty& prop) const;
-    static bool renderVectorProperty(const std::string& name, Core::MaterialProperty& prop);
-    void        renderAddPropertyPopup();
+    bool renderVectorProperty(const std::string& name, const Core::MaterialProperty& prop) const;
+    void renderAddPropertyPopup();
 
 public:
     MaterialViewer(const Core::UUID&          id,

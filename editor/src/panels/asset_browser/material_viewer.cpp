@@ -20,15 +20,12 @@ MaterialViewer::MaterialViewer(const Core::UUID&          id,
     framebuffer.attachTexture2D(colorTexture, 0);
     framebuffer.attachDepthTexture(depthTexture);
 
-    // Create a preview sphere mesh directly
     previewModel = Renderer::ModelGenerator::createSphere(*context_, 1.0f, 32, 32);
 
-    // Setup camera
     previewCamera.setPosition(glm::vec3(0.0f, 1.5f, 3.0f));
-    previewCamera.lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    previewCamera.lookAt(glm::vec3(0.0f));
     previewCamera.setPerspective(45.0f, 1.0f, 0.1f, 100.0f);
 
-    // Setup preview lights
     setupPreviewLights();
 
     CORVUS_CORE_INFO("Material viewer preview initialized for {}", materialHandle.getPath());
@@ -36,44 +33,29 @@ MaterialViewer::MaterialViewer(const Core::UUID&          id,
 
 MaterialViewer::~MaterialViewer() {
     sceneRenderer.getLighting().shutdown();
-
     context_->flush();
-
     previewModel.release();
     colorTexture.release();
     depthTexture.release();
     framebuffer.release();
-    CORVUS_CORE_INFO("Material viewer preview shutdown for {}", materialHandle.getPath());
 }
 
 void MaterialViewer::setupPreviewLights() {
     sceneRenderer.clearLights();
 
-    // Key light from top-front-right
-    Renderer::Light keyLight;
-    keyLight.type      = Renderer::LightType::Directional;
-    keyLight.direction = glm::normalize(glm::vec3(-0.3f, -0.7f, -0.5f));
-    keyLight.color     = glm::vec3(1.0f, 1.0f, 1.0f);
-    keyLight.intensity = 1.0f;
-    sceneRenderer.addLight(keyLight);
+    auto makeLight = [&](glm::vec3 dir, glm::vec3 color, float intensity) {
+        Renderer::Light l;
+        l.type      = Renderer::LightType::Directional;
+        l.direction = glm::normalize(dir);
+        l.color     = color;
+        l.intensity = intensity;
+        sceneRenderer.addLight(l);
+    };
 
-    // Fill light from left
-    Renderer::Light fillLight;
-    fillLight.type      = Renderer::LightType::Directional;
-    fillLight.direction = glm::normalize(glm::vec3(0.5f, -0.3f, 0.5f));
-    fillLight.color     = glm::vec3(0.7f, 0.78f, 0.86f);
-    fillLight.intensity = 0.4f;
-    sceneRenderer.addLight(fillLight);
+    makeLight({ -0.3f, -0.7f, -0.5f }, { 1, 1, 1 }, 1.0f);
+    makeLight({ 0.5f, -0.3f, 0.5f }, { 0.7f, 0.78f, 0.86f }, 0.4f);
+    makeLight({ 0.0f, 0.3f, 1.0f }, { 1, 1, 1 }, 0.3f);
 
-    // Rim light from back
-    Renderer::Light rimLight;
-    rimLight.type      = Renderer::LightType::Directional;
-    rimLight.direction = glm::normalize(glm::vec3(0.0f, 0.3f, 1.0f));
-    rimLight.color     = glm::vec3(1.0f, 1.0f, 1.0f);
-    rimLight.intensity = 0.3f;
-    sceneRenderer.addLight(rimLight);
-
-    // Ambient light
     sceneRenderer.setAmbientColor(glm::vec3(0.1f, 0.1f, 0.12f));
 }
 
@@ -81,13 +63,12 @@ void MaterialViewer::updateCameraPosition() {
     previewCamera.setPosition(glm::vec3(cameraDistance * cosf(cameraAngleX) * sinf(cameraAngleY),
                                         cameraDistance * sinf(cameraAngleX),
                                         cameraDistance * cosf(cameraAngleX) * cosf(cameraAngleY)));
-    previewCamera.lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    previewCamera.lookAt(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 void MaterialViewer::updatePreview() {
     if (const auto mat = materialHandle.get(); !mat)
         return;
-
     needsPreviewUpdate = false;
 }
 
@@ -98,39 +79,30 @@ void MaterialViewer::handleCameraControls() {
         isDragging   = true;
         lastMousePos = mousePos;
     }
-
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
         isDragging = false;
     }
 
     if (isDragging && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-        const auto delta = ImVec2(mousePos.x - lastMousePos.x, mousePos.y - lastMousePos.y);
-
+        const ImVec2 delta = ImVec2(mousePos.x - lastMousePos.x, mousePos.y - lastMousePos.y);
         cameraAngleY += delta.x * 0.01f;
         cameraAngleX += delta.y * 0.01f;
 
-        // Clamp vertical rotation
         constexpr float PI = 3.14159265359f;
-        if (cameraAngleX > PI / 2.0f - 0.1f)
-            cameraAngleX = PI / 2.0f - 0.1f;
-        if (cameraAngleX < -PI / 2.0f + 0.1f)
-            cameraAngleX = -PI / 2.0f + 0.1f;
-
+        cameraAngleX       = glm::clamp(cameraAngleX, -PI / 2.0f + 0.1f, PI / 2.0f - 0.1f);
         updateCameraPosition();
         lastMousePos = mousePos;
     }
 
-    // Mouse wheel zoom
-    if (const float wheel = ImGui::GetIO().MouseWheel; wheel != 0.0f) {
-        cameraDistance -= wheel * 0.3f;
-        cameraDistance = glm::clamp(cameraDistance, 1.5f, 10.0f);
+    const float wheel = ImGui::GetIO().MouseWheel;
+    if (wheel != 0.0f) {
+        cameraDistance = glm::clamp(cameraDistance - wheel * 0.3f, 1.5f, 10.0f);
         updateCameraPosition();
     }
 }
 
 void MaterialViewer::renderPreview() {
     updatePreview();
-
     const auto mat = materialHandle.get();
     if (!mat)
         return;
@@ -139,23 +111,18 @@ void MaterialViewer::renderPreview() {
 
     Renderer::Material* material
         = sceneRenderer.getMaterialRenderer().getMaterialFromAsset(*mat, assetManager);
-
     if (!material)
         return;
 
-    std::vector<Renderer::Renderable> renderables;
-    Renderer::Renderable              renderable;
+    Renderer::Renderable renderable;
     renderable.model          = &previewModel;
     renderable.material       = material;
     renderable.transform      = previewTransform;
     renderable.position       = glm::vec3(0.0f);
     renderable.boundingRadius = 1.0f;
-    renderable.wireframe      = false;
     renderable.enabled        = true;
-    renderables.push_back(renderable);
 
-    // Let the scene renderer handle everything!
-    sceneRenderer.render(renderables, previewCamera, &framebuffer);
+    sceneRenderer.render({ renderable }, previewCamera, &framebuffer);
 }
 
 void MaterialViewer::render() {
@@ -163,7 +130,6 @@ void MaterialViewer::render() {
         isOpen = false;
         return;
     }
-
     auto mat = materialHandle.get();
     if (!mat) {
         isOpen = false;
@@ -171,319 +137,204 @@ void MaterialViewer::render() {
     }
 
     ImGui::SetNextWindowSize(ImVec2(800, 700), ImGuiCond_FirstUseEver);
-
-    std::string title = "";
-    if (materialHandle.isValid()) {
-        auto meta = assetManager->getMetadata(materialHandle.getID());
-        title     = fmt::format(
-            "{} Material: {}", ICON_FA_PALETTE, meta.path.substr(meta.path.find_last_of('/') + 1));
-    }
+    auto        meta  = assetManager->getMetadata(materialHandle.getID());
+    std::string title = fmt::format(
+        "{} Material: {}", ICON_FA_PALETTE, meta.path.substr(meta.path.find_last_of('/') + 1));
 
     if (!ImGui::Begin(title.c_str(), &isOpen, ImGuiWindowFlags_MenuBar)) {
         ImGui::End();
         return;
     }
 
-    // Menu Bar
+    // === MENU BAR ===
     if (ImGui::BeginMenuBar()) {
-        if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save")) {
-            if (materialHandle.save()) {
-                CORVUS_CORE_INFO("Saved material: {}", title);
-            }
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Save material changes");
-        }
-
+        if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save") && materialHandle.save())
+            CORVUS_CORE_INFO("Saved material: {}", title);
         if (ImGui::Button(ICON_FA_ROTATE_LEFT " Revert")) {
             materialHandle.reload();
             mat                = materialHandle.get();
             needsPreviewUpdate = true;
         }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Revert to saved version");
-        }
-
         ImGui::EndMenuBar();
     }
 
     renderPreview();
 
-    // Two-column layout
+    // === LAYOUT ===
     ImGui::Columns(2, "##MaterialColumns", true);
     ImGui::SetColumnWidth(0, 380);
 
-    // Left Column: Preview
-    {
-        ImGui::BeginChild("##PreviewSection", ImVec2(0, 0), true, ImGuiWindowFlags_NoScrollbar);
+    // === LEFT: Preview ===
+    ImGui::BeginChild("##PreviewSection", ImVec2(0, 0), true, ImGuiWindowFlags_NoScrollbar);
+    ImGui::SeparatorText(ICON_FA_EYE " Preview");
+    ImGui::Spacing();
+    ImVec2 avail       = ImGui::GetContentRegionAvail();
+    float  previewSize = std::min(avail.x - 20, 340.0f);
+    float  offsetX     = (avail.x - previewSize) * 0.5f;
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
+    ImVec2 start = ImGui::GetCursorScreenPos();
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
-        ImGui::SeparatorText(ICON_FA_EYE " Preview");
-        ImGui::PopStyleVar();
+    ImGui::BeginChild("##PreviewFrame", ImVec2(previewSize, previewSize), true);
+    ImGui::RenderFramebuffer(
+        framebuffer, colorTexture, ImVec2(previewSize - 2, previewSize - 2), true);
+    ImGui::EndChild();
 
-        ImGui::Spacing();
+    ImRect previewRect(start, { start.x + previewSize, start.y + previewSize });
+    if (previewRect.Contains(ImGui::GetMousePos()))
+        handleCameraControls();
 
-        // Calculate centered preview size
-        ImVec2 availRegion = ImGui::GetContentRegionAvail();
-        float  previewSize = std::min(availRegion.x - 20, 340.0f);
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
+    ImGui::TextDisabled(ICON_FA_COMPUTER_MOUSE " Drag to rotate • Scroll to zoom");
 
-        // Center the preview
-        float offsetX = (availRegion.x - previewSize) * 0.5f;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
+    ImGui::SeparatorText(ICON_FA_CODE " Shader");
+    std::string shaderText = "Default";
+    if (!mat->getShaderAsset().is_nil()) {
+        auto shaderMeta = assetManager->getMetadata(mat->getShaderAsset());
+        if (!shaderMeta.path.empty())
+            shaderText = shaderMeta.path.substr(shaderMeta.path.find_last_of('/') + 1);
+    }
+    ImGui::Text("Shader:");
+    ImGui::SameLine(80);
 
-        ImVec2 cursorBefore = ImGui::GetCursorScreenPos();
-
-        // Preview with a border
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.4f, 0.4f, 0.4f, 0.5f));
-        ImGui::BeginChild(
-            "##PreviewFrame", ImVec2(previewSize, previewSize), true, ImGuiWindowFlags_NoScrollbar);
-
-        // Display the rendered texture using the helper
-        ImGui::RenderFramebuffer(framebuffer,
-                                 colorTexture,
-                                 ImVec2(previewSize - 2, previewSize - 2),
-                                 true // flipY = true for OpenGL
-        );
-
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
-        ImGui::PopStyleVar();
-
-        // Camera controls hint
-        ImRect previewRect(cursorBefore,
-                           ImVec2(cursorBefore.x + previewSize, cursorBefore.y + previewSize));
-
-        if (previewRect.Contains(ImGui::GetMousePos())) {
-            handleCameraControls();
-        }
-
-        ImGui::Spacing();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
-        ImGui::TextDisabled(ICON_FA_COMPUTER_MOUSE " Drag to rotate • Scroll to zoom");
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Shader info section
-        ImGui::SeparatorText(ICON_FA_CODE " Shader");
-        ImGui::Spacing();
-
-        std::string shaderText = "Default";
-        if (!mat->shaderAsset.is_nil()) {
-            if (auto shaderMeta = assetManager->getMetadata(mat->shaderAsset);
-                !shaderMeta.path.empty()) {
-                shaderText = shaderMeta.path.substr(shaderMeta.path.find_last_of('/') + 1);
-            } else {
-                shaderText = "Custom";
-            }
-        }
-
-        ImGui::Text("Shader:");
-        ImGui::SameLine(80);
-
-        // Shader selector dropdown
-        ImGui::SetNextItemWidth(-1);
-        if (ImGui::BeginCombo("##ShaderSelect", shaderText.c_str())) {
-            // "Default" option (clears shader asset)
-            bool isDefault = mat->shaderAsset.is_nil();
-            if (ImGui::Selectable("Default", isDefault)) {
-                mat->shaderAsset   = Core::UUID();
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::BeginCombo("##ShaderSelect", shaderText.c_str())) {
+        bool isDefault = mat->getShaderAsset().is_nil();
+        if (ImGui::Selectable("Default", isDefault))
+            mat->setProperty("shader", Core::MaterialPropertyValue(Core::UUID()));
+        for (auto  allShaders = assetManager->getAllOfType<Graphics::Shader>();
+             auto& shaderHandle : allShaders) {
+            auto        shaderMeta = assetManager->getMetadata(shaderHandle.getID());
+            std::string name       = shaderMeta.path.substr(shaderMeta.path.find_last_of('/') + 1);
+            bool        selected   = (shaderHandle.getID() == mat->getShaderAsset());
+            if (ImGui::Selectable(name.c_str(), selected)) {
+                mat->setProperty("shader", Core::MaterialPropertyValue(shaderHandle.getID()));
                 needsPreviewUpdate = true;
             }
-            if (isDefault) {
-                ImGui::SetItemDefaultFocus();
-            }
-
-            // List all available shaders
-            for (auto  allShaders = assetManager->getAllOfType<Graphics::Shader>();
-                 auto& shaderHandle : allShaders) {
-                auto        shaderMeta = assetManager->getMetadata(shaderHandle.getID());
-                std::string shaderName = shaderMeta.path.empty()
-                    ? boost::uuids::to_string(shaderMeta.id)
-                    : shaderMeta.path.substr(shaderMeta.path.find_last_of('/') + 1);
-
-                bool isSelected = (shaderHandle.getID() == mat->shaderAsset);
-                if (ImGui::Selectable(shaderName.c_str(), isSelected)) {
-                    mat->shaderAsset   = shaderHandle.getID();
-                    needsPreviewUpdate = true;
-                }
-
-                if (isSelected) {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-
-            ImGui::EndCombo();
         }
-
-        ImGui::EndChild();
+        ImGui::EndCombo();
     }
+    ImGui::EndChild();
 
     ImGui::NextColumn();
+    ImGui::BeginChild("##PropertiesSection", ImVec2(0, 0), true);
+    ImGui::SeparatorText(ICON_FA_SLIDERS " Material Properties");
 
-    // Right Column: Properties
-    {
-        ImGui::BeginChild("##PropertiesSection", ImVec2(0, 0), true);
+    std::vector<std::string> toRemove;
+    bool                     hasProps = false;
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
-        ImGui::SeparatorText(ICON_FA_SLIDERS " Material Properties");
-        ImGui::PopStyleVar();
+    mat->forEachProperty([&](const std::string& name, const Core::MaterialProperty& prop) {
+        hasProps = true;
+        ImGui::PushID(name.c_str());
+        ImVec4 color;
+        auto   icon = ICON_FA_CIRCLE_QUESTION;
+        switch (prop.value.type) {
+            case Core::MaterialPropertyType::Float:
+                color = { 0.4, 0.7, 0.9, 1 };
+                icon  = ICON_FA_HASHTAG;
+                break;
+            case Core::MaterialPropertyType::Vector3:
+                color = { 0.5, 0.8, 0.5, 1 };
+                icon  = ICON_FA_VECTOR_SQUARE;
+                break;
+            case Core::MaterialPropertyType::Vector4:
+                color = { 0.8, 0.4, 0.4, 1 };
+                icon  = ICON_FA_PALETTE;
+                break;
+            case Core::MaterialPropertyType::Texture:
+                color = { 0.7, 0.5, 0.9, 1 };
+                icon  = ICON_FA_IMAGE;
+                break;
+            default:
+                color = { 0.5, 0.5, 0.5, 1 };
+                break;
+        }
+        ImGui::PushStyleColor(ImGuiCol_Button, color);
+        ImGui::SmallButton(icon);
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::Text("%s", name.c_str());
+        ImGui::Indent(30);
 
-        ImGui::Spacing();
-
-        // Properties list
-        std::vector<std::string> toRemove;
-        bool                     hasProperties = false;
-
-        for (auto& [name, prop] : mat->properties) {
-            hasProperties = true;
-            ImGui::PushID(name.c_str());
-
-            // Property row with colored type badge
-            ImVec4      typeColor;
-            const char* typeIcon;
-
-            switch (prop.value.type) {
-                case Core::MaterialPropertyType::Float:
-                    typeColor = ImVec4(0.4f, 0.7f, 0.9f, 1.0f);
-                    typeIcon  = ICON_FA_HASHTAG;
-                    break;
-                case Core::MaterialPropertyType::Texture:
-                    typeColor = ImVec4(0.7f, 0.5f, 0.9f, 1.0f);
-                    typeIcon  = ICON_FA_IMAGE;
-                    break;
-                case Core::MaterialPropertyType::Vector2:
-                case Core::MaterialPropertyType::Vector3:
-                    typeColor = ImVec4(0.5f, 0.8f, 0.5f, 1.0f);
-                    typeIcon  = ICON_FA_VECTOR_SQUARE;
-                    break;
-                case Core::MaterialPropertyType::Vector4:
-                    typeColor = ImVec4(0.8f, 0.4f, 0.4f, 1.0f);
-                    typeIcon  = ICON_FA_PALETTE;
-                    break;
-                case Core::MaterialPropertyType::Int:
-                    typeColor = ImVec4(0.4f, 0.7f, 0.9f, 1.0f);
-                    typeIcon  = ICON_FA_HASHTAG;
-                    break;
-                case Core::MaterialPropertyType::Bool:
-                    typeColor = ImVec4(0.9f, 0.7f, 0.4f, 1.0f);
-                    typeIcon  = ICON_FA_CHECK;
-                    break;
-                default:
-                    typeColor = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
-                    typeIcon  = ICON_FA_CIRCLE_QUESTION;
-                    break;
-            }
-
-            // Type badge
-            ImGui::PushStyleColor(ImGuiCol_Button, typeColor);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, typeColor);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, typeColor);
-            ImGui::SmallButton(typeIcon);
-            ImGui::PopStyleColor(3);
-
-            ImGui::SameLine();
-            ImGui::Text("%s", name.c_str());
-
-            ImGui::Spacing();
-            ImGui::Indent(30);
-
-            bool changed = false;
-            switch (prop.value.type) {
-                case Core::MaterialPropertyType::Vector4:
-                    changed = renderColorProperty(name, prop);
-                    break;
-                case Core::MaterialPropertyType::Float:
-                    changed = renderFloatProperty(name, prop);
-                    break;
-                case Core::MaterialPropertyType::Texture:
-                    changed = renderTextureProperty(name, prop);
-                    break;
-                case Core::MaterialPropertyType::Vector3:
-                    changed = renderVectorProperty(name, prop);
-                    break;
-                default:
-                    ImGui::TextDisabled("(unsupported type in viewer)");
-                    break;
-            }
-
-            ImGui::Unindent(30);
-
-            // Delete button
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
-            if (ImGui::SmallButton(ICON_FA_TRASH)) {
-                toRemove.push_back(name);
-                needsPreviewUpdate = true;
-            }
-            ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Delete property");
-            }
-
-            if (changed) {
-                needsPreviewUpdate = true;
-            }
-
-            ImGui::PopID();
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
+        bool changed = false;
+        switch (prop.value.type) {
+            case Core::MaterialPropertyType::Vector4:
+                changed = renderColorProperty(name, prop);
+                break;
+            case Core::MaterialPropertyType::Float:
+                changed = renderFloatProperty(name, prop);
+                break;
+            case Core::MaterialPropertyType::Texture:
+                changed = renderTextureProperty(name, prop);
+                break;
+            case Core::MaterialPropertyType::Vector3:
+                changed = renderVectorProperty(name, prop);
+                break;
+            default:
+                ImGui::TextDisabled("(unsupported type)");
         }
 
-        // Remove deleted properties
-        for (const auto& name : toRemove) {
-            mat->properties.erase(name);
-        }
+        ImGui::Unindent(30);
+        ImGui::SameLine();
+        if (ImGui::SmallButton(ICON_FA_TRASH))
+            toRemove.push_back(name);
+        if (changed)
+            needsPreviewUpdate = true;
+        ImGui::PopID();
+        ImGui::Separator();
+    });
 
-        // Empty state message
-        if (!hasProperties) {
-            ImGui::Spacing();
-            ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-            ImGui::TextWrapped("No properties yet. Add properties using the button below.");
-            ImGui::PopStyleColor();
-            ImGui::Spacing();
-        }
+    for (auto& name : toRemove)
+        mat->removeProperty(name);
 
-        // Add a property button (at bottom)
-        ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 40);
-        if (ImGui::Button(ICON_FA_PLUS " Add Property", ImVec2(-1, 30))) {
-            showAddPropertyPopup  = true;
-            propertyNameBuffer[0] = '\0';
-        }
+    if (!hasProps)
+        ImGui::TextDisabled("No properties yet. Use 'Add Property' below.");
 
-        ImGui::EndChild();
+    if (ImGui::Button(ICON_FA_PLUS " Add Property", ImVec2(-1, 30))) {
+        showAddPropertyPopup  = true;
+        propertyNameBuffer[0] = '\0';
     }
 
+    ImGui::EndChild();
     ImGui::Columns(1);
 
     renderAddPropertyPopup();
-
     ImGui::End();
 }
 
-bool MaterialViewer::renderColorProperty(const std::string& name, Core::MaterialProperty& prop) {
+// ==== PROPERTY RENDERERS ====
+
+bool MaterialViewer::renderColorProperty(const std::string&            name,
+                                         const Core::MaterialProperty& prop) const {
     const glm::vec4 color  = prop.value.getVector4();
     float           col[4] = { color.r, color.g, color.b, color.a };
 
-    ImGui::SetNextItemWidth(-30);
     if (ImGui::ColorEdit4(fmt::format("##{}_color", name).c_str(),
                           col,
                           ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaBar)) {
-        prop.value = Core::MaterialPropertyValue(glm::vec4(col[0], col[1], col[2], col[3]));
+        materialHandle.get()->setProperty(
+            name, Core::MaterialPropertyValue(glm::vec4(col[0], col[1], col[2], col[3])));
         return true;
     }
     return false;
 }
 
-bool MaterialViewer::renderFloatProperty(const std::string& name, Core::MaterialProperty& prop) {
-    float value = prop.value.getFloat();
-    ImGui::SetNextItemWidth(-30);
-    if (ImGui::SliderFloat(fmt::format("##{}_float", name).c_str(), &value, 0.0f, 1.0f, "%.3f")) {
-        prop.value = Core::MaterialPropertyValue(value);
+bool MaterialViewer::renderFloatProperty(const std::string&            name,
+                                         const Core::MaterialProperty& prop) const {
+    float val = prop.value.getFloat();
+    if (ImGui::SliderFloat(fmt::format("##{}_float", name).c_str(), &val, 0.0f, 1.0f, "%.3f")) {
+        materialHandle.get()->setProperty(name, Core::MaterialPropertyValue(val));
+        return true;
+    }
+    return false;
+}
+
+bool MaterialViewer::renderVectorProperty(const std::string&            name,
+                                          const Core::MaterialProperty& prop) const {
+    const glm::vec3 v      = prop.value.getVector3();
+    float           arr[3] = { v.x, v.y, v.z };
+    if (ImGui::DragFloat3(fmt::format("##{}_vec3", name).c_str(), arr, 0.01f)) {
+        materialHandle.get()->setProperty(
+            name, Core::MaterialPropertyValue(glm::vec3(arr[0], arr[1], arr[2])));
         return true;
     }
     return false;
@@ -493,86 +344,53 @@ bool MaterialViewer::renderTextureProperty(const std::string&            name,
                                            const Core::MaterialProperty& prop) const {
     const Core::UUID texID = prop.value.getTexture();
     int              slot  = prop.value.getTextureSlot();
-
-    std::string buttonText = "None";
+    std::string      label = "None";
     if (!texID.is_nil()) {
-        const auto texMeta = assetManager->getMetadata(texID);
-        buttonText         = texMeta.path.substr(texMeta.path.find_last_of('/') + 1);
+        auto meta = assetManager->getMetadata(texID);
+        label     = meta.path.substr(meta.path.find_last_of('/') + 1);
     }
 
     bool changed = false;
-
-    // Texture dropdown
     ImGui::SetNextItemWidth(-100);
-    if (ImGui::BeginCombo(fmt::format("##{}_texture", name).c_str(), buttonText.c_str())) {
+    if (ImGui::BeginCombo(fmt::format("##{}_texture", name).c_str(), label.c_str())) {
         if (ImGui::Selectable("None", texID.is_nil())) {
-            const auto mat = materialHandle.get();
-            mat->setTexture(name, Core::UUID(), slot);
+            materialHandle.get()->setProperty(name,
+                                              Core::MaterialPropertyValue(Core::UUID(), slot));
             changed = true;
         }
-
-        for (const auto allTextures = assetManager->getAllOfType<Graphics::Texture2D>();
-             auto&      texHandle : allTextures) {
-            auto        texMeta = assetManager->getMetadata(texHandle.getID());
-            std::string texName = texMeta.path.substr(texMeta.path.find_last_of('/') + 1);
-
-            const bool isSelected = (texHandle.getID() == texID);
-            if (ImGui::Selectable(texName.c_str(), isSelected)) {
-                const auto mat = materialHandle.get();
-                mat->setTexture(name, texHandle.getID(), slot);
+        for (auto  textures = assetManager->getAllOfType<Graphics::Texture2D>();
+             auto& t : textures) {
+            auto        meta  = assetManager->getMetadata(t.getID());
+            std::string tName = meta.path.substr(meta.path.find_last_of('/') + 1);
+            bool        sel   = (t.getID() == texID);
+            if (ImGui::Selectable(tName.c_str(), sel)) {
+                materialHandle.get()->setProperty(name,
+                                                  Core::MaterialPropertyValue(t.getID(), slot));
                 changed = true;
             }
-
-            if (isSelected) {
-                ImGui::SetItemDefaultFocus();
-            }
         }
-
         ImGui::EndCombo();
     }
 
-    // Slot controls
     ImGui::SameLine();
     ImGui::Text("Slot:");
     ImGui::SameLine();
-
     ImGui::PushButtonRepeat(true);
-    if (ImGui::SmallButton(fmt::format("-##{}", name).c_str())) {
-        if (slot > 0) {
-            slot--;
-            const auto mat = materialHandle.get();
-            mat->setTexture(name, texID, slot);
-            changed = true;
-        }
+    if (ImGui::SmallButton(fmt::format("-##{}", name).c_str()) && slot > 0) {
+        slot--;
+        materialHandle.get()->setProperty(name, Core::MaterialPropertyValue(texID, slot));
+        changed = true;
     }
-
     ImGui::SameLine();
     ImGui::Text("%d", slot);
-
     ImGui::SameLine();
-    if (ImGui::SmallButton(fmt::format("+##{}", name).c_str())) {
-        if (slot < 10) {
-            slot++;
-            const auto mat = materialHandle.get();
-            mat->setTexture(name, texID, slot);
-            changed = true;
-        }
+    if (ImGui::SmallButton(fmt::format("+##{}", name).c_str()) && slot < 10) {
+        slot++;
+        materialHandle.get()->setProperty(name, Core::MaterialPropertyValue(texID, slot));
+        changed = true;
     }
     ImGui::PopButtonRepeat();
-
     return changed;
-}
-
-bool MaterialViewer::renderVectorProperty(const std::string& name, Core::MaterialProperty& prop) {
-    const glm::vec3 vec  = prop.value.getVector3();
-    float           v[3] = { vec.x, vec.y, vec.z };
-
-    ImGui::SetNextItemWidth(-30);
-    if (ImGui::DragFloat3(fmt::format("##{}_vec3", name).c_str(), v, 0.01f, 0.0f, 0.0f, "%.2f")) {
-        prop.value = Core::MaterialPropertyValue(glm::vec3(v[0], v[1], v[2]));
-        return true;
-    }
-    return false;
 }
 
 void MaterialViewer::renderAddPropertyPopup() {
@@ -580,62 +398,40 @@ void MaterialViewer::renderAddPropertyPopup() {
         ImGui::OpenPopup("Add Property");
         showAddPropertyPopup = false;
     }
-
-    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_Always);
     if (ImGui::BeginPopupModal("Add Property", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         const auto mat = materialHandle.get();
-
         ImGui::Text("Property Name:");
-        ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##PropName", propertyNameBuffer.data(), propertyNameBuffer.size());
 
-        ImGui::Spacing();
         ImGui::SeparatorText("Type");
-        ImGui::Spacing();
+        constexpr ImVec2  btn(135, 40);
+        const std::string name(propertyNameBuffer.data());
 
-        // Type buttons in the grid
-        constexpr ImVec2 buttonSize(135, 40);
-
-        if (ImGui::Button(ICON_FA_PALETTE " Color", buttonSize)) {
-            if (const std::string propName(propertyNameBuffer.data()); !propName.empty()) {
-                mat->setVector4(propName, glm::vec4(1.0f));
-                needsPreviewUpdate = true;
-                ImGui::CloseCurrentPopup();
-            }
+        if (ImGui::Button(ICON_FA_PALETTE " Color", btn) && !name.empty()) {
+            mat->setValue(name, glm::vec4(1.0f));
+            needsPreviewUpdate = true;
+            ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button(ICON_FA_HASHTAG " Float", buttonSize)) {
-            if (const std::string propName(propertyNameBuffer.data()); !propName.empty()) {
-                mat->setFloat(propName, 0.5f);
-                needsPreviewUpdate = true;
-                ImGui::CloseCurrentPopup();
-            }
+        if (ImGui::Button(ICON_FA_HASHTAG " Float", btn) && !name.empty()) {
+            mat->setValue(name, 0.5f);
+            needsPreviewUpdate = true;
+            ImGui::CloseCurrentPopup();
         }
-
-        if (ImGui::Button(ICON_FA_VECTOR_SQUARE " Vector3", buttonSize)) {
-            if (const std::string propName(propertyNameBuffer.data()); !propName.empty()) {
-                mat->setVector3(propName, glm::vec3(0.0f));
-                needsPreviewUpdate = true;
-                ImGui::CloseCurrentPopup();
-            }
+        if (ImGui::Button(ICON_FA_VECTOR_SQUARE " Vector3", btn) && !name.empty()) {
+            mat->setValue(name, glm::vec3(0.0f));
+            needsPreviewUpdate = true;
+            ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button(ICON_FA_IMAGE " Texture", buttonSize)) {
-            if (const std::string propName(propertyNameBuffer.data()); !propName.empty()) {
-                mat->setTexture(propName, Core::UUID(), 0);
-                needsPreviewUpdate = true;
-                ImGui::CloseCurrentPopup();
-            }
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        if (ImGui::Button("Cancel", ImVec2(-1, 0))) {
+        if (ImGui::Button(ICON_FA_IMAGE " Texture", btn) && !name.empty()) {
+            mat->setProperty(name, Core::MaterialPropertyValue(Core::UUID(), 0));
+            needsPreviewUpdate = true;
             ImGui::CloseCurrentPopup();
         }
 
+        if (ImGui::Button("Cancel", ImVec2(-1, 0)))
+            ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
 }

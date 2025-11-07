@@ -8,7 +8,7 @@
 
 namespace Corvus::Core {
 
-class MaterialLoader : public AssetLoader<MaterialAsset> {
+class MaterialLoader final : public AssetLoader<MaterialAsset> {
 public:
     MaterialAsset* loadTyped(const std::string& path) override {
         PHYSFS_File* file = PHYSFS_openRead(path.c_str());
@@ -105,7 +105,6 @@ public:
         if (!mat)
             return;
 
-        // MaterialAsset is pure data, no GPU resources to clean up
         delete mat;
     }
 
@@ -113,16 +112,13 @@ public:
         if (!existing || !fresh)
             return;
 
-        existing->properties  = std::move(fresh->properties);
-        existing->shaderAsset = fresh->shaderAsset;
-        existing->doubleSided = fresh->doubleSided;
-        existing->alphaBlend  = fresh->alphaBlend;
+        *existing = std::move(*fresh);
 
         CORVUS_CORE_INFO("Reloaded material asset (shader {}, {} properties)",
-                         !existing->shaderAsset.is_nil()
-                             ? boost::uuids::to_string(existing->shaderAsset)
+                         !existing->getShaderAsset().is_nil()
+                             ? boost::uuids::to_string(existing->getShaderAsset())
                              : "none",
-                         existing->properties.size());
+                         existing->getPropertyCount());
     }
 
     AssetType getType() const override { return AssetType::Material; }

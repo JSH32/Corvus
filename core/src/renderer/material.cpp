@@ -24,6 +24,21 @@ void Material::setTextureCube(const uint32_t slot, const TextureCube& texture) {
     textureCubes[slot] = texture;
 }
 
+void Material::setShader(const Shader& shader, bool releaseOld) {
+    if (this->shader.id == shader.id)
+        return;
+
+    if (releaseOld && shader.valid()) {
+        this->shader.release();
+    }
+
+    if (this->shader.id != shader.id) {
+        uniforms.clear();
+    }
+
+    this->shader = shader;
+}
+
 void Material::setRenderState(const RenderState& state) { renderState = state; }
 
 void Material::bind(CommandBuffer& cmd) {
@@ -39,8 +54,8 @@ void Material::bind(CommandBuffer& cmd) {
     // Set uniforms
     for (const auto& [name, value] : uniforms) {
         std::visit(
-            [&](auto&& arg) {
-                using T = std::decay_t<decltype(arg)>;
+            [&]<typename T0>(T0&& arg) {
+                using T = std::decay_t<T0>;
                 if constexpr (std::is_same_v<T, int>) {
                     shader.setInt(cmd, name.c_str(), arg);
                 } else if constexpr (std::is_same_v<T, float>) {
